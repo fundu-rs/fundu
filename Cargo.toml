@@ -2,7 +2,15 @@
 name = "fundu"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Joining7943 <joining@posteo.de>"]
+description = "Configurable, precise and fast string parser to a rust std::time::Duration"
+readme = "README.md"
+license = "MIT"
+license-file = "LICENSE"
+keywords = ["parse", "string", "duration", "time"]
+categories = ["command-line-interface", "parsing", "date-and-time"]
+homepage = "hptts://github.com/Joining7943/fundu"
+repository = "hptts://github.com/Joining7943/fundu"
+rust-version = "1.60.0"
 
 [dependencies]
