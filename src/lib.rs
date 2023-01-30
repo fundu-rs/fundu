@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// spell-checker:ignore Nanos Repr rstest fract milli picos ATTO
+// spell-checker:ignore Nanos Repr rstest fract milli picos ATTO Attos
 
 use std::cmp::Ordering;
 use std::slice::Iter;
@@ -15,13 +15,14 @@ const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
 
 #[derive(Debug)]
-enum ParseError {
+pub enum ParseError {
     Syntax,
     Overflow,
+    TimeUnitError,
 }
 
 #[derive(Debug, PartialEq)]
-enum TimeUnit {
+pub enum TimeUnit {
     NanoSecond,
     MicroSecond,
     MilliSecond,
@@ -57,7 +58,7 @@ impl TryFrom<&[u8]> for TimeUnit {
             b"w" => Ok(Week),
             b"mon" => Ok(Month),
             b"y" => Ok(Year),
-            _ => Err(ParseError::Syntax),
+            _ => Err(ParseError::TimeUnitError),
         }
     }
 }
@@ -116,19 +117,19 @@ impl<'a> Seconds<'a> {
     }
 }
 
-/// An intermediate representation of nano seconds.
+/// An intermediate representation of atto seconds.
 ///
 /// Optionally prepend `usize` amount of zeroes.
-struct Nanos<'a>(Option<usize>, Option<&'a [u8]>, Option<&'a [u8]>);
+struct Attos<'a>(Option<usize>, Option<&'a [u8]>, Option<&'a [u8]>);
 
-impl<'a> Nanos<'a> {
-    const ZERO: Self = Nanos(None, None, None);
+impl<'a> Attos<'a> {
+    const ZERO: Self = Attos(None, None, None);
 
     fn parse(&self) -> u64 {
         let mut multi = ATTO_MULTIPLIER / 10;
-        let mut nanos: u64 = 0;
+        let mut attos: u64 = 0;
 
-        // 9 is the number of digits of nano seconds
+        // 10 is the number of digits of atto seconds
         let num_zeroes = self.0.unwrap_or(0).min(18);
 
         for c in (0..num_zeroes)
@@ -137,11 +138,11 @@ impl<'a> Nanos<'a> {
             .chain(self.2.iter().flat_map(|s| s.iter()))
             .take(18)
         {
-            nanos += *c as u64 * multi;
+            attos += *c as u64 * multi;
             multi /= 10;
         }
 
-        nanos
+        attos
     }
 }
 
@@ -186,48 +187,48 @@ impl DurationRepr {
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
         // to integers is necessary, since the exponent can move digits into the to be considered
         // final integer domain.
-        let (seconds, picos) = match self.exponent.cmp(&0) {
+        let (seconds, attos) = match self.exponent.cmp(&0) {
             Ordering::Less if whole.len() > exponent_abs => {
                 let seconds = Seconds(Some(&whole[..whole.len() - exponent_abs]), None, None);
-                let picos = Nanos(
+                let attos = Attos(
                     None,
                     Some(&whole[whole.len() - exponent_abs..]),
                     Some(&fract),
                 );
-                (seconds, picos)
+                (seconds, attos)
             }
             Ordering::Less => {
                 let seconds = Seconds::ZERO;
-                let picos = Nanos(Some(exponent_abs - whole.len()), Some(&whole), Some(&fract));
-                (seconds, picos)
+                let attos = Attos(Some(exponent_abs - whole.len()), Some(&whole), Some(&fract));
+                (seconds, attos)
             }
             Ordering::Equal => {
                 let seconds = Seconds(Some(&whole), None, None);
-                let picos = Nanos(None, Some(&fract), None);
-                (seconds, picos)
+                let attos = Attos(None, Some(&fract), None);
+                (seconds, attos)
             }
             Ordering::Greater if fract.len() > exponent_abs => {
                 let seconds = Seconds(Some(&whole), Some(&fract[..exponent_abs]), None);
-                let picos = Nanos(None, Some(&fract[exponent_abs..]), None);
-                (seconds, picos)
+                let attos = Attos(None, Some(&fract[exponent_abs..]), None);
+                (seconds, attos)
             }
             Ordering::Greater => {
                 let seconds = Seconds(Some(&whole), Some(&fract), Some(exponent_abs - fract.len()));
-                let picos = Nanos::ZERO;
-                (seconds, picos)
+                let attos = Attos::ZERO;
+                (seconds, attos)
             }
         };
 
-        // Finally, parse the seconds and nano seconds and interpret a seconds overflow as
+        // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
         // maximum `Duration`.
-        let (seconds, picos) = match seconds.parse() {
-            Ok(seconds) => (seconds, picos.parse()),
-            Err(ParseError::Overflow) => (SECONDS_MAX, NANOS_MAX as u64 * ATTO_TO_NANO),
+        let (seconds, attos) = match seconds.parse() {
+            Ok(seconds) => (seconds, attos.parse()),
+            Err(ParseError::Overflow) => return Ok(Duration::MAX),
             Err(_) => unreachable!(), // only ParseError::Overflow is returned by `Seconds::parse`
         };
 
         // allow `-0` or `-0.0` and interpret as plain `0`
-        if self.is_negative && seconds == 0 && picos == 0 {
+        if self.is_negative && seconds == 0 && attos == 0 {
             Ok(Duration::ZERO)
         } else if self.is_negative {
             Err(ParseError::Syntax)
@@ -236,21 +237,22 @@ impl DurationRepr {
                 TimeUnit::NanoSecond
                 | TimeUnit::MicroSecond
                 | TimeUnit::MilliSecond
-                | TimeUnit::Second => Ok(Duration::new(seconds, (picos / ATTO_TO_NANO) as u32)),
+                | TimeUnit::Second => Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32)),
                 TimeUnit::Minute
                 | TimeUnit::Hour
                 | TimeUnit::Day
                 | TimeUnit::Week
                 | TimeUnit::Month
                 | TimeUnit::Year => {
-                    let picos = picos * (self.unit.multiplier());
-                    let nanos = (picos / ATTO_TO_NANO) % 1_000_000_000;
+                    let attos = attos * (self.unit.multiplier());
                     Ok(
                         match seconds
                             .checked_mul(self.unit.multiplier())
-                            .and_then(|s| s.checked_add(picos / ATTO_MULTIPLIER))
+                            .and_then(|s| s.checked_add(attos / ATTO_MULTIPLIER))
                         {
-                            Some(s) => Duration::new(s, nanos as u32),
+                            Some(s) => {
+                                Duration::new(s, ((attos / ATTO_TO_NANO) % 1_000_000_000) as u32)
+                            }
                             None => Duration::MAX,
                         },
                     )
