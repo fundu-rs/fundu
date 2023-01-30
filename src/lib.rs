@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// spell-checker:ignore Nanos Repr rstest fract milli picos
+// spell-checker:ignore Nanos Repr rstest fract milli picos ATTO
 
 use std::cmp::Ordering;
 use std::slice::Iter;
@@ -11,6 +11,8 @@ use std::time::Duration;
 
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
+const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
+const ATTO_TO_NANO: u64 = 1_000_000_000;
 
 #[derive(Debug)]
 enum ParseError {
@@ -27,6 +29,9 @@ enum TimeUnit {
     Minute,
     Hour,
     Day,
+    Week,
+    Month,
+    Year,
 }
 
 impl Default for TimeUnit {
@@ -49,12 +54,13 @@ impl TryFrom<&[u8]> for TimeUnit {
             b"m" => Ok(Minute),
             b"h" => Ok(Hour),
             b"d" => Ok(Day),
+            b"w" => Ok(Week),
+            b"mon" => Ok(Month),
+            b"y" => Ok(Year),
             _ => Err(ParseError::Syntax),
         }
     }
 }
-
-const ALL_TIMEUNITS: [TimeUnit; 2] = [TimeUnit::NanoSecond, TimeUnit::MicroSecond];
 
 impl TimeUnit {
     fn multiplier(&self) -> u64 {
@@ -68,6 +74,9 @@ impl TimeUnit {
             Minute => 60,
             Hour => 3600,
             Day => 86400,
+            Week => 604800,
+            Month => 2592000,
+            Year => 31536000,
         }
     }
 }
@@ -116,17 +125,17 @@ impl<'a> Nanos<'a> {
     const ZERO: Self = Nanos(None, None, None);
 
     fn parse(&self) -> u64 {
-        let mut multi = 100_000_000_000_000;
+        let mut multi = ATTO_MULTIPLIER / 10;
         let mut nanos: u64 = 0;
 
         // 9 is the number of digits of nano seconds
-        let num_zeroes = self.0.unwrap_or(0).min(15);
+        let num_zeroes = self.0.unwrap_or(0).min(18);
 
         for c in (0..num_zeroes)
             .map(|_| &0)
             .chain(self.1.iter().flat_map(|s| s.iter()))
             .chain(self.2.iter().flat_map(|s| s.iter()))
-            .take(15)
+            .take(18)
         {
             nanos += *c as u64 * multi;
             multi /= 10;
@@ -213,7 +222,7 @@ impl DurationRepr {
         // maximum `Duration`.
         let (seconds, picos) = match seconds.parse() {
             Ok(seconds) => (seconds, picos.parse()),
-            Err(ParseError::Overflow) => (SECONDS_MAX, NANOS_MAX as u64 * 1_000_000),
+            Err(ParseError::Overflow) => (SECONDS_MAX, NANOS_MAX as u64 * ATTO_TO_NANO),
             Err(_) => unreachable!(), // only ParseError::Overflow is returned by `Seconds::parse`
         };
 
@@ -227,14 +236,19 @@ impl DurationRepr {
                 TimeUnit::NanoSecond
                 | TimeUnit::MicroSecond
                 | TimeUnit::MilliSecond
-                | TimeUnit::Second => Ok(Duration::new(seconds, (picos / 1_000_000) as u32)),
-                TimeUnit::Minute | TimeUnit::Hour | TimeUnit::Day => {
+                | TimeUnit::Second => Ok(Duration::new(seconds, (picos / ATTO_TO_NANO) as u32)),
+                TimeUnit::Minute
+                | TimeUnit::Hour
+                | TimeUnit::Day
+                | TimeUnit::Week
+                | TimeUnit::Month
+                | TimeUnit::Year => {
                     let picos = picos * (self.unit.multiplier());
-                    let nanos = (picos / 1_000_000) % 1_000_000_000;
+                    let nanos = (picos / ATTO_TO_NANO) % 1_000_000_000;
                     Ok(
                         match seconds
                             .checked_mul(self.unit.multiplier())
-                            .and_then(|s| s.checked_add(picos / 1_000_000_000_000_000))
+                            .and_then(|s| s.checked_add(picos / ATTO_MULTIPLIER))
                         {
                             Some(s) => Duration::new(s, nanos as u32),
                             None => Duration::MAX,
@@ -635,7 +649,8 @@ mod tests {
     #[case::minutes_fraction("0.1m", Duration::new(6, 0))]
     #[case::minutes_negative_exponent("100.0e-3m", Duration::new(6, 0))]
     #[case::minutes_underflow("0.0000000001m", Duration::new(0, 6))]
-    #[case::minutes_underflow("0.000000000001h", Duration::new(0, 3))]
+    #[case::hours_underflow("0.000000000001h", Duration::new(0, 3))]
+    #[case::years_underflow("0.0000000000000001y", Duration::new(0, 3))]
     fn test_parse_duration_when_time_units_are_given(
         #[case] source: &str,
         #[case] expected: Duration,
