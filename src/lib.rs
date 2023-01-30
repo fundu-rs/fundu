@@ -6,6 +6,7 @@
 // spell-checker:ignore Nanos Repr rstest fract milli picos ATTO Attos
 
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Duration;
 
@@ -21,7 +22,7 @@ pub enum ParseError {
     TimeUnitError,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TimeUnit {
     NanoSecond,
     MicroSecond,
@@ -41,29 +42,24 @@ impl Default for TimeUnit {
     }
 }
 
-impl TryFrom<&[u8]> for TimeUnit {
-    type Error = ParseError;
-
-    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        use TimeUnit::*;
-
-        match value {
-            b"ns" => Ok(NanoSecond),
-            b"mms" => Ok(MicroSecond),
-            b"ms" => Ok(MilliSecond),
-            b"s" => Ok(Second),
-            b"m" => Ok(Minute),
-            b"h" => Ok(Hour),
-            b"d" => Ok(Day),
-            b"w" => Ok(Week),
-            b"mon" => Ok(Month),
-            b"y" => Ok(Year),
-            _ => Err(ParseError::TimeUnitError),
-        }
-    }
-}
+pub const ALL_TIME_UNITS: [(&str, TimeUnit); 10] = [
+    ("ns", TimeUnit::NanoSecond),
+    ("mms", TimeUnit::MicroSecond),
+    ("ms", TimeUnit::MilliSecond),
+    ("s", TimeUnit::Second),
+    ("m", TimeUnit::Minute),
+    ("h", TimeUnit::Hour),
+    ("d", TimeUnit::Day),
+    ("w", TimeUnit::Week),
+    ("mon", TimeUnit::Month),
+    ("y", TimeUnit::Year),
+];
 
 impl TimeUnit {
+    fn identifier(&self) -> &'static str {
+        ALL_TIME_UNITS.iter().find(|(_, v)| v == self).unwrap().0
+    }
+
     fn multiplier(&self) -> u64 {
         use TimeUnit::*;
 
@@ -261,18 +257,23 @@ impl DurationRepr {
         }
     }
 }
+
 struct DurationParser<'a> {
     current_byte: Option<&'a u8>,
     iterator: Iter<'a, u8>,
+    time_units: &'a HashMap<&'a [u8], TimeUnit>,
+    max_length: usize,
 }
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> DurationParser<'a> {
-    fn new(input: &'a str) -> Self {
+    fn new(input: &'a str, time_units: &'a HashMap<&'a [u8], TimeUnit>, max_length: usize) -> Self {
         let mut iterator = input.as_bytes().iter();
         Self {
             current_byte: iterator.next(),
             iterator,
+            time_units,
+            max_length,
         }
     }
 
@@ -349,7 +350,7 @@ impl<'a> DurationParser<'a> {
     }
 
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
-        let mut max_bytes = 3;
+        let mut max_bytes = self.max_length;
         let mut bytes = Vec::<u8>::with_capacity(max_bytes);
         while let Some(byte) = self.current_byte {
             if max_bytes != 0 {
@@ -361,7 +362,10 @@ impl<'a> DurationParser<'a> {
             }
         }
 
-        TimeUnit::try_from(bytes.as_slice())
+        self.time_units
+            .get(bytes.as_slice())
+            .cloned()
+            .ok_or(ParseError::Syntax)
     }
 
     fn parse_digits(&mut self, mut max: usize) -> Result<Vec<u8>, ParseError> {
@@ -448,6 +452,63 @@ impl<'a> DurationParser<'a> {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct Parser<'a> {
+    no_time_units: bool,
+    time_units: HashMap<&'a [u8], TimeUnit>,
+    max_length: usize,
+}
+
+impl<'a> Parser<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn no_time_units(&mut self) -> &mut Self {
+        self.no_time_units = true;
+        self
+    }
+
+    pub fn time_unit(&mut self, key: &'a str, unit: TimeUnit) -> &mut Self {
+        self.time_units.insert(key.as_bytes(), unit);
+        let length = key.len();
+        if self.max_length < length {
+            self.max_length = length;
+        }
+        self
+    }
+
+    pub fn time_units(&mut self, units: &'a [(&str, TimeUnit)]) -> &mut Self {
+        for (key, val) in units {
+            self.time_unit(key, *val);
+        }
+        self
+    }
+
+    pub fn time_unit_with_default_key(&mut self, unit: TimeUnit) -> &mut Self {
+        self.time_unit(unit.identifier(), unit);
+        self
+    }
+
+    pub fn time_units_with_default_key(&mut self, units: &[TimeUnit]) -> &mut Self {
+        for unit in units {
+            self.time_unit_with_default_key(*unit);
+        }
+        self
+    }
+
+    pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
+        if self.no_time_units {
+            self.time_units.clear();
+        } else if self.time_units.is_empty() {
+            self.time_units(&ALL_TIME_UNITS);
+        }
+
+        let mut parser = DurationParser::new(source, &self.time_units, self.max_length);
+        parser.parse().and_then(|mut repr| repr.parse())
+    }
+}
+
 /// Parse a string into a [`Duration`] by accepting a source string similar to floating point.
 ///
 /// No whitespace is allowed in the source string. By parsing directly into a `u64` for the whole
@@ -493,12 +554,8 @@ impl<'a> DurationParser<'a> {
 /// ```
 ///
 /// [`f64::from_str`]: https://doc.rust-lang.org/std/primitive.f64.html#method.from_str
-pub fn parse_duration(string: &str) -> Result<Duration, String> {
-    let mut parser = DurationParser::new(string);
-    parser
-        .parse()
-        .and_then(|mut repr| repr.parse())
-        .map_err(|_| "Error parsing duration".to_string())
+pub fn parse_duration(string: &str) -> Result<Duration, ParseError> {
+    Parser::new().parse(string)
 }
 
 #[cfg(test)]
@@ -659,5 +716,33 @@ mod tests {
     ) {
         let duration = parse_duration(source).unwrap();
         assert_eq!(duration, expected);
+    }
+
+    #[rstest]
+    #[case::seconds("1s", vec![("s", TimeUnit::Second)])]
+    #[case::hour("1h", vec![("h", TimeUnit::Hour)])]
+    #[case::arbitrary("1some", vec![("some", TimeUnit::Minute)])]
+    fn test_parser_when_time_units(
+        #[case] source: &str,
+        #[case] time_units: Vec<(&str, TimeUnit)>,
+    ) {
+        Parser::new()
+            .time_units(time_units.as_slice())
+            .parse(source)
+            .unwrap();
+    }
+
+    #[rstest]
+    #[case::minute_short("1s", vec![("m", TimeUnit::Minute)])]
+    #[case::hour_long("1s", vec![("hour", TimeUnit::Hour)])]
+    #[should_panic]
+    fn test_parser_when_time_units_are_not_present_then_panics(
+        #[case] source: &str,
+        #[case] time_units: Vec<(&str, TimeUnit)>,
+    ) {
+        Parser::new()
+            .time_units(time_units.as_slice())
+            .parse(source)
+            .unwrap();
     }
 }
