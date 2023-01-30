@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// spell-checker:ignore Nanos Repr rstest fract
+// spell-checker:ignore Nanos Repr rstest fract milli picos
 
 use std::cmp::Ordering;
 use std::slice::Iter;
@@ -64,7 +64,7 @@ impl TimeUnit {
             NanoSecond => 9,
             MicroSecond => 6,
             MilliSecond => 3,
-            Second => 1,
+            Second => 0,
             Minute => 60,
             Hour => 3600,
             Day => 86400,
@@ -115,20 +115,20 @@ struct Nanos<'a>(Option<usize>, Option<&'a [u8]>, Option<&'a [u8]>);
 impl<'a> Nanos<'a> {
     const ZERO: Self = Nanos(None, None, None);
 
-    fn parse(&self) -> u32 {
-        let mut multi = 100_000_000;
-        let mut nanos: u32 = 0;
+    fn parse(&self) -> u64 {
+        let mut multi = 100_000_000_000_000;
+        let mut nanos: u64 = 0;
 
         // 9 is the number of digits of nano seconds
-        let num_zeroes = self.0.unwrap_or(0).min(9);
+        let num_zeroes = self.0.unwrap_or(0).min(15);
 
         for c in (0..num_zeroes)
             .map(|_| &0)
             .chain(self.1.iter().flat_map(|s| s.iter()))
             .chain(self.2.iter().flat_map(|s| s.iter()))
-            .take(9)
+            .take(15)
         {
-            nanos += *c as u32 * multi;
+            nanos += *c as u64 * multi;
             multi /= 10;
         }
 
@@ -163,59 +163,85 @@ impl DurationRepr {
             (Some(whole), Some(fract)) => (whole, fract),
         };
 
+        self.exponent -= match self.unit {
+            TimeUnit::NanoSecond
+            | TimeUnit::MicroSecond
+            | TimeUnit::MilliSecond
+            | TimeUnit::Second => self.unit.multiplier().try_into().unwrap(), // unwrap is safe here because multiplier is max == 9
+            _ => 0,
+        };
+
         // The maximum absolute value of the exponent is `1023`, so it is safe to cast to usize
         let exponent_abs: usize = self.exponent.unsigned_abs().into();
 
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
         // to integers is necessary, since the exponent can move digits into the to be considered
         // final integer domain.
-        let (seconds, nanos) = match self.exponent.cmp(&0) {
+        let (seconds, picos) = match self.exponent.cmp(&0) {
             Ordering::Less if whole.len() > exponent_abs => {
                 let seconds = Seconds(Some(&whole[..whole.len() - exponent_abs]), None, None);
-                let nanos = Nanos(
+                let picos = Nanos(
                     None,
                     Some(&whole[whole.len() - exponent_abs..]),
                     Some(&fract),
                 );
-                (seconds, nanos)
+                (seconds, picos)
             }
             Ordering::Less => {
                 let seconds = Seconds::ZERO;
-                let nanos = Nanos(Some(exponent_abs - whole.len()), Some(&whole), Some(&fract));
-                (seconds, nanos)
+                let picos = Nanos(Some(exponent_abs - whole.len()), Some(&whole), Some(&fract));
+                (seconds, picos)
             }
             Ordering::Equal => {
                 let seconds = Seconds(Some(&whole), None, None);
-                let nanos = Nanos(None, Some(&fract), None);
-                (seconds, nanos)
+                let picos = Nanos(None, Some(&fract), None);
+                (seconds, picos)
             }
             Ordering::Greater if fract.len() > exponent_abs => {
                 let seconds = Seconds(Some(&whole), Some(&fract[..exponent_abs]), None);
-                let nanos = Nanos(None, Some(&fract[exponent_abs..]), None);
-                (seconds, nanos)
+                let picos = Nanos(None, Some(&fract[exponent_abs..]), None);
+                (seconds, picos)
             }
             Ordering::Greater => {
                 let seconds = Seconds(Some(&whole), Some(&fract), Some(exponent_abs - fract.len()));
-                let nanos = Nanos::ZERO;
-                (seconds, nanos)
+                let picos = Nanos::ZERO;
+                (seconds, picos)
             }
         };
 
         // Finally, parse the seconds and nano seconds and interpret a seconds overflow as
         // maximum `Duration`.
-        let (seconds, nanos) = match seconds.parse() {
-            Ok(seconds) => (seconds, nanos.parse()),
-            Err(ParseError::Overflow) => (SECONDS_MAX, NANOS_MAX),
+        let (seconds, picos) = match seconds.parse() {
+            Ok(seconds) => (seconds, picos.parse()),
+            Err(ParseError::Overflow) => (SECONDS_MAX, NANOS_MAX as u64 * 1_000_000),
             Err(_) => unreachable!(), // only ParseError::Overflow is returned by `Seconds::parse`
         };
 
         // allow `-0` or `-0.0` and interpret as plain `0`
-        if self.is_negative && seconds == 0 && nanos == 0 {
+        if self.is_negative && seconds == 0 && picos == 0 {
             Ok(Duration::ZERO)
         } else if self.is_negative {
             Err(ParseError::Syntax)
         } else {
-            Ok(Duration::new(seconds, nanos))
+            match self.unit {
+                TimeUnit::NanoSecond
+                | TimeUnit::MicroSecond
+                | TimeUnit::MilliSecond
+                | TimeUnit::Second => Ok(Duration::new(seconds, (picos / 1_000_000) as u32)),
+                TimeUnit::Minute | TimeUnit::Hour | TimeUnit::Day => {
+                    let picos = picos * (self.unit.multiplier());
+                    let nanos = (picos / 1_000_000) % 1_000_000_000;
+                    Ok(
+                        match seconds
+                            .checked_mul(self.unit.multiplier())
+                            .and_then(|s| s.checked_add(picos / 1_000_000_000_000_000))
+                        {
+                            Some(s) => Duration::new(s, nanos as u32),
+                            None => Duration::MAX,
+                        },
+                    )
+                }
+            }
         }
     }
 }
@@ -271,14 +297,12 @@ impl<'a> DurationParser<'a> {
                     // the maximum number of digits that need to be considered:
                     // max(+exponent) = 1023 + max_digits(nano seconds) = 9 + 1
                     Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033)?),
-                    Some(byte) if byte.eq_ignore_ascii_case(&b'e') => None,
-                    Some(_) => return Err(ParseError::Syntax),
+                    Some(_) => None,
                     None => return Ok(duration_repr),
                 };
                 duration_repr.fract = fract;
             }
-            Some(byte) if byte.eq_ignore_ascii_case(&b'e') => {}
-            Some(_) => return Err(ParseError::Syntax),
+            Some(_) => {}
             None => return Ok(duration_repr),
         }
 
@@ -289,7 +313,7 @@ impl<'a> DurationParser<'a> {
                 let exponent = self.parse_exponent()?;
                 duration_repr.exponent = exponent;
             }
-            Some(_) => return Err(ParseError::Syntax),
+            Some(_) => {}
             None => return Ok(duration_repr),
         }
 
@@ -599,5 +623,24 @@ mod tests {
         #[case] source: &str,
     ) {
         parse_duration(source).unwrap();
+    }
+
+    #[rstest]
+    #[case::seconds("1s", Duration::new(1, 0))]
+    #[case::milli_seconds("1ms", Duration::new(0, 1_000_000))]
+    #[case::milli_seconds("1000ms", Duration::new(1, 0))]
+    #[case::micro_seconds("1mms", Duration::new(0, 1_000))]
+    #[case::micro_seconds("1e-3mms", Duration::new(0, 1))]
+    #[case::nano_seconds_time_unit("1ns", Duration::new(0, 1))]
+    #[case::minutes_fraction("0.1m", Duration::new(6, 0))]
+    #[case::minutes_negative_exponent("100.0e-3m", Duration::new(6, 0))]
+    #[case::minutes_underflow("0.0000000001m", Duration::new(0, 6))]
+    #[case::minutes_underflow("0.000000000001h", Duration::new(0, 3))]
+    fn test_parse_duration_when_time_units_are_given(
+        #[case] source: &str,
+        #[case] expected: Duration,
+    ) {
+        let duration = parse_duration(source).unwrap();
+        assert_eq!(duration, expected);
     }
 }
