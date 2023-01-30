@@ -12,9 +12,64 @@ use std::time::Duration;
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
 
+#[derive(Debug)]
 enum ParseError {
     Syntax,
     Overflow,
+}
+
+#[derive(Debug, PartialEq)]
+enum TimeUnit {
+    NanoSecond,
+    MicroSecond,
+    MilliSecond,
+    Second,
+    Minute,
+    Hour,
+    Day,
+}
+
+impl Default for TimeUnit {
+    fn default() -> Self {
+        TimeUnit::Second
+    }
+}
+
+impl TryFrom<&[u8]> for TimeUnit {
+    type Error = ParseError;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        use TimeUnit::*;
+
+        match value {
+            b"ns" => Ok(NanoSecond),
+            b"mms" => Ok(MicroSecond),
+            b"ms" => Ok(MilliSecond),
+            b"s" => Ok(Second),
+            b"m" => Ok(Minute),
+            b"h" => Ok(Hour),
+            b"d" => Ok(Day),
+            _ => Err(ParseError::Syntax),
+        }
+    }
+}
+
+const ALL_TIMEUNITS: [TimeUnit; 2] = [TimeUnit::NanoSecond, TimeUnit::MicroSecond];
+
+impl TimeUnit {
+    fn multiplier(&self) -> u64 {
+        use TimeUnit::*;
+
+        match self {
+            NanoSecond => 9,
+            MicroSecond => 6,
+            MilliSecond => 3,
+            Second => 1,
+            Minute => 60,
+            Hour => 3600,
+            Day => 86400,
+        }
+    }
 }
 
 /// An intermediate representation of seconds.
@@ -88,6 +143,7 @@ struct DurationRepr {
     whole: Option<Vec<u8>>,
     fract: Option<Vec<u8>>,
     exponent: i16,
+    unit: TimeUnit,
 }
 
 impl DurationRepr {
@@ -237,11 +293,35 @@ impl<'a> DurationParser<'a> {
             None => return Ok(duration_repr),
         }
 
+        match self.current_byte {
+            Some(_) => {
+                let unit = self.parse_time_unit()?;
+                duration_repr.unit = unit;
+            }
+            None => return Ok(duration_repr),
+        }
+
         // check we've reached the end of input
         match self.current_byte {
             Some(_) => Err(ParseError::Syntax),
             None => Ok(duration_repr),
         }
+    }
+
+    fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
+        let mut max_bytes = 3;
+        let mut bytes = Vec::<u8>::with_capacity(max_bytes);
+        while let Some(byte) = self.current_byte {
+            if max_bytes != 0 {
+                bytes.push(*byte);
+                self.advance();
+                max_bytes -= 1;
+            } else {
+                break;
+            }
+        }
+
+        TimeUnit::try_from(bytes.as_slice())
     }
 
     fn parse_digits(&mut self, mut max: usize) -> Result<Vec<u8>, ParseError> {
