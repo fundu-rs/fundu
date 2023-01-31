@@ -1,13 +1,13 @@
 name: Deploy
 on:
   push:
-    branches: [main]
     tags:
       - "v*"
 
 jobs:
   publish:
     name: Publish to crates.io
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
