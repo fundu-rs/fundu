@@ -9,7 +9,7 @@
 <div align="center">
     <a href="https://docs.rs/crate/fundu/">Released API Docs</a>
     |
-    <a href="https://github.com/Joining7943/fundu/blob/master/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/Joining7943/fundu/blob/main/CHANGELOG.md">Changelog</a>
 </div>
 <br>
 <div align="center">
@@ -38,7 +38,7 @@
     - [Todo](#todo)
     - [License](#license)
   
-## Overview
+# Overview
 
 `fundu` provides a duration parser to parse strings into a [std::time::Duration](https://doc.rust-lang.org/std/time/struct.Duration.html). It tries to improve on the standard method `Duration::from_secs_f64(input.parse().unwrap())` by
 
@@ -46,15 +46,17 @@
 - Using no floating point calculations and precisely parse the input as it is. So, what you put
 in you is what you get out within the range of a `std::time::Duration`.
 - Evaluating to [std::time::Duration::MAX](https://doc.rust-lang.org/std/time/struct.Duration.html#associatedconstant.MAX) if the input number was larger than that maximum or
-the input string was positive `infinity`
-- Providing better error messages in case of parsing errors.
+the input string was positive `infinity`.
+- Providing better error messages.
 
 These features come with low additional runtime costs by still being a lightweight crate.
 This crate is built on top of the rust `stdlib`, and no additional dependencies are required. The
 accepted number format is almost the same like the scientific floating point format by being compatible to the [f64 format](https://doc.rust-lang.org/std/primitive.f64.html#impl-FromStr-for-f64). In other words, if the accepted format was `f64` before there is no change needed to accept the same format with `fundu`. For further details
-see the [Documentation](https://docs.rs/fundu)!
+see the [Documentation](https://docs.rs/crate/fundu)!
 
 # Installation
+
+Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
@@ -63,7 +65,7 @@ fundu = "0.1.0"
 
 # Examples
 
-If only the default configuration is required the `parse_duration` method can be used.
+If only the default configuration is required, the `parse_duration` method can be used.
 
 ```rust
 use fundu::parse_duration;
@@ -73,7 +75,7 @@ let input = "1.0e2s";
 assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
 ```
 
-When a customization of the accepted [TimeUnit](#time-units)s is required then the builder
+When a customization of the accepted [TimeUnit](#time-units)s is required, then the builder
 `DurationParser` can be used.
 
 ```rust
@@ -84,7 +86,7 @@ let input = "3m";
 assert_eq!(DurationParser::with_all_time_units().parse(input).unwrap(), Duration::new(180, 0));
 ```
 
-With no time units allowed always seconds is assumed.
+When no time units are configured, seconds is assumed.
 
 ```rust
 use fundu::DurationParser;
@@ -94,7 +96,7 @@ let input = "1.0e2";
 assert_eq!(DurationParser::with_no_time_units().parse(input).unwrap(), Duration::new(100, 0));
 ```
 
-This will return an error because `y` (years) is not a default time unit.
+This will return an error because `y` (Years) is not a default time unit.
 
 ```rust
 use fundu::DurationParser;
@@ -120,16 +122,19 @@ Weeks | w | :heavy_check_mark: | :heavy_check_mark: | :white_large_square:
 Months | M | :white_large_square: | :heavy_check_mark: | :white_large_square:
 Years | y | :white_large_square: | :heavy_check_mark: | :white_large_square:
 
-Note, that `Months` and `Years` are not included in the default configuration. This is due to the lack of a precise and common definition of `Months` and `Years` in seconds. If they are included in the final configuration then currently only the common gregorian calendar based calculation is available:
+Note, that `Months` and `Years` are not included in the default configuration. The current
+implementation uses a very rough calculation of `Months` and `Years` in seconds. If they are
+included in the final configuration then the following common gregorian calendar based calculation
+is used:
 
-1 year = 365 days and 1 Month = 30 days.
+`1 year = 365 days` and `1 Month = 30 days`.
 
 # Benchmarks
 
 Clone the repository
 
 ```bash
-git clone https://github.com/Joining7943/fundu
+git clone https://github.com/Joining7943/fundu.git
 cd fundu
 ```
 
@@ -141,8 +146,20 @@ cargo bench
 
 # TODO
 
-See [Changelog](../Changelog.md)
+In order of precedence:
+
+- Improve api documentation
+- Improve performance especially for long inputs
+- Make base unit configurable to a different time unit than seconds.
+- Implement usage of more than one identifier for time units
+- Provide more days in a year calculations:
+    - mean Gregorian year
+    - Julian year
+    - Sidereal year
+    - Tropical year
+
+See also [Changelog](CHANGELOG.md)
 
 # License
 
-MIT license ([LICENSE](../LICENSE) or <http://opensource.org/licenses/MIT>)
+MIT license ([LICENSE](LICENSE) or <http://opensource.org/licenses/MIT>)
