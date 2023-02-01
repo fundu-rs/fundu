@@ -13,7 +13,7 @@
 </div>
 <br>
 <div align="center">
-	   <a href="https://github.com/Joining7943/fundu/actions">
+    <a href="https://github.com/Joining7943/fundu/actions">
         <img src="https://github.com/Joining7943/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state">
     </a>
     <a href="https://crates.io/crates/fundu">
@@ -28,25 +28,26 @@
 </div>
 
 ## Table of Contents
+
 - [Table of Contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Installation](#installation)
-  - [Examples](#examples)
-  - [Time Units](#time-units)
-  - [Benchmarks](#benchmarks)
-  - [Todo](#todo)
-  - [License](#license)
+    - [Overview](#overview)
+    - [Installation](#installation)
+    - [Examples](#examples)
+    - [Time Units](#time-units)
+    - [Benchmarks](#benchmarks)
+    - [Todo](#todo)
+    - [License](#license)
   
- ## Overview
+## Overview
 
 `fundu` provides a duration parser to parse strings into a [std::time::Duration](https://doc.rust-lang.org/std/time/struct.Duration.html). It tries to improve on the standard method `Duration::from_secs_f64(input.parse().unwrap())` by
 
-* Providing customizable [TimeUnit](#time-units)s which are accepted in the input string.
-* Using no floating point calculations and precisely parse the input as it is. So, what you put
+- Providing customizable [TimeUnit](#time-units)s which are accepted in the input string.
+- Using no floating point calculations and precisely parse the input as it is. So, what you put
 in you is what you get out within the range of a `std::time::Duration`.
-* Evaluating to [std::time::Duration::MAX](https://doc.rust-lang.org/std/time/struct.Duration.html#associatedconstant.MAX) if the input number was larger than that maximum or
+- Evaluating to [std::time::Duration::MAX](https://doc.rust-lang.org/std/time/struct.Duration.html#associatedconstant.MAX) if the input number was larger than that maximum or
 the input string was positive `infinity`
-* Providing better error messages in case of parsing errors.
+- Providing better error messages in case of parsing errors.
 
 These features come with low additional runtime costs by still being a lightweight crate.
 This crate is built on top of the rust `stdlib`, and no additional dependencies are required. The
@@ -119,7 +120,7 @@ Weeks | w | :heavy_check_mark: | :heavy_check_mark: | :white_large_square:
 Months | M | :white_large_square: | :heavy_check_mark: | :white_large_square:
 Years | y | :white_large_square: | :heavy_check_mark: | :white_large_square:
 
-Note, that `Months` and `Years` are not included in the default configuration. This is due to the lack of a precise and common definition of `Months` and `Years` in seconds. If they are included in the final configuration then currently only the common gregorian calendar based calculation is available: 
+Note, that `Months` and `Years` are not included in the default configuration. This is due to the lack of a precise and common definition of `Months` and `Years` in seconds. If they are included in the final configuration then currently only the common gregorian calendar based calculation is available:
 
 1 year = 365 days and 1 Month = 30 days.
 
@@ -144,4 +145,4 @@ See [Changelog](../Changelog.md)
 
 # License
 
-MIT license ([LICENSE](../LICENSE) or http://opensource.org/licenses/MIT)
+MIT license ([LICENSE](../LICENSE) or <http://opensource.org/licenses/MIT>)
