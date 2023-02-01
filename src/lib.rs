@@ -5,23 +5,19 @@
 
 // spell-checker:ignore Nanos Repr rstest fract milli picos ATTO Attos
 
+mod error;
+
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Duration;
 
+use error::ParseError;
+
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
-
-#[derive(Debug)]
-pub enum ParseError {
-    Syntax,
-    Overflow,
-    TimeUnitError,
-    InvalidInput,
-}
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TimeUnit {
@@ -167,14 +163,14 @@ impl DurationRepr {
     fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
-                return Err(ParseError::Syntax);
+                return Err(ParseError::InvalidInput("Negative infinity".to_string()));
             } else {
                 return Ok(Duration::MAX);
             }
         }
 
         let (whole, fract) = match (self.whole.take(), self.fract.take()) {
-            (None, None) => return Err(ParseError::Syntax),
+            (None, None) => unreachable!("Must be handled when parsing from string."),
             (None, Some(fract)) => (vec![], fract),
             (Some(whole), None) => (whole, vec![]),
             (Some(whole), Some(fract)) => (whole, fract),
@@ -238,7 +234,7 @@ impl DurationRepr {
         if self.is_negative && seconds == 0 && attos == 0 {
             Ok(Duration::ZERO)
         } else if self.is_negative {
-            Err(ParseError::Syntax)
+            Err(ParseError::InvalidInput("Negative number".to_string()))
         } else {
             match self.unit {
                 TimeUnit::NanoSecond
@@ -271,6 +267,7 @@ impl DurationRepr {
 
 struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
+    current_pos: usize,
     iterator: Iter<'a, u8>,
     time_units: &'a HashMap<&'a str, TimeUnit>,
     max_length: usize,
@@ -282,6 +279,7 @@ impl<'a> ReprParser<'a> {
         let mut iterator = input.as_bytes().iter();
         Self {
             current_byte: iterator.next(),
+            current_pos: 0,
             iterator,
             time_units,
             max_length,
@@ -290,6 +288,7 @@ impl<'a> ReprParser<'a> {
 
     fn advance(&mut self) {
         self.current_byte = self.iterator.next();
+        self.current_pos += 1;
     }
 
     fn parse(&mut self) -> Result<DurationRepr, ParseError> {
@@ -314,7 +313,21 @@ impl<'a> ReprParser<'a> {
                 duration_repr.whole = Some(whole);
             }
             Some(byte) if *byte == b'.' => {}
-            Some(_) | None => return Err(ParseError::Syntax),
+            Some(byte) => {
+                return Err(ParseError::Syntax(
+                    self.current_pos,
+                    format!(
+                        "Invalid character: {}",
+                        std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
+                    ),
+                ))
+            }
+            None => {
+                return Err(ParseError::Syntax(
+                    self.current_pos,
+                    "Unexpected end of input".to_string(),
+                ))
+            }
         }
 
         // parse the fraction number part of the input
@@ -325,6 +338,13 @@ impl<'a> ReprParser<'a> {
                     // the maximum number of digits that need to be considered:
                     // max(+exponent) = 1023 + max_digits(nano seconds) = 9 + 1
                     Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033)?),
+                    Some(_) if duration_repr.whole.is_none() => {
+                        return Err(ParseError::Syntax(
+                            self.current_pos,
+                            "Either the whole number part or the fraction must be present"
+                                .to_string(),
+                        ))
+                    }
                     Some(_) => None,
                     None => return Ok(duration_repr),
                 };
@@ -350,13 +370,28 @@ impl<'a> ReprParser<'a> {
                 let unit = self.parse_time_unit()?;
                 duration_repr.unit = unit;
             }
-            Some(_) => return Err(ParseError::Syntax),
+            Some(byte) => {
+                return Err(ParseError::Syntax(
+                    self.current_pos,
+                    format!(
+                        "No time units allowed but found: {}",
+                        std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
+                    ),
+                ))
+            }
             None => return Ok(duration_repr),
         }
 
         // check we've reached the end of input
         match self.current_byte {
-            Some(_) => Err(ParseError::Syntax),
+            Some(byte) => Err(ParseError::Syntax(
+                self.current_pos,
+                format!(
+                    "Expected end of input but found: {}",
+                    std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
+                ),
+            )),
+
             None => Ok(duration_repr),
         }
     }
@@ -374,13 +409,24 @@ impl<'a> ReprParser<'a> {
             }
         }
 
+        let string = std::str::from_utf8(bytes.as_slice()).map_err(|_| {
+            ParseError::Syntax(
+                self.current_pos + max_bytes - self.max_length,
+                "Invalid utf8".to_string(),
+            )
+        })?;
         // TODO: Remove the need to convert to utf8 and store the ids as bytes.
         self.time_units
-            .get(std::str::from_utf8(bytes.as_slice()).map_err(|_| ParseError::InvalidInput)?)
+            .get(string)
             .cloned()
-            .ok_or(ParseError::Syntax)
+            .ok_or(ParseError::Syntax(
+                self.current_pos + max_bytes - self.max_length,
+                format!("Invalid time unit: {string}"),
+            ))
     }
 
+    // TODO: strip leading zeroes for whole part of the number
+    // TODO: strip trailing zeroes for fractional part of the number??
     fn parse_digits(&mut self, mut max: usize) -> Result<Vec<u8>, ParseError> {
         // Using `size_hint()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations and
@@ -401,11 +447,11 @@ impl<'a> ReprParser<'a> {
             }
         }
 
-        if digits.is_empty() {
-            Err(ParseError::Syntax)
-        } else {
-            Ok(digits)
-        }
+        debug_assert!(
+            !digits.is_empty(),
+            "Call this function only when there is at least one digit present"
+        );
+        Ok(digits)
     }
 
     fn parse_infinity(&mut self) -> Result<(), ParseError> {
@@ -413,9 +459,19 @@ impl<'a> ReprParser<'a> {
         for (pos, byte) in expected.iter().enumerate() {
             match self.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.advance(),
-                Some(_) => return Err(ParseError::Syntax), // wrong character
-                None if pos == 3 => return Ok(()),         // short `inf` is allowed
-                None => return Err(ParseError::Syntax),    // premature end of input
+                Some(_) => {
+                    return Err(ParseError::Syntax(
+                        self.current_pos,
+                        "Invalid infinity".to_string(),
+                    ))
+                } // wrong character
+                None if pos == 3 => return Ok(()), // short `inf` is allowed
+                None => {
+                    return Err(ParseError::Syntax(
+                        self.current_pos,
+                        "Unexpected end of input".to_string(),
+                    ))
+                }
             }
         }
 
@@ -423,7 +479,10 @@ impl<'a> ReprParser<'a> {
         if self.current_byte.is_none() {
             Ok(())
         } else {
-            Err(ParseError::Syntax)
+            Err(ParseError::Syntax(
+                self.current_pos,
+                "Expected end of input".to_string(),
+            ))
         }
     }
 
@@ -439,7 +498,10 @@ impl<'a> ReprParser<'a> {
                 Ok(true)
             }
             Some(_) => Ok(false),
-            None => Err(ParseError::Syntax),
+            None => Err(ParseError::Syntax(
+                self.current_pos,
+                "Unexpected end of input".to_string(),
+            )),
         }
     }
 
@@ -762,7 +824,6 @@ mod tests {
 
     #[rstest]
     #[case::minute_short("1s", vec![TimeUnit::Minute])]
-    #[case::hour_long("1s", vec![TimeUnit::Hour])]
     #[should_panic]
     fn test_parser_when_time_units_are_not_present_then_panics(
         #[case] source: &str,
