@@ -249,7 +249,7 @@ impl<'a> ReprParser<'a> {
             Some(byte) if byte.is_ascii_digit() => {
                 // the maximum number of digits that need to be considered:
                 // max(-exponent) = 1022 + max_digits(u64::MAX) = 20 + 1
-                let whole = self.parse_digits(1043)?;
+                let whole = self.parse_digits(1043, true)?;
                 duration_repr.whole = Some(whole);
             }
             Some(byte) if *byte == b'.' => {}
@@ -277,7 +277,7 @@ impl<'a> ReprParser<'a> {
                 let fract = match self.current_byte {
                     // the maximum number of digits that need to be considered:
                     // max(+exponent) = 1023 + max_digits(nano seconds) = 9 + 1
-                    Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033)?),
+                    Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033, false)?),
                     Some(_) if duration_repr.whole.is_none() => {
                         return Err(ParseError::Syntax(
                             self.current_pos,
@@ -367,7 +367,15 @@ impl<'a> ReprParser<'a> {
 
     // TODO: strip leading zeroes for whole part of the number
     // TODO: strip trailing zeroes for fractional part of the number??
-    fn parse_digits(&mut self, mut max: usize) -> Result<Vec<u8>, ParseError> {
+    fn parse_digits(
+        &mut self,
+        mut max: usize,
+        strip_leading_zeroes: bool,
+    ) -> Result<Vec<u8>, ParseError> {
+        debug_assert!(
+            self.current_byte.is_some(),
+            "Call this function only when there is at lease one digit present"
+        );
         // Using `size_hint()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations and
         // maximum memory used is just around `1kB` per parsed number.
@@ -377,7 +385,9 @@ impl<'a> ReprParser<'a> {
         while let Some(byte) = self.current_byte {
             let digit = byte.wrapping_sub(b'0');
             if digit < 10 {
-                if max > 0 {
+                if strip_leading_zeroes && digits.is_empty() && digit == 0 {
+                    // do nothing and just advance
+                } else if max > 0 {
                     digits.push(digit);
                     max -= 1;
                 }
@@ -387,10 +397,10 @@ impl<'a> ReprParser<'a> {
             }
         }
 
-        debug_assert!(
-            !digits.is_empty(),
-            "Call this function only when there is at least one digit present"
-        );
+        if strip_leading_zeroes && digits.is_empty() {
+            digits.push(0);
+        }
+
         Ok(digits)
     }
 
@@ -619,8 +629,7 @@ mod tests {
     #[rstest]
     #[case::simple_zero("0", Duration::ZERO)]
     #[case::many_zeroes(&format!("{}", "0".repeat(2000)), Duration::ZERO)]
-    // FIXME: This test currently fails
-    // #[case::many_leading_zeroes(&format!("{}1", "0".repeat(2000)), Duration::new(1, 0))]
+    #[case::many_leading_zeroes(&format!("{}1", "0".repeat(2000)), Duration::new(1, 0))]
     #[case::zero_point_zero("0.0", Duration::ZERO)]
     #[case::point_zero(".0", Duration::ZERO)]
     #[case::zero_point("0.", Duration::ZERO)]
