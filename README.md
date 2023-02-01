@@ -14,16 +14,19 @@
 <br>
 <div align="center">
     <a href="https://github.com/Joining7943/fundu/actions">
-        <img src="https://github.com/Joining7943/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state">
+        <img src="https://github.com/Joining7943/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state"/>
+    </a>
+    <a href="https://codecov.io/gh/Joining7943/fundu" >
+        <img src="https://codecov.io/gh/Joining7943/fundu/branch/release/graph/badge.svg?token=7GOQ1A6UPH" alt="Code Coverage"/>
     </a>
     <a href="https://crates.io/crates/fundu">
-        <img src="https://img.shields.io/crates/v/fundu.svg" alt="Crates.io">
+        <img src="https://img.shields.io/crates/v/fundu.svg" alt="Crates.io"/>
     </a>
     <a href="https://docs.rs/fundu/">
-        <img src="https://docs.rs/fundu/badge.svg" alt="docs.rs">
+        <img src="https://docs.rs/fundu/badge.svg" alt="docs.rs"/>
     </a>
     <a href="https://github.com/rust-lang/rust">
-        <img src="https://img.shields.io/badge/MSRV-1.60.0-brightgreen" alt="docs.rs">
+        <img src="https://img.shields.io/badge/MSRV-1.60.0-brightgreen" alt="MSRV"/>
     </a>
 </div>
 

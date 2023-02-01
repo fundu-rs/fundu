@@ -11,20 +11,7 @@ env:
   RUST_BACKTRACE: "1"
 
 jobs:
-  docs:
-    name: Docs/ubuntu-latest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2.2.0
-      - name: Run doc tests
-        run: cargo test --doc
-      - name: Check Documentation
-        run: cargo doc --no-deps --document-private-items
-
   base:
-    needs: [docs]
     name: Build, check and test
     strategy:
       fail-fast: false
@@ -69,6 +56,19 @@ jobs:
         run: cargo +stable clippy -- -D warnings
       - name: Test
         run: cargo test
+
+  docs:
+    needs: [base]
+    name: Docs/ubuntu-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Run doc tests
+        run: cargo test --doc
+      - name: Check Documentation
+        run: cargo doc --no-deps --document-private-items
 
   coverage:
     needs: [base]
