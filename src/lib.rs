@@ -269,7 +269,7 @@ impl DurationRepr {
     }
 }
 
-struct DurationParser<'a> {
+struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
     iterator: Iter<'a, u8>,
     time_units: &'a HashMap<&'a str, TimeUnit>,
@@ -277,7 +277,7 @@ struct DurationParser<'a> {
 }
 
 /// Parse a source string into a [`DurationRepr`].
-impl<'a> DurationParser<'a> {
+impl<'a> ReprParser<'a> {
     fn new(input: &'a str, time_units: &'a HashMap<&'a str, TimeUnit>, max_length: usize) -> Self {
         let mut iterator = input.as_bytes().iter();
         Self {
@@ -466,12 +466,12 @@ impl<'a> DurationParser<'a> {
 }
 
 #[derive(Debug, Default)]
-pub struct Parser<'a> {
+pub struct DurationParser<'a> {
     time_units: HashMap<&'a str, TimeUnit>,
     max_length: usize,
 }
 
-impl<'a> Parser<'a> {
+impl<'a> DurationParser<'a> {
     pub fn new() -> Self {
         let mut time_units = HashMap::new();
         time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
@@ -537,7 +537,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = DurationParser::new(source, &self.time_units, self.max_length);
+        let mut parser = ReprParser::new(source, &self.time_units, self.max_length);
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }
@@ -588,7 +588,7 @@ impl<'a> Parser<'a> {
 ///
 /// [`f64::from_str`]: https://doc.rust-lang.org/std/primitive.f64.html#method.from_str
 pub fn parse_duration(string: &str) -> Result<Duration, ParseError> {
-    Parser::new().parse(string)
+    DurationParser::new().parse(string)
 }
 
 #[cfg(test)]
@@ -747,7 +747,7 @@ mod tests {
         #[case] source: &str,
         #[case] expected: Duration,
     ) {
-        let duration = Parser::with_all_time_units().parse(source).unwrap();
+        let duration = DurationParser::with_all_time_units().parse(source).unwrap();
         assert_eq!(duration, expected);
     }
 
@@ -755,7 +755,9 @@ mod tests {
     #[case::seconds("1s", vec![TimeUnit::Second])]
     #[case::hour("1h", vec![TimeUnit::Hour])]
     fn test_parser_when_time_units(#[case] source: &str, #[case] time_units: Vec<TimeUnit>) {
-        Parser::with_time_units(&time_units).parse(source).unwrap();
+        DurationParser::with_time_units(&time_units)
+            .parse(source)
+            .unwrap();
     }
 
     #[rstest]
@@ -766,7 +768,7 @@ mod tests {
         #[case] source: &str,
         #[case] time_units: Vec<TimeUnit>,
     ) {
-        Parser::with_no_time_units()
+        DurationParser::with_no_time_units()
             .time_units(time_units.as_slice())
             .parse(source)
             .unwrap();
