@@ -13,7 +13,6 @@ repository = "hptts://github.com/Joining7943/fundu"
 rust-version = "1.60.0"
 
 [dependencies]
-lazy_static = "1.4.0"
 
 [dev-dependencies]
 rstest = "0.16.0"

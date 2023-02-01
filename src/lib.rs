@@ -10,9 +10,6 @@ use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Duration;
 
-#[macro_use]
-extern crate lazy_static;
-
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
@@ -57,35 +54,6 @@ pub const DEFAULT_ID_WEEK: &str = "w";
 pub const DEFAULT_ID_MONTH: &str = "M";
 pub const DEFAULT_ID_YEAR: &str = "y";
 pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
-
-lazy_static! {
-    pub static ref DEFAULT_TIME_UNITS: HashMap<&'static str, TimeUnit> = {
-        let mut h = HashMap::new();
-        h.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
-        h.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
-        h.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
-        h.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
-        h.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
-        h.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
-        h.insert(DEFAULT_ID_DAY, TimeUnit::Day);
-        h.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
-        h
-    };
-    pub static ref ALL_TIME_UNITS: HashMap<&'static str, TimeUnit> = {
-        let mut h = HashMap::new();
-        h.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
-        h.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
-        h.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
-        h.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
-        h.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
-        h.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
-        h.insert(DEFAULT_ID_DAY, TimeUnit::Day);
-        h.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
-        h.insert(DEFAULT_ID_MONTH, TimeUnit::Month);
-        h.insert(DEFAULT_ID_YEAR, TimeUnit::Year);
-        h
-    };
-}
 
 impl TimeUnit {
     fn default_identifier(&self) -> &'static str {
@@ -406,6 +374,7 @@ impl<'a> DurationParser<'a> {
             }
         }
 
+        // TODO: Remove the need to convert to utf8 and store the ids as bytes.
         self.time_units
             .get(std::str::from_utf8(bytes.as_slice()).map_err(|_| ParseError::InvalidInput)?)
             .cloned()
@@ -504,9 +473,17 @@ pub struct Parser<'a> {
 
 impl<'a> Parser<'a> {
     pub fn new() -> Self {
+        let mut time_units = HashMap::new();
+        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
+        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
+        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
+        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
+        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
+        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
+        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
+        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
         Self {
-            // TODO: How to avoid the clone?
-            time_units: DEFAULT_TIME_UNITS.clone(),
+            time_units,
             max_length: DEFAULT_ID_MAX_LENGTH,
         }
     }
@@ -525,8 +502,19 @@ impl<'a> Parser<'a> {
     }
 
     pub fn with_all_time_units() -> Self {
+        let mut time_units = HashMap::new();
+        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
+        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
+        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
+        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
+        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
+        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
+        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
+        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
+        time_units.insert(DEFAULT_ID_MONTH, TimeUnit::Month);
+        time_units.insert(DEFAULT_ID_YEAR, TimeUnit::Year);
         Self {
-            time_units: ALL_TIME_UNITS.clone(),
+            time_units,
             max_length: DEFAULT_ID_MAX_LENGTH,
         }
     }
