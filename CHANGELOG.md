@@ -13,8 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2023-02-01
+
 ### Added
 
-- Basic working implementation of a duration parser
-- Documentation
+- Basic working implementation of the duration parser
+- Tests and benchmarks
+- A README
+- Basic api documentation
 - This Changelog
+- CI setup with github actions
