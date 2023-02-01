@@ -9,16 +9,11 @@ mod error;
 mod time;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Duration;
 
 use error::ParseError;
-use time::{
-    TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MAX_LENGTH, DEFAULT_ID_MICRO_SECOND,
-    DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
-    DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
-};
+use time::{TimeUnit, TimeUnits};
 
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
@@ -209,20 +204,18 @@ struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
     iterator: Iter<'a, u8>,
-    time_units: &'a HashMap<&'a str, TimeUnit>,
-    max_length: usize,
+    time_units: &'a TimeUnits<'a>,
 }
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
-    fn new(input: &'a str, time_units: &'a HashMap<&'a str, TimeUnit>, max_length: usize) -> Self {
+    fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
         let mut iterator = input.as_bytes().iter();
         Self {
             current_byte: iterator.next(),
             current_pos: 0,
             iterator,
             time_units,
-            max_length,
         }
     }
 
@@ -337,7 +330,7 @@ impl<'a> ReprParser<'a> {
     }
 
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
-        let mut max_bytes = self.max_length;
+        let mut max_bytes = self.time_units.max_length();
         let mut bytes = Vec::<u8>::with_capacity(max_bytes);
         while let Some(byte) = self.current_byte {
             if max_bytes != 0 {
@@ -351,18 +344,15 @@ impl<'a> ReprParser<'a> {
 
         let string = std::str::from_utf8(bytes.as_slice()).map_err(|_| {
             ParseError::Syntax(
-                self.current_pos + max_bytes - self.max_length,
+                self.current_pos + max_bytes - self.time_units.max_length(),
                 "Invalid utf8".to_string(),
             )
         })?;
         // TODO: Remove the need to convert to utf8 and store the ids as bytes.
-        self.time_units
-            .get(string)
-            .cloned()
-            .ok_or(ParseError::Syntax(
-                self.current_pos + max_bytes - self.max_length,
-                format!("Invalid time unit: {string}"),
-            ))
+        self.time_units.get(string).ok_or(ParseError::Syntax(
+            self.current_pos + max_bytes - self.time_units.max_length(),
+            format!("Invalid time unit: {string}"),
+        ))
     }
 
     // TODO: strip leading zeroes for whole part of the number
@@ -479,77 +469,46 @@ impl<'a> ReprParser<'a> {
 
 #[derive(Debug, Default)]
 pub struct DurationParser<'a> {
-    time_units: HashMap<&'a str, TimeUnit>,
-    max_length: usize,
+    time_units: TimeUnits<'a>,
 }
 
 impl<'a> DurationParser<'a> {
     pub fn new() -> Self {
-        let mut time_units = HashMap::new();
-        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
-        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
-        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
-        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
-        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
-        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
-        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
-        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
         Self {
-            time_units,
-            max_length: DEFAULT_ID_MAX_LENGTH,
+            time_units: TimeUnits::with_default_time_units(),
         }
     }
 
     pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
-        let mut parser = Self::with_no_time_units();
-        parser.time_units(time_units);
-        parser
+        Self {
+            time_units: TimeUnits::with_time_units(time_units),
+        }
     }
 
     pub fn with_no_time_units() -> Self {
         Self {
-            time_units: HashMap::new(),
-            max_length: 0,
+            time_units: TimeUnits::new(),
         }
     }
 
     pub fn with_all_time_units() -> Self {
-        let mut time_units = HashMap::new();
-        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
-        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
-        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
-        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
-        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
-        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
-        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
-        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
-        time_units.insert(DEFAULT_ID_MONTH, TimeUnit::Month);
-        time_units.insert(DEFAULT_ID_YEAR, TimeUnit::Year);
         Self {
-            time_units,
-            max_length: DEFAULT_ID_MAX_LENGTH,
+            time_units: TimeUnits::with_all_time_units(),
         }
     }
 
     pub fn time_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        let key = unit.default_identifier();
-        let length = key.len();
-        self.time_units.insert(key, unit);
-        if self.max_length < length {
-            self.max_length = length;
-        }
+        self.time_units.add_time_unit(unit);
         self
     }
 
     pub fn time_units(&mut self, units: &[TimeUnit]) -> &mut Self {
-        for unit in units {
-            self.time_unit(*unit);
-        }
+        self.time_units.add_time_units(units);
         self
     }
 
     pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, &self.time_units, self.max_length);
+        let mut parser = ReprParser::new(source, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }

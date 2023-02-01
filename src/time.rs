@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::collections::HashMap;
+
 // TODO: Add Eq
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TimeUnit {
@@ -67,5 +69,84 @@ impl TimeUnit {
             Month => 2592000,
             Year => 31536000,
         }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct TimeUnits<'a> {
+    time_units: HashMap<&'a str, TimeUnit>,
+    max_length: usize,
+}
+
+impl<'a> TimeUnits<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_default_time_units() -> Self {
+        let mut time_units = HashMap::new();
+        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
+        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
+        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
+        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
+        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
+        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
+        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
+        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
+        Self {
+            time_units,
+            max_length: DEFAULT_ID_MAX_LENGTH,
+        }
+    }
+
+    pub fn with_time_units(units: &[TimeUnit]) -> Self {
+        let mut time_units = Self::new();
+        time_units.add_time_units(units);
+        time_units
+    }
+
+    pub fn with_all_time_units() -> Self {
+        let mut time_units = HashMap::new();
+        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
+        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
+        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
+        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
+        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
+        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
+        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
+        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
+        time_units.insert(DEFAULT_ID_MONTH, TimeUnit::Month);
+        time_units.insert(DEFAULT_ID_YEAR, TimeUnit::Year);
+        Self {
+            time_units,
+            max_length: DEFAULT_ID_MAX_LENGTH,
+        }
+    }
+
+    pub fn add_time_unit(&mut self, unit: TimeUnit) {
+        let id = unit.default_identifier();
+        let length = id.len();
+        self.time_units.insert(id, unit);
+        if self.max_length < length {
+            self.max_length = length;
+        }
+    }
+
+    pub fn add_time_units(&mut self, units: &[TimeUnit]) {
+        for unit in units {
+            self.add_time_unit(*unit);
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.time_units.is_empty()
+    }
+
+    pub fn max_length(&self) -> usize {
+        self.max_length
+    }
+
+    pub fn get(&self, identifier: &str) -> Option<TimeUnit> {
+        self.time_units.get(identifier).cloned()
     }
 }
