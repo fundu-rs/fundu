@@ -12,7 +12,15 @@ homepage = "hptts://github.com/Joining7943/fundu"
 repository = "hptts://github.com/Joining7943/fundu"
 rust-version = "1.60.0"
 
+[lib]
+bench = false
+
 [dependencies]
 
 [dev-dependencies]
 rstest = "0.16.0"
+criterion = "0.4.0"
+
+[[bench]]
+name = "parse_duration_benchmark"
+harness = false
