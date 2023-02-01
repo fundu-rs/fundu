@@ -10,6 +10,9 @@ use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Duration;
 
+#[macro_use]
+extern crate lazy_static;
+
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
@@ -20,6 +23,7 @@ pub enum ParseError {
     Syntax,
     Overflow,
     TimeUnitError,
+    InvalidInput,
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -42,22 +46,61 @@ impl Default for TimeUnit {
     }
 }
 
-pub const ALL_TIME_UNITS: [(&str, TimeUnit); 10] = [
-    ("ns", TimeUnit::NanoSecond),
-    ("mms", TimeUnit::MicroSecond),
-    ("ms", TimeUnit::MilliSecond),
-    ("s", TimeUnit::Second),
-    ("m", TimeUnit::Minute),
-    ("h", TimeUnit::Hour),
-    ("d", TimeUnit::Day),
-    ("w", TimeUnit::Week),
-    ("mon", TimeUnit::Month),
-    ("y", TimeUnit::Year),
-];
+pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
+pub const DEFAULT_ID_MICRO_SECOND: &str = "Ms";
+pub const DEFAULT_ID_MILLI_SECOND: &str = "ms";
+pub const DEFAULT_ID_SECOND: &str = "s";
+pub const DEFAULT_ID_MINUTE: &str = "m";
+pub const DEFAULT_ID_HOUR: &str = "h";
+pub const DEFAULT_ID_DAY: &str = "d";
+pub const DEFAULT_ID_WEEK: &str = "w";
+pub const DEFAULT_ID_MONTH: &str = "M";
+pub const DEFAULT_ID_YEAR: &str = "y";
+pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
+
+lazy_static! {
+    pub static ref DEFAULT_TIME_UNITS: HashMap<&'static str, TimeUnit> = {
+        let mut h = HashMap::new();
+        h.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
+        h.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
+        h.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
+        h.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
+        h.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
+        h.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
+        h.insert(DEFAULT_ID_DAY, TimeUnit::Day);
+        h.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
+        h
+    };
+    pub static ref ALL_TIME_UNITS: HashMap<&'static str, TimeUnit> = {
+        let mut h = HashMap::new();
+        h.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
+        h.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
+        h.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
+        h.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
+        h.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
+        h.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
+        h.insert(DEFAULT_ID_DAY, TimeUnit::Day);
+        h.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
+        h.insert(DEFAULT_ID_MONTH, TimeUnit::Month);
+        h.insert(DEFAULT_ID_YEAR, TimeUnit::Year);
+        h
+    };
+}
 
 impl TimeUnit {
-    fn identifier(&self) -> &'static str {
-        ALL_TIME_UNITS.iter().find(|(_, v)| v == self).unwrap().0
+    fn default_identifier(&self) -> &'static str {
+        match self {
+            TimeUnit::NanoSecond => DEFAULT_ID_NANO_SECOND,
+            TimeUnit::MicroSecond => DEFAULT_ID_MICRO_SECOND,
+            TimeUnit::MilliSecond => DEFAULT_ID_MILLI_SECOND,
+            TimeUnit::Second => DEFAULT_ID_SECOND,
+            TimeUnit::Minute => DEFAULT_ID_MINUTE,
+            TimeUnit::Hour => DEFAULT_ID_HOUR,
+            TimeUnit::Day => DEFAULT_ID_DAY,
+            TimeUnit::Week => DEFAULT_ID_WEEK,
+            TimeUnit::Month => DEFAULT_ID_MONTH,
+            TimeUnit::Year => DEFAULT_ID_YEAR,
+        }
     }
 
     fn multiplier(&self) -> u64 {
@@ -261,13 +304,13 @@ impl DurationRepr {
 struct DurationParser<'a> {
     current_byte: Option<&'a u8>,
     iterator: Iter<'a, u8>,
-    time_units: &'a HashMap<&'a [u8], TimeUnit>,
+    time_units: &'a HashMap<&'a str, TimeUnit>,
     max_length: usize,
 }
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> DurationParser<'a> {
-    fn new(input: &'a str, time_units: &'a HashMap<&'a [u8], TimeUnit>, max_length: usize) -> Self {
+    fn new(input: &'a str, time_units: &'a HashMap<&'a str, TimeUnit>, max_length: usize) -> Self {
         let mut iterator = input.as_bytes().iter();
         Self {
             current_byte: iterator.next(),
@@ -335,10 +378,11 @@ impl<'a> DurationParser<'a> {
         }
 
         match self.current_byte {
-            Some(_) => {
+            Some(_) if !self.time_units.is_empty() => {
                 let unit = self.parse_time_unit()?;
                 duration_repr.unit = unit;
             }
+            Some(_) => return Err(ParseError::Syntax),
             None => return Ok(duration_repr),
         }
 
@@ -363,7 +407,7 @@ impl<'a> DurationParser<'a> {
         }
 
         self.time_units
-            .get(bytes.as_slice())
+            .get(std::str::from_utf8(bytes.as_slice()).map_err(|_| ParseError::InvalidInput)?)
             .cloned()
             .ok_or(ParseError::Syntax)
     }
@@ -454,56 +498,57 @@ impl<'a> DurationParser<'a> {
 
 #[derive(Debug, Default)]
 pub struct Parser<'a> {
-    no_time_units: bool,
-    time_units: HashMap<&'a [u8], TimeUnit>,
+    time_units: HashMap<&'a str, TimeUnit>,
     max_length: usize,
 }
 
 impl<'a> Parser<'a> {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            // TODO: How to avoid the clone?
+            time_units: DEFAULT_TIME_UNITS.clone(),
+            max_length: DEFAULT_ID_MAX_LENGTH,
+        }
     }
 
-    pub fn no_time_units(&mut self) -> &mut Self {
-        self.no_time_units = true;
-        self
+    pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
+        let mut parser = Self::with_no_time_units();
+        parser.time_units(time_units);
+        parser
     }
 
-    pub fn time_unit(&mut self, key: &'a str, unit: TimeUnit) -> &mut Self {
-        self.time_units.insert(key.as_bytes(), unit);
+    pub fn with_no_time_units() -> Self {
+        Self {
+            time_units: HashMap::new(),
+            max_length: 0,
+        }
+    }
+
+    pub fn with_all_time_units() -> Self {
+        Self {
+            time_units: ALL_TIME_UNITS.clone(),
+            max_length: DEFAULT_ID_MAX_LENGTH,
+        }
+    }
+
+    pub fn time_unit(&mut self, unit: TimeUnit) -> &mut Self {
+        let key = unit.default_identifier();
         let length = key.len();
+        self.time_units.insert(key, unit);
         if self.max_length < length {
             self.max_length = length;
         }
         self
     }
 
-    pub fn time_units(&mut self, units: &'a [(&str, TimeUnit)]) -> &mut Self {
-        for (key, val) in units {
-            self.time_unit(key, *val);
-        }
-        self
-    }
-
-    pub fn time_unit_with_default_key(&mut self, unit: TimeUnit) -> &mut Self {
-        self.time_unit(unit.identifier(), unit);
-        self
-    }
-
-    pub fn time_units_with_default_key(&mut self, units: &[TimeUnit]) -> &mut Self {
+    pub fn time_units(&mut self, units: &[TimeUnit]) -> &mut Self {
         for unit in units {
-            self.time_unit_with_default_key(*unit);
+            self.time_unit(*unit);
         }
         self
     }
 
     pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
-        if self.no_time_units {
-            self.time_units.clear();
-        } else if self.time_units.is_empty() {
-            self.time_units(&ALL_TIME_UNITS);
-        }
-
         let mut parser = DurationParser::new(source, &self.time_units, self.max_length);
         parser.parse().and_then(|mut repr| repr.parse())
     }
@@ -702,8 +747,8 @@ mod tests {
     #[case::seconds("1s", Duration::new(1, 0))]
     #[case::milli_seconds("1ms", Duration::new(0, 1_000_000))]
     #[case::milli_seconds("1000ms", Duration::new(1, 0))]
-    #[case::micro_seconds("1mms", Duration::new(0, 1_000))]
-    #[case::micro_seconds("1e-3mms", Duration::new(0, 1))]
+    #[case::micro_seconds("1Ms", Duration::new(0, 1_000))]
+    #[case::micro_seconds("1e-3Ms", Duration::new(0, 1))]
     #[case::nano_seconds_time_unit("1ns", Duration::new(0, 1))]
     #[case::minutes_fraction("0.1m", Duration::new(6, 0))]
     #[case::minutes_negative_exponent("100.0e-3m", Duration::new(6, 0))]
@@ -714,33 +759,26 @@ mod tests {
         #[case] source: &str,
         #[case] expected: Duration,
     ) {
-        let duration = parse_duration(source).unwrap();
+        let duration = Parser::with_all_time_units().parse(source).unwrap();
         assert_eq!(duration, expected);
     }
 
     #[rstest]
-    #[case::seconds("1s", vec![("s", TimeUnit::Second)])]
-    #[case::hour("1h", vec![("h", TimeUnit::Hour)])]
-    #[case::arbitrary("1some", vec![("some", TimeUnit::Minute)])]
-    fn test_parser_when_time_units(
-        #[case] source: &str,
-        #[case] time_units: Vec<(&str, TimeUnit)>,
-    ) {
-        Parser::new()
-            .time_units(time_units.as_slice())
-            .parse(source)
-            .unwrap();
+    #[case::seconds("1s", vec![TimeUnit::Second])]
+    #[case::hour("1h", vec![TimeUnit::Hour])]
+    fn test_parser_when_time_units(#[case] source: &str, #[case] time_units: Vec<TimeUnit>) {
+        Parser::with_time_units(&time_units).parse(source).unwrap();
     }
 
     #[rstest]
-    #[case::minute_short("1s", vec![("m", TimeUnit::Minute)])]
-    #[case::hour_long("1s", vec![("hour", TimeUnit::Hour)])]
+    #[case::minute_short("1s", vec![TimeUnit::Minute])]
+    #[case::hour_long("1s", vec![TimeUnit::Hour])]
     #[should_panic]
     fn test_parser_when_time_units_are_not_present_then_panics(
         #[case] source: &str,
-        #[case] time_units: Vec<(&str, TimeUnit)>,
+        #[case] time_units: Vec<TimeUnit>,
     ) {
-        Parser::new()
+        Parser::with_no_time_units()
             .time_units(time_units.as_slice())
             .parse(source)
             .unwrap();
