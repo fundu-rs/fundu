@@ -6,84 +6,19 @@
 // spell-checker:ignore Nanos Repr rstest fract milli picos ATTO Attos
 
 mod error;
+mod time;
 
 use std::cmp::Ordering;
-use std::collections::HashMap;
 use std::slice::Iter;
 use std::time::Duration;
 
 use error::ParseError;
+use time::{TimeUnit, TimeUnits};
 
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
-
-#[derive(Debug, PartialEq, Clone, Copy)]
-pub enum TimeUnit {
-    NanoSecond,
-    MicroSecond,
-    MilliSecond,
-    Second,
-    Minute,
-    Hour,
-    Day,
-    Week,
-    Month,
-    Year,
-}
-
-impl Default for TimeUnit {
-    fn default() -> Self {
-        TimeUnit::Second
-    }
-}
-
-pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
-pub const DEFAULT_ID_MICRO_SECOND: &str = "Ms";
-pub const DEFAULT_ID_MILLI_SECOND: &str = "ms";
-pub const DEFAULT_ID_SECOND: &str = "s";
-pub const DEFAULT_ID_MINUTE: &str = "m";
-pub const DEFAULT_ID_HOUR: &str = "h";
-pub const DEFAULT_ID_DAY: &str = "d";
-pub const DEFAULT_ID_WEEK: &str = "w";
-pub const DEFAULT_ID_MONTH: &str = "M";
-pub const DEFAULT_ID_YEAR: &str = "y";
-pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
-
-impl TimeUnit {
-    fn default_identifier(&self) -> &'static str {
-        match self {
-            TimeUnit::NanoSecond => DEFAULT_ID_NANO_SECOND,
-            TimeUnit::MicroSecond => DEFAULT_ID_MICRO_SECOND,
-            TimeUnit::MilliSecond => DEFAULT_ID_MILLI_SECOND,
-            TimeUnit::Second => DEFAULT_ID_SECOND,
-            TimeUnit::Minute => DEFAULT_ID_MINUTE,
-            TimeUnit::Hour => DEFAULT_ID_HOUR,
-            TimeUnit::Day => DEFAULT_ID_DAY,
-            TimeUnit::Week => DEFAULT_ID_WEEK,
-            TimeUnit::Month => DEFAULT_ID_MONTH,
-            TimeUnit::Year => DEFAULT_ID_YEAR,
-        }
-    }
-
-    fn multiplier(&self) -> u64 {
-        use TimeUnit::*;
-
-        match self {
-            NanoSecond => 9,
-            MicroSecond => 6,
-            MilliSecond => 3,
-            Second => 0,
-            Minute => 60,
-            Hour => 3600,
-            Day => 86400,
-            Week => 604800,
-            Month => 2592000,
-            Year => 31536000,
-        }
-    }
-}
 
 /// An intermediate representation of seconds.
 ///
@@ -269,20 +204,18 @@ struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
     iterator: Iter<'a, u8>,
-    time_units: &'a HashMap<&'a str, TimeUnit>,
-    max_length: usize,
+    time_units: &'a TimeUnits<'a>,
 }
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
-    fn new(input: &'a str, time_units: &'a HashMap<&'a str, TimeUnit>, max_length: usize) -> Self {
+    fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
         let mut iterator = input.as_bytes().iter();
         Self {
             current_byte: iterator.next(),
             current_pos: 0,
             iterator,
             time_units,
-            max_length,
         }
     }
 
@@ -309,7 +242,7 @@ impl<'a> ReprParser<'a> {
             Some(byte) if byte.is_ascii_digit() => {
                 // the maximum number of digits that need to be considered:
                 // max(-exponent) = 1022 + max_digits(u64::MAX) = 20 + 1
-                let whole = self.parse_digits(1043)?;
+                let whole = self.parse_digits(1043, true)?;
                 duration_repr.whole = Some(whole);
             }
             Some(byte) if *byte == b'.' => {}
@@ -337,7 +270,7 @@ impl<'a> ReprParser<'a> {
                 let fract = match self.current_byte {
                     // the maximum number of digits that need to be considered:
                     // max(+exponent) = 1023 + max_digits(nano seconds) = 9 + 1
-                    Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033)?),
+                    Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033, false)?),
                     Some(_) if duration_repr.whole.is_none() => {
                         return Err(ParseError::Syntax(
                             self.current_pos,
@@ -391,13 +324,12 @@ impl<'a> ReprParser<'a> {
                     std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
                 ),
             )),
-
             None => Ok(duration_repr),
         }
     }
 
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
-        let mut max_bytes = self.max_length;
+        let mut max_bytes = self.time_units.max_length();
         let mut bytes = Vec::<u8>::with_capacity(max_bytes);
         while let Some(byte) = self.current_byte {
             if max_bytes != 0 {
@@ -410,24 +342,24 @@ impl<'a> ReprParser<'a> {
         }
 
         let string = std::str::from_utf8(bytes.as_slice()).map_err(|_| {
-            ParseError::Syntax(
-                self.current_pos + max_bytes - self.max_length,
-                "Invalid utf8".to_string(),
-            )
+            ParseError::Syntax(self.current_pos - bytes.len(), "Invalid utf8".to_string())
         })?;
         // TODO: Remove the need to convert to utf8 and store the ids as bytes.
-        self.time_units
-            .get(string)
-            .cloned()
-            .ok_or(ParseError::Syntax(
-                self.current_pos + max_bytes - self.max_length,
-                format!("Invalid time unit: {string}"),
-            ))
+        self.time_units.get(string).ok_or(ParseError::Syntax(
+            self.current_pos - bytes.len(),
+            format!("Invalid time unit: {string}"),
+        ))
     }
 
-    // TODO: strip leading zeroes for whole part of the number
-    // TODO: strip trailing zeroes for fractional part of the number??
-    fn parse_digits(&mut self, mut max: usize) -> Result<Vec<u8>, ParseError> {
+    fn parse_digits(
+        &mut self,
+        mut max: usize,
+        strip_leading_zeroes: bool,
+    ) -> Result<Vec<u8>, ParseError> {
+        debug_assert!(
+            self.current_byte.is_some(),
+            "Call this function only when there is at lease one digit present"
+        );
         // Using `size_hint()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations and
         // maximum memory used is just around `1kB` per parsed number.
@@ -437,7 +369,9 @@ impl<'a> ReprParser<'a> {
         while let Some(byte) = self.current_byte {
             let digit = byte.wrapping_sub(b'0');
             if digit < 10 {
-                if max > 0 {
+                if strip_leading_zeroes && digits.is_empty() && digit == 0 {
+                    // do nothing and just advance
+                } else if max > 0 {
                     digits.push(digit);
                     max -= 1;
                 }
@@ -447,10 +381,10 @@ impl<'a> ReprParser<'a> {
             }
         }
 
-        debug_assert!(
-            !digits.is_empty(),
-            "Call this function only when there is at least one digit present"
-        );
+        if strip_leading_zeroes && digits.is_empty() {
+            digits.push(0);
+        }
+
         Ok(digits)
     }
 
@@ -529,77 +463,46 @@ impl<'a> ReprParser<'a> {
 
 #[derive(Debug, Default)]
 pub struct DurationParser<'a> {
-    time_units: HashMap<&'a str, TimeUnit>,
-    max_length: usize,
+    time_units: TimeUnits<'a>,
 }
 
 impl<'a> DurationParser<'a> {
     pub fn new() -> Self {
-        let mut time_units = HashMap::new();
-        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
-        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
-        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
-        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
-        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
-        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
-        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
-        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
         Self {
-            time_units,
-            max_length: DEFAULT_ID_MAX_LENGTH,
+            time_units: TimeUnits::with_default_time_units(),
         }
     }
 
     pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
-        let mut parser = Self::with_no_time_units();
-        parser.time_units(time_units);
-        parser
+        Self {
+            time_units: TimeUnits::with_time_units(time_units),
+        }
     }
 
     pub fn with_no_time_units() -> Self {
         Self {
-            time_units: HashMap::new(),
-            max_length: 0,
+            time_units: TimeUnits::new(),
         }
     }
 
     pub fn with_all_time_units() -> Self {
-        let mut time_units = HashMap::new();
-        time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
-        time_units.insert(DEFAULT_ID_MICRO_SECOND, TimeUnit::MicroSecond);
-        time_units.insert(DEFAULT_ID_MILLI_SECOND, TimeUnit::MilliSecond);
-        time_units.insert(DEFAULT_ID_SECOND, TimeUnit::Second);
-        time_units.insert(DEFAULT_ID_MINUTE, TimeUnit::Minute);
-        time_units.insert(DEFAULT_ID_HOUR, TimeUnit::Hour);
-        time_units.insert(DEFAULT_ID_DAY, TimeUnit::Day);
-        time_units.insert(DEFAULT_ID_WEEK, TimeUnit::Week);
-        time_units.insert(DEFAULT_ID_MONTH, TimeUnit::Month);
-        time_units.insert(DEFAULT_ID_YEAR, TimeUnit::Year);
         Self {
-            time_units,
-            max_length: DEFAULT_ID_MAX_LENGTH,
+            time_units: TimeUnits::with_all_time_units(),
         }
     }
 
     pub fn time_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        let key = unit.default_identifier();
-        let length = key.len();
-        self.time_units.insert(key, unit);
-        if self.max_length < length {
-            self.max_length = length;
-        }
+        self.time_units.add_time_unit(unit);
         self
     }
 
     pub fn time_units(&mut self, units: &[TimeUnit]) -> &mut Self {
-        for unit in units {
-            self.time_unit(*unit);
-        }
+        self.time_units.add_time_units(units);
         self
     }
 
     pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, &self.time_units, self.max_length);
+        let mut parser = ReprParser::new(source, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }
@@ -678,6 +581,8 @@ mod tests {
 
     #[rstest]
     #[case::simple_zero("0", Duration::ZERO)]
+    #[case::many_zeroes(&format!("{}", "0".repeat(2000)), Duration::ZERO)]
+    #[case::many_leading_zeroes(&format!("{}1", "0".repeat(2000)), Duration::new(1, 0))]
     #[case::zero_point_zero("0.0", Duration::ZERO)]
     #[case::point_zero(".0", Duration::ZERO)]
     #[case::zero_point("0.", Duration::ZERO)]
