@@ -3,7 +3,88 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-// spell-checker:ignore Nanos Repr rstest fract milli picos ATTO Attos
+//! # Overview
+//!
+//! `fundu` provides a duration parser to parse strings into a [`std::time::Duration`]. It tries
+//! to improve on the standard method `Duration::from_secs_f64(input.parse().unwrap())` by
+//!
+//! * Providing customizable [`TimeUnit`]s which are accepted in the input string. See table below.
+//! * Using no floating point calculations and precisely parse the input as it is. So, what you put
+//! in you is what you get out within the range of a [`std::time::Duration`].
+//! * Evaluating to [`std::time::Duration::MAX`] if the input number was larger than that maximum or
+//! the input string was positive `infinity`
+//! * Providing better error messages in case of parsing errors.
+//!
+//! These features come with almost no additional runtime costs by still being a lightweight crate.
+//! This crate is built on top of the rust `stdlib`, so no additional dependencies are required. The
+//! accepted number format is very close to the scientific floating point format. See the format
+//! specification below for details.
+//!
+//! # Examples
+//!
+//! If only the default configuration is required the [`parse_duration`] method can be used.
+//!
+//! ```rust
+//! use fundu::parse_duration;
+//! use std::time::Duration;
+//!
+//! let input = "1.0e2s";
+//! assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
+//! ```
+//!
+//! When a customization of the accepted [`TimeUnit`]s is required then the builder
+//! [`DurationParser`] can be used.
+//!
+//! ```rust
+//! use fundu::DurationParser;
+//! use std::time::Duration;
+//!
+//! let input = "3m";
+//! assert_eq!(DurationParser::with_all_time_units().parse(input).unwrap(), Duration::new(180, 0));
+//! ```
+//!
+//! With no time units allowed always seconds is assumed.
+//!
+//! ```rust
+//! use fundu::DurationParser;
+//! use std::time::Duration;
+//!
+//! let input = "1.0e2";
+//! assert_eq!(DurationParser::with_no_time_units().parse(input).unwrap(), Duration::new(100, 0));
+//! ```
+//!
+//! This will return an error because `y` (years) is not a default time unit.
+//!
+//! ```rust
+//! use fundu::DurationParser;
+//!
+//! let input = "3y";
+//! assert!(DurationParser::new().parse(input).is_err());
+//! ```
+//!
+//! # Performance
+//!
+//! Parsing the exact representation comes with a small performance loss. Parsing without time units
+//! is around 2 times slower than parsing to `f64 and then `Duration::from_secs_f64` (depending on
+//! the length of the input string). But, total computation time for small input like (`+1.0e2`) is
+//! still in the `50 - 100` nanoseconds domain compared to 25 - 50 nanoseconds for the standard
+//! method.
+//!
+//! # Format specification
+//!
+//! ```text
+//! Duration ::= Sign?                                       # No negative values besides negative zero
+//!              ( 'inf' | 'infinity' | Number )             # 'inf' and 'infinity' are case insensitive
+//! TimeUnit ::= ns | Ms | ms | s | m | h | d | w | M | y    # The accepted units are customizable
+//! Number   ::= ( Digit+ |
+//!                Digit+ '.' Digit* |
+//!                Digit* '.' Digit+ )
+//!               Exp?                                       # -1022 <= EXP <= 1023
+//!               TimeUnit?                                  # If no time unit then seconds is assumed
+//! Exp      ::= [eE] Sign? Digit+
+//! Sign     ::= [+-]
+//! Digit    ::= [0-9]
+//! ```
 
 mod error;
 mod time;
@@ -13,7 +94,8 @@ use std::slice::Iter;
 use std::time::Duration;
 
 use error::ParseError;
-use time::{TimeUnit, TimeUnits};
+pub use time::TimeUnit;
+use time::TimeUnits;
 
 pub const NANOS_MAX: u32 = 999_999_999;
 pub const SECONDS_MAX: u64 = u64::MAX;
@@ -530,12 +612,6 @@ impl<'a> DurationParser<'a> {
 /// bounded below at `nanos (min if not 0) == .000000001`. Infinity values like `inf`, `+infinity`
 /// etc. are valid input and resolve to `Duration::MAX`.
 ///
-/// # Performance
-///
-/// Parsing the exact representation comes with a small performance loss. `parse_duration` is around
-/// 2-5 times slower than parsing to `f64 and then `Duration::from_secs_f64` (depending on the
-/// length of the input string). But, total computation time for usual input like (`+1.0e2`) is
-/// still in the `100 - 300` nanoseconds domain (on a `4-core ~3000Mhz` processor).
 ///
 /// # Errors
 ///

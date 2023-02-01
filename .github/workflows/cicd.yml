@@ -2,7 +2,7 @@ name: Build and Check
 
 on:
   push:
-    branches: ["main", "cicd"]
+    branches: ["main", "cicd", "release"]
   pull_request:
     branches: ["main"]
 
@@ -58,10 +58,34 @@ jobs:
         run: cargo test
 
   docs:
+    needs: [base]
     name: Docs/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2.2.0
+      - name: Run doc tests
+        run: cargo test --doc
       - name: Check Documentation
         run: cargo doc --no-deps --document-private-items
+
+  coverage:
+    needs: [base]
+    name: Coverage/ubuntu-latest
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Generate code coverage
+        run: |
+          cargo tarpaulin --timeout 120 --out Xml
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
+          fail_ci_if_error: true
