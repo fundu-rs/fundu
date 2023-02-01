@@ -324,7 +324,6 @@ impl<'a> ReprParser<'a> {
                     std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
                 ),
             )),
-
             None => Ok(duration_repr),
         }
     }
@@ -343,20 +342,15 @@ impl<'a> ReprParser<'a> {
         }
 
         let string = std::str::from_utf8(bytes.as_slice()).map_err(|_| {
-            ParseError::Syntax(
-                self.current_pos + max_bytes - self.time_units.max_length(),
-                "Invalid utf8".to_string(),
-            )
+            ParseError::Syntax(self.current_pos - bytes.len(), "Invalid utf8".to_string())
         })?;
         // TODO: Remove the need to convert to utf8 and store the ids as bytes.
         self.time_units.get(string).ok_or(ParseError::Syntax(
-            self.current_pos + max_bytes - self.time_units.max_length(),
+            self.current_pos - bytes.len(),
             format!("Invalid time unit: {string}"),
         ))
     }
 
-    // TODO: strip leading zeroes for whole part of the number
-    // TODO: strip trailing zeroes for fractional part of the number??
     fn parse_digits(
         &mut self,
         mut max: usize,
