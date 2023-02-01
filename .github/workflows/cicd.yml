@@ -27,7 +27,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.toolchain }}
-          components: clippy, rustfmt
+          components: rustfmt
+      - name: Prepare
+        if: matrix.toolchain != 'stable'
+        run: |
+          rustup toolchain install stable --no-self-update --component clippy
       - uses: Swatinem/rust-cache@v2.2.0
         with:
           key: "${{ matrix.os }}_${{ matrix.toolchain }}"
@@ -36,6 +40,7 @@ jobs:
         run: |
           uname -a
           pwd
+          rustup --version
           rustup show
           rustup component list | grep installed
       - name: Info if windows
@@ -48,7 +53,7 @@ jobs:
       - name: Format
         run: cargo fmt --check
       - name: Lint
-        run: cargo clippy -- -D warnings
+        run: cargo +stable clippy -- -D warnings
       - name: Test
         run: cargo test
 
