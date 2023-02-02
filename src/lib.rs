@@ -93,7 +93,7 @@ use std::cmp::Ordering;
 use std::slice::Iter;
 use std::time::Duration;
 
-use error::ParseError;
+pub use error::ParseError;
 pub use time::TimeUnit;
 use time::TimeUnits;
 
