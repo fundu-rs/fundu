@@ -264,15 +264,16 @@ impl DurationRepr {
                 | TimeUnit::Week
                 | TimeUnit::Month
                 | TimeUnit::Year => {
-                    let attos = attos * (self.unit.multiplier());
+                    let attos = attos as u128 * (self.unit.multiplier() as u128);
                     Ok(
                         match seconds
                             .checked_mul(self.unit.multiplier())
-                            .and_then(|s| s.checked_add(attos / ATTO_MULTIPLIER))
+                            .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
                         {
-                            Some(s) => {
-                                Duration::new(s, ((attos / ATTO_TO_NANO) % 1_000_000_000) as u32)
-                            }
+                            Some(s) => Duration::new(
+                                s,
+                                ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32,
+                            ),
                             None => Duration::MAX,
                         },
                     )
@@ -786,6 +787,7 @@ mod tests {
     #[case::minutes_underflow("0.0000000001m", Duration::new(0, 6))]
     #[case::hours_underflow("0.000000000001h", Duration::new(0, 3))]
     #[case::years_underflow("0.0000000000000001y", Duration::new(0, 3))]
+    #[case::max_attos_no_u64_overflow(&format!("0.{}y", "9".repeat(100)), Duration::new(31535999, 999_999_999))]
     fn test_parse_duration_when_time_units_are_given(
         #[case] source: &str,
         #[case] expected: Duration,
