@@ -50,7 +50,7 @@
 //! use std::time::Duration;
 //!
 //! let input = "1.0e2";
-//! assert_eq!(DurationParser::with_no_time_units().parse(input).unwrap(), Duration::new(100, 0));
+//! assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
 //! However, this will return an error because `y` (Years) is not a default time unit.
@@ -86,7 +86,7 @@
 //! use std::time::Duration;
 //!
 //! assert_eq!(
-//!     DurationParser::with_no_time_units()
+//!     DurationParser::without_time_units()
 //!         .parse("1y")
 //!         .unwrap_err()
 //!         .to_string(),
@@ -586,7 +586,7 @@ impl<'a> DurationParser<'a> {
         }
     }
 
-    pub fn with_no_time_units() -> Self {
+    pub fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
         }
@@ -836,7 +836,7 @@ mod tests {
         #[case] source: &str,
         #[case] time_units: Vec<TimeUnit>,
     ) {
-        DurationParser::with_no_time_units()
+        DurationParser::without_time_units()
             .time_units(time_units.as_slice())
             .parse(source)
             .unwrap();
@@ -848,7 +848,7 @@ mod tests {
     #[case::invalid_input_error("-inf", "Invalid input: Negative infinity")]
     fn test_parse_error_messages(#[case] input: &str, #[case] expected: &str) {
         assert_eq!(
-            DurationParser::with_no_time_units()
+            DurationParser::without_time_units()
                 .parse(input)
                 .unwrap_err()
                 .to_string(),

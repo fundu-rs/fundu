@@ -101,7 +101,7 @@ use fundu::DurationParser;
 use std::time::Duration;
 
 let input = "1.0e2";
-assert_eq!(DurationParser::with_no_time_units().parse(input).unwrap(), Duration::new(100, 0));
+assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
 ```
 
 However, this will return an error because `y` (Years) is not a default time unit.
@@ -137,7 +137,7 @@ use fundu::DurationParser;
 use std::time::Duration;
 
 assert_eq!(
-    DurationParser::with_no_time_units()
+    DurationParser::without_time_units()
         .parse("1y")
         .unwrap_err()
         .to_string(),
@@ -152,7 +152,7 @@ was found in the input string. The table below gives an overview of the construc
 which time units are available. If a custom set of time units is required,
 `DurationParser::with_time_units` can be used.
 
-Name | Accepted Time unit | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `with_no_time_units`
+Name | Accepted Time unit | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
 --- | --- | --- | --- | ---
 Nanoseconds | ns | &#9745; | &#9745; | &#9744;
 Microseconds | Ms | &#9745; | &#9745; | &#9744;
