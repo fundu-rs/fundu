@@ -817,4 +817,18 @@ mod tests {
             .parse(source)
             .unwrap();
     }
+
+    #[rstest]
+    #[case::syntax_error("1y", "Syntax error: No time units allowed but found: y at column 1")]
+    #[case::overflow_error("1e-2000", "Number overflow")]
+    #[case::invalid_input_error("-inf", "Invalid input: Negative infinity")]
+    fn test_parse_error_messages(#[case] input: &str, #[case] expected: &str) {
+        assert_eq!(
+            DurationParser::with_no_time_units()
+                .parse(input)
+                .unwrap_err()
+                .to_string(),
+            expected
+        );
+    }
 }

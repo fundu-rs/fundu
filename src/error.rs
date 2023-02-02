@@ -26,3 +26,24 @@ impl Display for ParseError {
         f.write_str(&msg)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::syntax_error(
+        ParseError::Syntax(10, "Invalid character".to_string()),
+        "Syntax error: Invalid character at column 10"
+    )]
+    #[case::overflow(ParseError::Overflow, "Number overflow")]
+    #[case::time_unit_error(ParseError::TimeUnitError, "Invalid time unit")]
+    #[case::invalid_input(
+        ParseError::InvalidInput("Unexpected".to_string()),
+        "Invalid input: Unexpected"
+    )]
+    fn test_error_messages(#[case] error: ParseError, #[case] expected: &str) {
+        assert_eq!(error.to_string(), expected);
+    }
+}
