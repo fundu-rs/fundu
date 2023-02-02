@@ -22,7 +22,7 @@
 //!
 //! # Examples
 //!
-//! If only the default configuration is required the [`parse_duration`] method can be used.
+//! If only the default configuration is required, the [`parse_duration`] method can be used.
 //!
 //! ```rust
 //! use fundu::parse_duration;
@@ -32,7 +32,7 @@
 //! assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
-//! When a customization of the accepted [`TimeUnit`]s is required then the builder
+//! When a customization of the accepted [`TimeUnit`] is required, then the builder
 //! [`DurationParser`] can be used.
 //!
 //! ```rust
@@ -43,7 +43,7 @@
 //! assert_eq!(DurationParser::with_all_time_units().parse(input).unwrap(), Duration::new(180, 0));
 //! ```
 //!
-//! With no time units allowed always seconds is assumed.
+//! When no time units are configured, seconds is assumed.
 //!
 //! ```rust
 //! use fundu::DurationParser;
@@ -53,7 +53,7 @@
 //! assert_eq!(DurationParser::with_no_time_units().parse(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
-//! This will return an error because `y` (years) is not a default time unit.
+//! However, this will return an error because `y` (Years) is not a default time unit.
 //!
 //! ```rust
 //! use fundu::DurationParser;
@@ -62,13 +62,37 @@
 //! assert!(DurationParser::new().parse(input).is_err());
 //! ```
 //!
-//! # Performance
+//! The parser is reusable and the set of time units is fully customizable
 //!
-//! Parsing the exact representation comes with a small performance loss. Parsing without time units
-//! is around 2 times slower than parsing to `f64 and then `Duration::from_secs_f64` (depending on
-//! the length of the input string). But, total computation time for small input like (`+1.0e2`) is
-//! still in the `50 - 100` nanoseconds domain compared to 25 - 50 nanoseconds for the standard
-//! method.
+//! ```rust
+//! use fundu::{DurationParser, TimeUnit::*};
+//! use std::time::Duration;
+//!
+//! let mut parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
+//! for (input, expected) in &[
+//!     ("9e3ns", Duration::new(0, 9000)),
+//!     ("10m", Duration::new(600, 0)),
+//!     ("1.1h", Duration::new(3960, 0)),
+//!     ("7", Duration::new(7, 0)),
+//! ] {
+//!     assert_eq!(parser.parse(input).unwrap(), *expected);
+//! }
+//! ```
+//!
+//! Also, `fundu` tries to give informative error messages
+//!
+//! ```rust
+//! use fundu::DurationParser;
+//! use std::time::Duration;
+//!
+//! assert_eq!(
+//!     DurationParser::with_no_time_units()
+//!         .parse("1y")
+//!         .unwrap_err()
+//!         .to_string(),
+//!     "Syntax error: No time units allowed but found: y at column 1"
+//! );
+//! ```
 //!
 //! # Format specification
 //!
