@@ -3,13 +3,20 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+//! Provide the [`ParseError`]
+
 use std::fmt::Display;
 
+/// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParseError {
+    /// Syntax error
     Syntax(usize, String),
+    /// Overflow error
     Overflow,
+    /// Errors concerning time units
     TimeUnitError,
+    /// A generic error if no other error type fits
     InvalidInput(String),
 }
 

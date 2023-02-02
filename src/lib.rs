@@ -568,53 +568,64 @@ impl<'a> ReprParser<'a> {
     }
 }
 
+/// A builder with methods to configure the parser with a set of time units.
 #[derive(Debug, Default)]
 pub struct DurationParser<'a> {
     time_units: TimeUnits<'a>,
 }
 
 impl<'a> DurationParser<'a> {
+    /// Construct the parser with default time units.
     pub fn new() -> Self {
         Self {
             time_units: TimeUnits::with_default_time_units(),
         }
     }
 
+    /// Initialize the parser with a custom set of time units.
     pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
         Self {
             time_units: TimeUnits::with_time_units(time_units),
         }
     }
 
+    /// Return a parser without time units.
+    ///
+    /// This is the fastest parser.
     pub fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
         }
     }
 
+    /// Construct a parser with all available time units.
     pub fn with_all_time_units() -> Self {
         Self {
             time_units: TimeUnits::with_all_time_units(),
         }
     }
 
+    /// Add a time unit to the current set of time units.
     pub fn time_unit(&mut self, unit: TimeUnit) -> &mut Self {
         self.time_units.add_time_unit(unit);
         self
     }
 
+    /// Add a list of time unit to the current set of time units.
     pub fn time_units(&mut self, units: &[TimeUnit]) -> &mut Self {
         self.time_units.add_time_units(units);
         self
     }
 
+    /// Parse the `source` string into a duration.
     pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
         let mut parser = ReprParser::new(source, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }
 
-/// Parse a string into a [`Duration`] by accepting a source string similar to floating point.
+/// Parse a string into a [`Duration`] by accepting a source string similar to floating point with
+/// the default set of time units.
 ///
 /// No whitespace is allowed in the source string. By parsing directly into a `u64` for the whole
 /// number part (the [`Duration`] seconds) and `u32` for the fraction part (the [`Duration`] nano
@@ -623,20 +634,9 @@ impl<'a> DurationParser<'a> {
 /// [`Duration::from_secs_f64`] can not parse without errors, like `format!("{}.0", u64::MAX)`. The
 /// accepted grammar is (closely related to [`f64::from_str`]):
 ///
-/// ```text
-/// Duration ::= Sign? ( 'inf' | 'infinity' | Number )
-/// Number   ::= ( Digit+ |
-///                Digit+ '.' Digit* |
-///                Digit* '.' Digit+ ) Exp?
-/// Exp      ::= [eE] Sign? Digit+
-/// Sign     ::= [+-]
-/// Digit    ::= [0-9]
-/// ```
-///
 /// The parsed [`Duration`] saturates at `seconds == u64::MAX`, `nanos (max) == .999999999` and is
 /// bounded below at `nanos (min if not 0) == .000000001`. Infinity values like `inf`, `+infinity`
 /// etc. are valid input and resolve to `Duration::MAX`.
-///
 ///
 /// # Errors
 ///
@@ -645,11 +645,14 @@ impl<'a> DurationParser<'a> {
 ///
 /// # Examples
 ///
-/// ```ignore
+/// ```rust
+/// use fundu::{parse_duration, ParseError};
 /// use std::time::Duration;
 ///
 /// let duration = parse_duration("+1.09e1").unwrap();
 /// assert_eq!(duration, Duration::new(10, 900_000_000));
+///
+/// assert_eq!(parse_duration("Not a number"), Err(ParseError::Syntax(0, "Invalid character: N".to_string())));
 /// ```
 ///
 /// [`f64::from_str`]: https://doc.rust-lang.org/std/primitive.f64.html#method.from_str
