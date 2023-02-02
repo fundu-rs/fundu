@@ -14,5 +14,5 @@ fn main() {
         .parse(input)
         .unwrap();
 
-    assert_eq!(duration, Duration::new(31_536_00000, 0))
+    assert_eq!(duration, Duration::new(3_155_760_000, 0))
 }

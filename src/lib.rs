@@ -814,7 +814,7 @@ mod tests {
     #[case::minutes_underflow("0.0000000001m", Duration::new(0, 6))]
     #[case::hours_underflow("0.000000000001h", Duration::new(0, 3))]
     #[case::years_underflow("0.0000000000000001y", Duration::new(0, 3))]
-    #[case::max_attos_no_u64_overflow(&format!("0.{}y", "9".repeat(100)), Duration::new(31535999, 999_999_999))]
+    #[case::max_attos_no_u64_overflow(&format!("0.{}y", "9".repeat(100)), Duration::new(31557599, 999_999_999))]
     fn test_parse_duration_when_time_units_are_given(
         #[case] source: &str,
         #[case] expected: Duration,

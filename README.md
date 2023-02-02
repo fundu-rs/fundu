@@ -152,25 +152,22 @@ was found in the input string. The table below gives an overview of the construc
 which time units are available. If a custom set of time units is required,
 `DurationParser::with_time_units` can be used.
 
-Name | Accepted Time unit | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
---- | --- | --- | --- | ---
-Nanoseconds | ns | &#9745; | &#9745; | &#9744;
-Microseconds | Ms | &#9745; | &#9745; | &#9744;
-Milliseconds | ms | &#9745; | &#9745; | &#9744;
-Seconds (base unit if no time unit was present) | s | &#9745; | &#9745; | &#9744; (seconds is still used as base)
-Minutes | m | &#9745; | &#9745; | &#9744;
-Hours | h | &#9745; | &#9745; | &#9744;
-Days | d | &#9745; | &#9745; | &#9744;
-Weeks | w | &#9745; | &#9745; | &#9744;
-Months | M | &#9744; | &#9745; | &#9744;
-Years | y | &#9744; | &#9745; | &#9744;
+Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
+--- | --- | --- | --- | --- | ---
+Nanoseconds | ns | 10e-9s | &#9745; | &#9745; | &#9744;
+Microseconds | Ms | 10e-6s | &#9745; | &#9745; | &#9744;
+Milliseconds | ms | 10e-3s |&#9745; | &#9745; | &#9744;
+Seconds | s | SI definition | &#9745; | &#9745; | &#9744; (seconds is still used as base)
+Minutes | m | 60s | &#9745; | &#9745; | &#9744;
+Hours | h | 60m | &#9745; | &#9745; | &#9744;
+Days | d | 24h | &#9745; | &#9745; | &#9744;
+Weeks | w | 7d | &#9745; | &#9745; | &#9744;
+Months | M | Year / 12 | &#9744; | &#9745; | &#9744;
+Years | y | 365.25d | &#9744; | &#9745; | &#9744;
 
 Note, that `Months` and `Years` are not included in the default configuration. The current
-implementation uses a very rough calculation of `Months` and `Years` in seconds. If they are
-included in the final configuration then the following common gregorian calendar based calculation
-is used:
-
-`1 year = 365 days` and `1 Month = 30 days`.
+implementation uses an approximate calculation of `Months` and `Years` in seconds. If they are
+included in the final configuration then the Julian year based calculation is used. (See table)
 
 # Benchmarks
 
@@ -201,9 +198,8 @@ Input (parser without time units) | avg parsing time | ~ samples / s
 - Improve performance especially for long inputs
 - Make base unit configurable to a different time unit than seconds.
 - Implement usage of more than one identifier for time units
-- Provide more days in a year calculations:
+- Provide other year calculations:
     - mean Gregorian year
-    - Julian year
     - Sidereal year
     - Tropical year
 

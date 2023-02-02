@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add more unit tests
+- Add a simple example in examples directory
+
+### Changed
+
+- Updated the README, library documentation and provide more examples
+- Rename `DurationParser::with_no_time_units` -> `DurationParser::without_time_units`
+- Change to Julian year calculation: 1 year = 365.25 days and 1 month = year / 12
+
+### Fixed
+
+- Fix a possible overflow when multiplying attos with the time unit multiplier
+- Export `error::ParseError` and make this enum public
+
 ## [0.1.0] - 2023-02-01
 
 ### Added
