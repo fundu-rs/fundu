@@ -56,11 +56,11 @@ the input string was positive `infinity`.
 - Providing better error messages.
 
 This library aims for low runtime costs (See [Benchmarks](#benchmarks)) and being a lightweight
-crate. `fundu` is purely built on top of the rust `stdlib`, and no additional dependencies are
+crate. `fundu` is purely built on top of the rust `stdlib`, and there are no additional dependencies
 required. The accepted string format is almost the same like the scientific floating point format
-and compatible to the [`f64::from_str`] format. In other words, if the accepted input string was
-convertible to a `f64` with `f64::from_str` before there is no change needed to accept the same
-format with `fundu`. For further details see the [Documentation](https://docs.rs/crate/fundu)!
+and compatible to the [`f64::from_str`] format. In other words, if the accepted input string could
+previously converted to an `f64` with `f64::from_str`, no change is needed to accept the same format
+with `fundu`. For further details see the [Documentation](https://docs.rs/crate/fundu)!
 
 # Installation
 
@@ -147,9 +147,9 @@ assert_eq!(
 
 # Time units
 
-Time units are used to calculate the final `Duration`. `Seconds` are the base unit if no time unit
-was found in the input string. The table below gives an overview of the constructor methods and
-which time units are available. If a custom set of time units is required,
+Time units are used to calculate the final `Duration`. `Seconds` are the default unit if no time
+unit was present in the input string. The table below gives an overview of the constructor methods
+and which time units are available. If a custom set of time units is required,
 `DurationParser::with_time_units` can be used.
 
 Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
@@ -167,7 +167,7 @@ Years | y | 365.25d | &#9744; | &#9745; | &#9744;
 
 Note, that `Months` and `Years` are not included in the default configuration. The current
 implementation uses an approximate calculation of `Months` and `Years` in seconds. If they are
-included in the final configuration then the Julian year based calculation is used. (See table)
+included in the final configuration, the Julian year based calculation is used. (See table)
 
 # Benchmarks
 
@@ -184,7 +184,7 @@ and then run the benchmarks with
 cargo bench
 ```
 
-To get a rough idea about the parsing times, here the mean parsing speed of two inputs on a
+To get a rough idea about the parsing times, here the average parsing speed of two inputs on a
 comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
 Input (parser without time units) | avg parsing time | ~ samples / s
