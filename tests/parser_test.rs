@@ -27,7 +27,7 @@ fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
 
 #[rstest]
 #[case::simple_zero("0", Duration::ZERO)]
-#[case::many_zeroes(&format!("{}", "0".repeat(2000)), Duration::ZERO)]
+#[case::many_zeroes(&"0".repeat(2000), Duration::ZERO)]
 #[case::many_leading_zeroes(&format!("{}1", "0".repeat(2000)), Duration::new(1, 0))]
 #[case::zero_point_zero("0.0", Duration::ZERO)]
 #[case::point_zero(".0", Duration::ZERO)]
