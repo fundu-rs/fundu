@@ -154,9 +154,9 @@ and which time units are available. If a custom set of time units is required,
 
 Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
 --- | --- | --- | --- | --- | ---
-Nanoseconds | ns | 10e-9s | &#9745; | &#9745; | &#9744;
-Microseconds | Ms | 10e-6s | &#9745; | &#9745; | &#9744;
-Milliseconds | ms | 10e-3s |&#9745; | &#9745; | &#9744;
+Nanoseconds | ns | 1e-9s | &#9745; | &#9745; | &#9744;
+Microseconds | Ms | 1e-6s | &#9745; | &#9745; | &#9744;
+Milliseconds | ms | 1e-3s |&#9745; | &#9745; | &#9744;
 Seconds | s | SI definition | &#9745; | &#9745; | &#9744; (seconds is still used as base)
 Minutes | m | 60s | &#9745; | &#9745; | &#9744;
 Hours | h | 60m | &#9745; | &#9745; | &#9744;
