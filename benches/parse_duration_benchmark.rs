@@ -16,7 +16,7 @@ fn duration_parser_benchmark(criterion: &mut Criterion) {
             &format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022)),
         ),
     ];
-    let mut parser = DurationParser::with_no_time_units();
+    let mut parser = DurationParser::without_time_units();
     let mut group = criterion.benchmark_group("parsing speed");
     for (parameter, input) in inputs {
         group.bench_with_input(
@@ -27,7 +27,7 @@ fn duration_parser_benchmark(criterion: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("no time units", parameter),
             &input,
-            |b, &input| b.iter(|| DurationParser::with_no_time_units().parse(black_box(input))),
+            |b, &input| b.iter(|| DurationParser::without_time_units().parse(black_box(input))),
         );
         group.bench_with_input(
             BenchmarkId::new("only parse", parameter),

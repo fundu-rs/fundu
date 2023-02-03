@@ -1,6 +1,6 @@
 [package]
 name = "fundu"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Configurable, precise and fast string parser to a rust std::time::Duration"
@@ -24,3 +24,7 @@ criterion = "0.4.0"
 [[bench]]
 name = "parse_duration_benchmark"
 harness = false
+
+[[example]]
+name = "simple"
+test = true

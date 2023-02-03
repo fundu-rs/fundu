@@ -53,7 +53,7 @@ jobs:
       - name: Format
         run: cargo fmt --check
       - name: Lint
-        run: cargo +stable clippy -- -D warnings
+        run: cargo +stable clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test
 
