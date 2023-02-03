@@ -6,6 +6,7 @@
 use std::collections::HashMap;
 
 // TODO: Add Eq
+/// The time units the parser can understand
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TimeUnit {
     NanoSecond,
@@ -39,6 +40,7 @@ pub const DEFAULT_ID_YEAR: &str = "y";
 pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
 
 impl TimeUnit {
+    /// Return the default identifier
     pub fn default_identifier(&self) -> &'static str {
         match self {
             TimeUnit::NanoSecond => DEFAULT_ID_NANO_SECOND,
@@ -54,6 +56,15 @@ impl TimeUnit {
         }
     }
 
+    /// Return the multiplier to convert the [`TimeUnit`] to seconds.
+    ///
+    /// The multipliers change their meaning depending on whether [`TimeUnit`] is less than, equal
+    /// or greater than `seconds`:
+    ///
+    /// ```text
+    /// m <= 0 => x * 10^-m
+    /// m > 0  => x * m
+    /// ```
     pub fn multiplier(&self) -> u64 {
         use TimeUnit::*;
 
@@ -72,6 +83,7 @@ impl TimeUnit {
     }
 }
 
+/// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
 #[derive(Debug, Default)]
 pub struct TimeUnits<'a> {
     time_units: HashMap<&'a str, TimeUnit>,
@@ -79,10 +91,12 @@ pub struct TimeUnits<'a> {
 }
 
 impl<'a> TimeUnits<'a> {
+    /// Create an empty set of [`TimeUnit`]s.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
     pub fn with_default_time_units() -> Self {
         let mut time_units = HashMap::new();
         time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
@@ -99,12 +113,14 @@ impl<'a> TimeUnits<'a> {
         }
     }
 
+    /// Create [`TimeUnits`] with a custom set of [`TimeUnit`]s.
     pub fn with_time_units(units: &[TimeUnit]) -> Self {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
     }
 
+    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
     pub fn with_all_time_units() -> Self {
         let mut time_units = HashMap::new();
         time_units.insert(DEFAULT_ID_NANO_SECOND, TimeUnit::NanoSecond);
@@ -123,6 +139,7 @@ impl<'a> TimeUnits<'a> {
         }
     }
 
+    /// Add a [`TimeUnit`] to the set of already present time units.
     pub fn add_time_unit(&mut self, unit: TimeUnit) {
         let id = unit.default_identifier();
         let length = id.len();
@@ -132,20 +149,27 @@ impl<'a> TimeUnits<'a> {
         }
     }
 
+    /// Add multiple [`TimeUnit`] to the set of already present time units.
     pub fn add_time_units(&mut self, units: &[TimeUnit]) {
         for unit in units {
             self.add_time_unit(*unit);
         }
     }
 
+    /// Return `true` if this set of time units is empty.
     pub fn is_empty(&self) -> bool {
         self.time_units.is_empty()
     }
 
+    /// Return the maximum length in bytes of the identifier in the current set of [`TimeUnit`].
     pub fn max_length(&self) -> usize {
         self.max_length
     }
 
+    /// Return the [`TimeUnit`] associated with the provided `identifier`.
+    ///
+    /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
+    /// set of time units.
     pub fn get(&self, identifier: &str) -> Option<TimeUnit> {
         self.time_units.get(identifier).cloned()
     }
