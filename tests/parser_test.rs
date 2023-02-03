@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{parse_duration, DurationParser, TimeUnit};
+use fundu::{parse_duration, DurationParser, ParseError, TimeUnit};
 use rstest::rstest;
 use std::time::Duration;
 
@@ -183,15 +183,23 @@ fn test_parser_when_time_units_are_not_present_then_panics(
 }
 
 #[rstest]
-#[case::syntax_error("1y", "Syntax error: No time units allowed but found: y at column 1")]
-#[case::overflow_error("1e-2000", "Number overflow")]
-#[case::invalid_input_error("-inf", "Invalid input: Negative infinity")]
-fn test_parse_error_messages(#[case] input: &str, #[case] expected: &str) {
+#[case::syntax_error("1y", ParseError::Syntax(1, "No time units allowed but found: y".to_string()), "Syntax error: No time units allowed but found: y at column 1")]
+#[case::overflow_error("1e-2000", ParseError::Overflow, "Number overflow")]
+#[case::invalid_input_error("-inf", ParseError::InvalidInput("Negative infinity".to_string()), "Invalid input: Negative infinity")]
+fn test_parse_error_messages(
+    #[case] input: &str,
+    #[case] expected_error: ParseError,
+    #[case] expected_string: &str,
+) {
+    assert_eq!(
+        DurationParser::without_time_units().parse(input),
+        Err(expected_error)
+    );
     assert_eq!(
         DurationParser::without_time_units()
             .parse(input)
             .unwrap_err()
             .to_string(),
-        expected
+        expected_string
     );
 }
