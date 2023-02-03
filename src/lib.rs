@@ -121,8 +121,6 @@ pub use error::ParseError;
 pub use time::TimeUnit;
 use time::TimeUnits;
 
-pub const NANOS_MAX: u32 = 999_999_999;
-pub const SECONDS_MAX: u64 = u64::MAX;
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
 
