@@ -114,7 +114,6 @@ mod error;
 mod time;
 
 use std::cmp::Ordering;
-use std::slice::Iter;
 use std::time::Duration;
 
 pub use error::ParseError;
@@ -313,25 +312,25 @@ impl DurationRepr {
 struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
-    iterator: Iter<'a, u8>,
     time_units: &'a TimeUnits<'a>,
+    input: &'a [u8],
 }
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
     fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
-        let mut iterator = input.as_bytes().iter();
+        let input = input.as_bytes();
         Self {
-            current_byte: iterator.next(),
+            current_byte: input.first(),
+            input,
             current_pos: 0,
-            iterator,
             time_units,
         }
     }
 
     fn advance(&mut self) {
-        self.current_byte = self.iterator.next();
         self.current_pos += 1;
+        self.current_byte = self.input.get(self.current_pos);
     }
 
     fn parse(&mut self) -> Result<DurationRepr, ParseError> {
@@ -473,7 +472,7 @@ impl<'a> ReprParser<'a> {
         // Using `size_hint()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations and
         // maximum memory used is just around `1kB` per parsed number.
-        let capacity = max.min(self.iterator.size_hint().1.unwrap() + 1);
+        let capacity = max.min(self.input.len() - self.current_pos + 1);
         let mut digits = Vec::<u8>::with_capacity(capacity);
 
         while let Some(byte) = self.current_byte {
