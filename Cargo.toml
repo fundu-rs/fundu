@@ -20,10 +20,16 @@ bench = false
 [dev-dependencies]
 rstest = "0.16.0"
 criterion = "0.4.0"
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
 [[bench]]
 name = "parse_duration_benchmark"
 harness = false
+
+[[bench]]
+name = "flamegraph_small_input"
+harness = false
+bench = false
 
 [[example]]
 name = "simple"
