@@ -189,8 +189,8 @@ comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
 Input (parser without time units) | avg parsing time | ~ samples / s
 --- | --- | ---
-`1` | `54.260 ns` | `18429782`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `4.0374 µs` | `247684`
+`1` | `48.716 ns` | `20_527_136`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `3.8524 µs` | `259_578`
 
 # TODO
 

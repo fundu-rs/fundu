@@ -137,6 +137,10 @@ impl<'a> Seconds<'a> {
     const ZERO: Self = Seconds(None, None, None);
 
     fn parse(&self) -> Result<u64, ParseError> {
+        if self.is_zero() {
+            return Ok(0);
+        }
+
         let mut seconds: u64 = 0;
         // 20 is the number of digits of u64::MAX
         let num_zeroes = self.2.unwrap_or(0).min(20);
@@ -161,6 +165,10 @@ impl<'a> Seconds<'a> {
 
         Ok(seconds)
     }
+
+    fn is_zero(&self) -> bool {
+        self.0.map_or(true, |v| v.is_empty()) && self.1.map_or(true, |v| v.is_empty())
+    }
 }
 
 /// An intermediate representation of atto seconds.
@@ -172,6 +180,10 @@ impl<'a> Attos<'a> {
     const ZERO: Self = Attos(None, None, None);
 
     fn parse(&self) -> u64 {
+        if self.is_zero() {
+            return 0;
+        }
+
         let mut multi = ATTO_MULTIPLIER / 10;
         let mut attos: u64 = 0;
 
@@ -189,6 +201,10 @@ impl<'a> Attos<'a> {
         }
 
         attos
+    }
+
+    fn is_zero(&self) -> bool {
+        self.1.map_or(true, |v| v.is_empty()) && self.2.map_or(true, |v| v.is_empty())
     }
 }
 
