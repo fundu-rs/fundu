@@ -57,5 +57,9 @@ fn reference_benchmark(criterion: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, duration_parser_benchmark, reference_benchmark);
+criterion_group!(
+    name = benches;
+    config = Criterion::default().sample_size(1000).measurement_time(Duration::from_secs(10));
+    targets = duration_parser_benchmark, reference_benchmark
+);
 criterion_main!(benches);
