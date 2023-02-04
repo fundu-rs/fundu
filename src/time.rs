@@ -56,14 +56,15 @@ impl TimeUnit {
         }
     }
 
-    /// Return the multiplier to convert the [`TimeUnit`] to seconds.
+    /// Return the multiplier to convert the number with [`TimeUnit`] to seconds.
     ///
-    /// The multipliers change their meaning depending on whether [`TimeUnit`] is less than, equal
-    /// or greater than `seconds`:
+    /// The multipliers change their application depending on whether the [`TimeUnit`] is less than,
+    /// equal or greater than `seconds`:
     ///
     /// ```text
-    /// m <= 0 => x * 10^-m
-    /// m > 0  => x * m
+    /// t <= s => x(t) * 10^-m
+    /// t > s  => x(t) * m
+    /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
     pub fn multiplier(&self) -> u64 {
         use TimeUnit::*;
