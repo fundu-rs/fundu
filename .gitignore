@@ -1,5 +1,6 @@
 flamegraph.svg
 perf.data
+*.profraw
 
 # Swap
 [._]*.s[a-v][a-z]
