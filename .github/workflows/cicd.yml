@@ -74,18 +74,84 @@ jobs:
     needs: [base]
     name: Coverage/ubuntu-latest
     runs-on: ubuntu-latest
-    container:
-      image: xd009642/tarpaulin:develop-nightly
-      options: --security-opt seccomp=unconfined
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2.2.0
-      - name: Generate code coverage
+      - name: Prepare
+        run: sudo apt-get -y update && sudo apt-get -y install llvm
+      - name: Info
         run: |
-          cargo tarpaulin --timeout 120 --out Xml
+          uname -a
+          printenv | grep -i -e cargo -e rust -e llvm
+          cargo -V
+          rustup -V
+          rustup show
+          rustup component list | grep installed
+      - name: Create coverage profile
+        shell: bash
+        run: |
+          cat <<EOF > ~/.cargo/config
+          [profile.coverage]
+          inherits = "dev"
+          lto = false
+          debug = true
+          opt-level = 0
+          EOF
+      - name: Install grcov
+        run: |
+          cargo install rustfilt
+          cargo install grcov
+      - name: Clean
+        run: cargo clean
+      - name: Build
+        run: cargo build --profile coverage
+      - name: Test
+        run: cargo test --tests --profile coverage
+      - name: Generate code coverage
+        shell: bash
+        run: |
+          ~/.cargo/bin/grcov . \
+            --llvm-path /usr/bin \
+            --binary-path target/coverage \
+            --ignore-not-existing \
+            --output-type files \
+            --excl-start "cov:excl-start" \
+            --excl-stop "cov:excl-stop" \
+            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\()" \
+            --ignore "examples/*" \
+            --ignore build.rs \
+            --ignore "vendor/*" \
+            --ignore "/*" \
+            --ignore "[a-zA-Z]:/*" \
+            --source-dir . | sort -u
+
+          ~/.cargo/bin/grcov . \
+            --branch \
+            --llvm-path /usr/bin \
+            --binary-path target/coverage \
+            --ignore-not-existing \
+            --output-type lcov \
+            --source-dir . \
+            --excl-start "cov:excl-start" \
+            --excl-stop "cov:excl-stop" \
+            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\()" \
+            --ignore "examples/*" \
+            --ignore build.rs \
+            --ignore "vendor/*" \
+            --ignore "/*" \
+            --ignore "[a-zA-Z]:/*" \
+            --output-path lcov.info && test -e lcov.info
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v3
         with:
+          files: lcov.info
           token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
           fail_ci_if_error: true
+    env:
+      RUSTFLAGS: "-C instrument-coverage"
+      LLVM_PROFILE_FILE: "fundu_coverage-%p-%m.profraw"
+      RUST_BACKTRACE: "0"
