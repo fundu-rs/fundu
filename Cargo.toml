@@ -20,6 +20,8 @@ bench = false
 [dev-dependencies]
 rstest = "0.16.0"
 criterion = "0.4.0"
+
+[target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
 [[bench]]
