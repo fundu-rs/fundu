@@ -481,10 +481,12 @@ impl<'a> ReprParser<'a> {
         mut max: usize,
         strip_leading_zeroes: bool,
     ) -> Result<Vec<u8>, ParseError> {
+        // cov:excl-start
         debug_assert!(
             self.current_byte.is_some(),
             "Call this function only when there is at lease one digit present"
-        );
+        ); // cov:excl-stop
+
         // Using `size_hint()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations and
         // maximum memory used is just around `1kB` per parsed number.
