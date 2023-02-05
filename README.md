@@ -17,7 +17,7 @@
         <img src="https://github.com/Joining7943/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state"/>
     </a>
     <a href="https://codecov.io/gh/Joining7943/fundu" >
-        <img src="https://codecov.io/gh/Joining7943/fundu/branch/release/graph/badge.svg?token=7GOQ1A6UPH" alt="Code Coverage"/>
+        <img src="https://codecov.io/gh/Joining7943/fundu/branch/main/graph/badge.svg?token=7GOQ1A6UPH"/>
     </a>
     <a href="https://crates.io/crates/fundu">
         <img src="https://img.shields.io/crates/v/fundu.svg" alt="Crates.io"/>
@@ -38,6 +38,7 @@
     - [Examples](#examples)
     - [Time Units](#time-units)
     - [Benchmarks](#benchmarks)
+    - [Platform support](#platform-support)
     - [Todo](#todo)
     - [License](#license)
   
@@ -187,10 +188,19 @@ cargo bench
 To get a rough idea about the parsing times, here the average parsing speed of two inputs on a
 comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
-Input (parser without time units) | avg parsing time | ~ samples / s
---- | --- | ---
-`1` | `48.716 ns` | `20_527_136`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `3.8524 µs` | `259_578`
+Input | parser with time units | avg parsing time | ~ samples / s
+--- | --- | --- | ---
+`1` | no | `48.716 ns` | `20_527_136.874`
+`1` | yes | `52.548 ns` | `19_030_219.989`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `3.7219 µs` | `268_679.975`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `3.7132 µs` | `269_309.490`
+
+# Platform support
+
+Since `fundu` is purely built on top of the rust `stdlib` without platform specific code, this library
+should be compatible with all platforms. Please open an issue if you find any unsupported platforms which `rust` itself supports.
+
+See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.yml)
 
 # TODO
 
@@ -198,6 +208,7 @@ Input (parser without time units) | avg parsing time | ~ samples / s
 - Improve performance especially for long inputs
 - Make base unit configurable to a different time unit than seconds.
 - Implement usage of more than one identifier for time units
+- Add more build targets in the CI
 - Provide other year calculations:
     - mean Gregorian year
     - Sidereal year
