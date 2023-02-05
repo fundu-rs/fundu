@@ -328,7 +328,7 @@ impl DurationRepr {
 struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
-    time_units: &'a TimeUnits<'a>,
+    time_units: &'a TimeUnits,
     input: &'a [u8],
 }
 
@@ -590,11 +590,11 @@ impl<'a> ReprParser<'a> {
 
 /// A builder with methods to configure the parser with a set of time units.
 #[derive(Debug, Default)]
-pub struct DurationParser<'a> {
-    time_units: TimeUnits<'a>,
+pub struct DurationParser {
+    time_units: TimeUnits,
 }
 
-impl<'a> DurationParser<'a> {
+impl DurationParser {
     /// Construct the parser with default time units.
     pub fn new() -> Self {
         Self {
