@@ -11,6 +11,7 @@ use std::time::Duration;
 #[case::empty_string("")]
 #[case::leading_whitespace("  1")]
 #[case::trailing_whitespace("1   ")]
+#[case::trailing_invalid_character("1.1e1msNOPE")]
 #[case::only_whitespace("  \t\n")]
 #[case::only_point(".")]
 #[case::only_sign("+")]
@@ -51,6 +52,7 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 
 #[rstest]
 #[case::zero("1.1e0", Duration::new(1, 100_000_000))]
+#[case::point_and_then_exponent("1.e0", Duration::new(1, 0))]
 #[case::negative_zero("1.1e-0", Duration::new(1, 100_000_000))]
 #[case::simple("1.09e1", Duration::new(10, 900_000_000))]
 #[case::simple_big_e("1.09E1", Duration::new(10, 900_000_000))]
@@ -135,6 +137,7 @@ fn test_parse_duration_when_arguments_are_infinity_values(#[case] source: &str) 
 #[rstest]
 #[case::negative_infinity_short("-inf")]
 #[case::negative_infinity_long("-infinity")]
+#[case::infinity_long_trailing_invalid("infinityINVALID")]
 #[case::incomplete_infinity("infin")]
 #[case::infinity_with_number("inf1.0")]
 #[should_panic]
@@ -155,6 +158,7 @@ fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(#[c
 #[case::hours_underflow("0.000000000001h", Duration::new(0, 3))]
 #[case::years_underflow("0.0000000000000001y", Duration::new(0, 3))]
 #[case::max_attos_no_u64_overflow(&format!("0.{}y", "9".repeat(100)), Duration::new(31557599, 999_999_999))]
+#[case::minutes_overflow(&format!("{}m", u64::MAX), Duration::MAX)]
 fn test_parse_duration_when_time_units_are_given(#[case] source: &str, #[case] expected: Duration) {
     let duration = DurationParser::with_all_time_units().parse(source).unwrap();
     assert_eq!(duration, expected);
@@ -178,6 +182,16 @@ fn test_parser_when_time_units_are_not_present_then_panics(
 ) {
     DurationParser::without_time_units()
         .time_units(time_units.as_slice())
+        .parse(source)
+        .unwrap();
+}
+
+#[rstest]
+#[case::minute_short("1s", TimeUnit::Minute)]
+#[should_panic]
+fn test_parser_when_custom_time_unit(#[case] source: &str, #[case] time_unit: TimeUnit) {
+    DurationParser::without_time_units()
+        .time_unit(time_unit)
         .parse(source)
         .unwrap();
 }
