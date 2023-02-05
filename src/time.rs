@@ -108,7 +108,7 @@ impl Default for TimeUnits {
             minutes: Some(DEFAULT_ID_MINUTE),
             hours: Some(DEFAULT_ID_HOUR),
             days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_MONTH),
+            weeks: Some(DEFAULT_ID_WEEK),
             months: Default::default(),
             years: Default::default(),
         }
@@ -156,7 +156,7 @@ impl TimeUnits {
             minutes: Some(DEFAULT_ID_MINUTE),
             hours: Some(DEFAULT_ID_HOUR),
             days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_MONTH),
+            weeks: Some(DEFAULT_ID_WEEK),
             months: Some(DEFAULT_ID_MONTH),
             years: Some(DEFAULT_ID_YEAR),
         }
@@ -240,6 +240,7 @@ impl TimeUnits {
             && self.minutes.is_none()
             && self.hours.is_none()
             && self.days.is_none()
+            && self.weeks.is_none()
             && self.months.is_none()
             && self.years.is_none()
     }
