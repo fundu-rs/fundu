@@ -69,7 +69,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-fundu = "0.2.0"
+fundu = "0.2.1"
 ```
 
 # Examples
@@ -197,8 +197,9 @@ Input | parser with time units | avg parsing time | ~ samples / s
 
 # Platform support
 
-Since `fundu` is purely built on top of the rust `stdlib` without platform specific code, this library
-should be compatible with all platforms. Please open an issue if you find any unsupported platforms which `rust` itself supports.
+Since `fundu` is purely built on top of the rust `stdlib` without platform specific code, this
+library should be compatible with all platforms. Please open an issue if you find any unsupported
+platforms which `rust` itself supports.
 
 See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.yml)
 

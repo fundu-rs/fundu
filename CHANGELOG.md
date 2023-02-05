@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2023-02-05
+
 ### Added
 
 - New method `TimeUnits::get_time_units` which returns all currently active time units
@@ -33,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improve overall performance by 10-20%
 - Improve performance of parsing with time units by a factor of ~15 (before ~800ns -> after ~55ns)
-- tests: Improve test coverage
+- tests: Improve test coverage. Reach full coverage.
 - tests: Increase accuracy of benchmarks
 - CI: Use `grcov` for coverage report creation with the more accurate source-based coverage
 

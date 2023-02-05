@@ -90,7 +90,7 @@
 //!         .parse("1y")
 //!         .unwrap_err()
 //!         .to_string(),
-//!     "Syntax error: No time units allowed but found: y at column 1"
+//!     "Syntax error: No time units allowed but found: 'y' at column 1"
 //! );
 //! ```
 //!
@@ -286,7 +286,7 @@ impl DurationRepr {
         let (seconds, attos) = match seconds.parse() {
             Ok(seconds) => (seconds, attos.parse()),
             Err(ParseError::Overflow) => return Ok(Duration::MAX),
-            Err(_) => unreachable!(), // only ParseError::Overflow is returned by `Seconds::parse`
+            Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
         };
 
         // allow `-0` or `-0.0` and interpret as plain `0`
@@ -374,11 +374,8 @@ impl<'a> ReprParser<'a> {
             Some(byte) => {
                 return Err(ParseError::Syntax(
                     self.current_pos,
-                    format!(
-                        "Invalid character: {}",
-                        std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
-                    ),
-                ))
+                    format!("Invalid character: '{}'", *byte as char),
+                ));
             }
             None => {
                 return Err(ParseError::Syntax(
@@ -431,11 +428,8 @@ impl<'a> ReprParser<'a> {
             Some(byte) => {
                 return Err(ParseError::Syntax(
                     self.current_pos,
-                    format!(
-                        "No time units allowed but found: {}",
-                        std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
-                    ),
-                ))
+                    format!("No time units allowed but found: '{}'", *byte as char),
+                ));
             }
             None => return Ok(duration_repr),
         }
@@ -444,10 +438,7 @@ impl<'a> ReprParser<'a> {
         match self.current_byte {
             Some(byte) => Err(ParseError::Syntax(
                 self.current_pos,
-                format!(
-                    "Expected end of input but found: {}",
-                    std::str::from_utf8(&[*byte]).unwrap_or("invalid utf8")
-                ),
+                format!("Expected end of input but found: '{}'", *byte as char),
             )),
             None => Ok(duration_repr),
         }
@@ -466,10 +457,8 @@ impl<'a> ReprParser<'a> {
             }
         }
 
-        let string = std::str::from_utf8(bytes.as_slice()).map_err(|_| {
-            ParseError::Syntax(self.current_pos - bytes.len(), "Invalid utf8".to_string())
-        })?;
-        // TODO: Remove the need to convert to utf8 and store the ids as bytes.
+        // Safety: The input of `parse` is &str and therefore valid utf-8
+        let string = unsafe { std::str::from_utf8_unchecked(bytes.as_slice()) };
         self.time_units.get(string).ok_or(ParseError::Syntax(
             self.current_pos - bytes.len(),
             format!("Invalid time unit: {string}"),
@@ -520,12 +509,13 @@ impl<'a> ReprParser<'a> {
         for (pos, byte) in expected.iter().enumerate() {
             match self.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.advance(),
+                // wrong character
                 Some(_) => {
                     return Err(ParseError::Syntax(
                         self.current_pos,
                         "Invalid infinity".to_string(),
                     ))
-                } // wrong character
+                }
                 None if pos == 3 => return Ok(()), // short `inf` is allowed
                 None => {
                     return Err(ParseError::Syntax(
@@ -672,7 +662,7 @@ impl DurationParser {
 /// let duration = parse_duration("+1.09e1").unwrap();
 /// assert_eq!(duration, Duration::new(10, 900_000_000));
 ///
-/// assert_eq!(parse_duration("Not a number"), Err(ParseError::Syntax(0, "Invalid character: N".to_string())));
+/// assert_eq!(parse_duration("Not a number"), Err(ParseError::Syntax(0, "Invalid character: 'N'".to_string())));
 /// ```
 ///
 /// [`f64::from_str`]: https://doc.rust-lang.org/std/primitive.f64.html#method.from_str
