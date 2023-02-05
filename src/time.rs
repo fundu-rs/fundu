@@ -281,4 +281,293 @@ impl TimeUnits {
             None
         }
     }
+
+    #[allow(dead_code)]
+    pub fn get_time_units(&self) -> Vec<TimeUnit> {
+        use TimeUnit::*;
+        let mut time_units = Vec::with_capacity(10);
+        for (unit, value) in &[
+            (NanoSecond, self.nanos),
+            (MicroSecond, self.micros),
+            (MilliSecond, self.millis),
+            (Second, self.seconds),
+            (Minute, self.minutes),
+            (Hour, self.hours),
+            (Day, self.days),
+            (Week, self.weeks),
+            (Month, self.months),
+            (Year, self.years),
+        ] {
+            if value.is_some() {
+                time_units.push(*unit);
+            }
+        }
+        time_units
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::rstest;
+    use TimeUnit::*;
+
+    fn assert_time_unit(time_units: &TimeUnits, time_unit: TimeUnit, expected: Option<&str>) {
+        let id = match time_unit {
+            NanoSecond => time_units.nanos,
+            MicroSecond => time_units.micros,
+            MilliSecond => time_units.millis,
+            Second => time_units.seconds,
+            Minute => time_units.minutes,
+            Hour => time_units.hours,
+            Day => time_units.days,
+            Week => time_units.weeks,
+            Month => time_units.months,
+            Year => time_units.years,
+        };
+        assert_eq!(id, expected);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn assert_time_units<'a>(
+        time_units: &TimeUnits,
+        nanos: Option<&'a str>,
+        micros: Option<&'a str>,
+        millis: Option<&'a str>,
+        seconds: Option<&'a str>,
+        minutes: Option<&'a str>,
+        hours: Option<&'a str>,
+        days: Option<&'a str>,
+        weeks: Option<&'a str>,
+        months: Option<&'a str>,
+        years: Option<&'a str>,
+    ) {
+        assert_eq!(time_units.nanos, nanos);
+        assert_eq!(time_units.micros, micros);
+        assert_eq!(time_units.millis, millis);
+        assert_eq!(time_units.seconds, seconds);
+        assert_eq!(time_units.minutes, minutes);
+        assert_eq!(time_units.hours, hours);
+        assert_eq!(time_units.days, days);
+        assert_eq!(time_units.weeks, weeks);
+        assert_eq!(time_units.months, months);
+        assert_eq!(time_units.years, years);
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, "ns")]
+    #[case::micro_second(MicroSecond, "Ms")]
+    #[case::milli_second(MilliSecond, "ms")]
+    #[case::second(Second, "s")]
+    #[case::minute(Minute, "m")]
+    #[case::hour(Hour, "h")]
+    #[case::day(Day, "d")]
+    #[case::week(Week, "w")]
+    #[case::month(Month, "M")]
+    #[case::year(Year, "y")]
+    fn test_time_unit_default_identifier(#[case] time_unit: TimeUnit, #[case] expected: &str) {
+        assert_eq!(time_unit.default_identifier(), expected);
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, 9)]
+    #[case::micro_second(MicroSecond, 6)]
+    #[case::milli_second(MilliSecond, 3)]
+    #[case::second(Second, 0)]
+    #[case::minute(Minute, 60)]
+    #[case::hour(Hour, 60 * 60)]
+    #[case::day(Day, 60 * 60 * 24)]
+    #[case::week(Week, 60 * 60 * 24 * 7)]
+    #[case::month(Month, (60 * 60 * 24 * 365 + 60 * 60 * 24 / 4) / 12)] // (365 days + day/4) / 12
+    #[case::year(Year, 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4)] // 365 days + day/4
+    fn test_time_unit_multiplier(#[case] time_unit: TimeUnit, #[case] expected: u64) {
+        assert_eq!(time_unit.multiplier(), expected);
+    }
+
+    #[test]
+    fn test_time_units_new() {
+        let time_units = TimeUnits::new();
+        assert_time_units(
+            &time_units,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+    }
+
+    #[test]
+    fn test_time_units_with_default_time_units() {
+        let time_units = TimeUnits::with_default_time_units();
+        assert_eq!(time_units, TimeUnits::default());
+
+        assert_time_units(
+            &time_units,
+            Some("ns"),
+            Some("Ms"),
+            Some("ms"),
+            Some("s"),
+            Some("m"),
+            Some("h"),
+            Some("d"),
+            Some("w"),
+            None,
+            None,
+        );
+    }
+
+    #[test]
+    fn test_time_units_with_all_time_units() {
+        let time_units = TimeUnits::with_all_time_units();
+        assert_time_units(
+            &time_units,
+            Some("ns"),
+            Some("Ms"),
+            Some("ms"),
+            Some("s"),
+            Some("m"),
+            Some("h"),
+            Some("d"),
+            Some("w"),
+            Some("M"),
+            Some("y"),
+        );
+    }
+
+    #[test]
+    fn test_time_units_with_time_units() {
+        let time_units = TimeUnits::with_time_units(&[NanoSecond]);
+        assert_time_units(
+            &time_units,
+            Some("ns"),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        );
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, Some("ns"), 2)]
+    #[case::nano_second(MicroSecond, Some("Ms"), 2)]
+    #[case::nano_second(MilliSecond, Some("ms"), 2)]
+    #[case::nano_second(Second, Some("s"), 1)]
+    #[case::nano_second(Minute, Some("m"), 1)]
+    #[case::nano_second(Hour, Some("h"), 1)]
+    #[case::nano_second(Day, Some("d"), 1)]
+    #[case::nano_second(Week, Some("w"), 1)]
+    #[case::nano_second(Month, Some("M"), 1)]
+    #[case::nano_second(Year, Some("y"), 1)]
+    fn test_time_units_add_time_unit(
+        #[case] time_unit: TimeUnit,
+        #[case] expected: Option<&str>,
+        #[case] max_length: usize,
+    ) {
+        let mut time_units = TimeUnits::new();
+        time_units.add_time_unit(time_unit);
+        assert_time_unit(&time_units, time_unit, expected);
+        assert_eq!(time_units.max_length(), max_length);
+        assert_eq!(time_units.get_time_units(), vec![time_unit]);
+    }
+
+    #[test]
+    fn test_time_units_add_time_unit_twice() {
+        let mut time_units = TimeUnits::new();
+        let time_unit = MicroSecond;
+
+        time_units.add_time_unit(time_unit);
+        time_units.add_time_unit(time_unit);
+
+        assert!(time_units.micros.is_some());
+        assert_eq!(time_units.get_time_units(), vec![time_unit]);
+    }
+
+    #[test]
+    fn test_time_units_when_empty_then_return_true() {
+        assert!(TimeUnits::new().is_empty())
+    }
+
+    #[rstest]
+    fn test_time_units_is_empty_when_not_empty_then_return_false(
+        #[values(
+            NanoSecond,
+            MicroSecond,
+            MilliSecond,
+            Second,
+            Minute,
+            Hour,
+            Day,
+            Week,
+            Month,
+            Year
+        )]
+        time_unit: TimeUnit,
+    ) {
+        let time_units = TimeUnits::with_time_units(&[time_unit]);
+        assert!(!time_units.is_empty());
+    }
+
+    #[test]
+    fn test_time_units_add_time_units_when_in_order() {
+        let mut time_units = TimeUnits::new();
+        let units = &[NanoSecond, Second, Month];
+        time_units.add_time_units(units);
+        assert_eq!(time_units.get_time_units(), units);
+    }
+
+    #[test]
+    fn test_time_units_add_time_units_when_not_in_order() {
+        let mut time_units = TimeUnits::new();
+        let mut units = [Month, Second, Hour, NanoSecond];
+        time_units.add_time_units(&units);
+        units.sort();
+        assert_eq!(time_units.get_time_units(), &units);
+    }
+
+    #[rstest]
+    #[case::nano_second("ns", Some(NanoSecond))]
+    #[case::micro_second("Ms", Some(MicroSecond))]
+    #[case::milli_second("ms", Some(MilliSecond))]
+    #[case::second("s", Some(Second))]
+    #[case::minute("m", Some(Minute))]
+    #[case::hour("h", Some(Hour))]
+    #[case::day("d", Some(Day))]
+    #[case::week("w", Some(Week))]
+    #[case::month("M", Some(Month))]
+    #[case::year("y", Some(Year))]
+    fn test_time_units_get(#[case] id: &str, #[case] expected: Option<TimeUnit>) {
+        assert_eq!(TimeUnits::with_all_time_units().get(id), expected);
+        assert_eq!(TimeUnits::new().get(id), None);
+    }
+
+    #[test]
+    fn test_time_units_get_time_units() {
+        let time_units = TimeUnits::with_all_time_units();
+        assert_eq!(
+            time_units.get_time_units(),
+            vec![
+                NanoSecond,
+                MicroSecond,
+                MilliSecond,
+                Second,
+                Minute,
+                Hour,
+                Day,
+                Week,
+                Month,
+                Year
+            ]
+        )
+    }
 }
