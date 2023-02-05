@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use TimeUnit::*;
+
 /// The time units the parser can understand
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum TimeUnit {
@@ -20,7 +22,7 @@ pub enum TimeUnit {
 
 impl Default for TimeUnit {
     fn default() -> Self {
-        TimeUnit::Second
+        Second
     }
 }
 
@@ -40,16 +42,16 @@ impl TimeUnit {
     /// Return the default identifier
     pub fn default_identifier(&self) -> &'static str {
         match self {
-            TimeUnit::NanoSecond => DEFAULT_ID_NANO_SECOND,
-            TimeUnit::MicroSecond => DEFAULT_ID_MICRO_SECOND,
-            TimeUnit::MilliSecond => DEFAULT_ID_MILLI_SECOND,
-            TimeUnit::Second => DEFAULT_ID_SECOND,
-            TimeUnit::Minute => DEFAULT_ID_MINUTE,
-            TimeUnit::Hour => DEFAULT_ID_HOUR,
-            TimeUnit::Day => DEFAULT_ID_DAY,
-            TimeUnit::Week => DEFAULT_ID_WEEK,
-            TimeUnit::Month => DEFAULT_ID_MONTH,
-            TimeUnit::Year => DEFAULT_ID_YEAR,
+            NanoSecond => DEFAULT_ID_NANO_SECOND,
+            MicroSecond => DEFAULT_ID_MICRO_SECOND,
+            MilliSecond => DEFAULT_ID_MILLI_SECOND,
+            Second => DEFAULT_ID_SECOND,
+            Minute => DEFAULT_ID_MINUTE,
+            Hour => DEFAULT_ID_HOUR,
+            Day => DEFAULT_ID_DAY,
+            Week => DEFAULT_ID_WEEK,
+            Month => DEFAULT_ID_MONTH,
+            Year => DEFAULT_ID_YEAR,
         }
     }
 
@@ -64,8 +66,6 @@ impl TimeUnit {
     /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
     pub fn multiplier(&self) -> u64 {
-        use TimeUnit::*;
-
         match self {
             NanoSecond => 9,
             MicroSecond => 6,
@@ -164,54 +164,53 @@ impl TimeUnits {
 
     /// Add a [`TimeUnit`] to the set of already present time units.
     pub fn add_time_unit(&mut self, unit: TimeUnit) {
-        // TODO match only if the time unit is not already set
         let id = match unit {
-            TimeUnit::NanoSecond => {
+            NanoSecond => {
                 let id = DEFAULT_ID_NANO_SECOND;
                 self.nanos = Some(id);
                 id
             }
-            TimeUnit::MicroSecond => {
+            MicroSecond => {
                 let id = DEFAULT_ID_MICRO_SECOND;
                 self.micros = Some(id);
                 id
             }
-            TimeUnit::MilliSecond => {
+            MilliSecond => {
                 let id = DEFAULT_ID_MILLI_SECOND;
                 self.millis = Some(id);
                 id
             }
-            TimeUnit::Second => {
+            Second => {
                 let id = DEFAULT_ID_SECOND;
                 self.seconds = Some(id);
                 id
             }
-            TimeUnit::Minute => {
+            Minute => {
                 let id = DEFAULT_ID_MINUTE;
                 self.minutes = Some(id);
                 id
             }
-            TimeUnit::Hour => {
+            Hour => {
                 let id = DEFAULT_ID_HOUR;
                 self.hours = Some(id);
                 id
             }
-            TimeUnit::Day => {
+            Day => {
                 let id = DEFAULT_ID_DAY;
                 self.days = Some(id);
                 id
             }
-            TimeUnit::Week => {
+            Week => {
                 let id = DEFAULT_ID_WEEK;
                 self.weeks = Some(id);
                 id
             }
-            TimeUnit::Month => {
+            Month => {
                 let id = DEFAULT_ID_MONTH;
                 self.months = Some(id);
                 id
             }
-            TimeUnit::Year => {
+            Year => {
                 let id = DEFAULT_ID_YEAR;
                 self.years = Some(id);
                 id
@@ -255,7 +254,6 @@ impl TimeUnits {
     /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
     /// set of time units.
     pub fn get(&self, identifier: &str) -> Option<TimeUnit> {
-        use TimeUnit::*;
         let id = Some(identifier);
         if id == self.nanos {
             Some(NanoSecond)
@@ -282,9 +280,9 @@ impl TimeUnits {
         }
     }
 
+    /// Return all [`TimeUnit`]s from the set of active time units ordered.
     #[allow(dead_code)]
     pub fn get_time_units(&self) -> Vec<TimeUnit> {
-        use TimeUnit::*;
         let mut time_units = Vec::with_capacity(10);
         for (unit, value) in &[
             (NanoSecond, self.nanos),
@@ -310,7 +308,6 @@ impl TimeUnits {
 mod tests {
     use super::*;
     use rstest::rstest;
-    use TimeUnit::*;
 
     fn assert_time_unit(time_units: &TimeUnits, time_unit: TimeUnit, expected: Option<&str>) {
         let id = match time_unit {
