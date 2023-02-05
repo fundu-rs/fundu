@@ -119,9 +119,9 @@ jobs:
             --binary-path target/coverage \
             --ignore-not-existing \
             --output-type files \
-            --excl-start "cov:excl-start" \
-            --excl-stop "cov:excl-stop" \
-            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\()" \
+            --excl-start "cov:\s*excl-start" \
+            --excl-stop "cov:\s*excl-stop" \
+            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*\/\/\s*cov:\s*excl-line)" \
             --ignore "examples/*" \
             --ignore build.rs \
             --ignore "vendor/*" \
@@ -136,9 +136,9 @@ jobs:
             --ignore-not-existing \
             --output-type lcov \
             --source-dir . \
-            --excl-start "cov:excl-start" \
-            --excl-stop "cov:excl-stop" \
-            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\()" \
+            --excl-start "cov:\s*excl-start" \
+            --excl-stop "cov:\s*excl-stop" \
+            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*\/\/\s*cov:\s*excl-line)" \
             --ignore "examples/*" \
             --ignore build.rs \
             --ignore "vendor/*" \
