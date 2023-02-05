@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 /// The time units the parser can understand
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum TimeUnit {
     NanoSecond,
     MicroSecond,
@@ -82,7 +82,7 @@ impl TimeUnit {
 }
 
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TimeUnits {
     max_length: usize,
     nanos: Option<&'static str>,
