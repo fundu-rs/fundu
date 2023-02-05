@@ -121,7 +121,7 @@ jobs:
             --output-type files \
             --excl-start "cov:\s*excl-start" \
             --excl-stop "cov:\s*excl-stop" \
-            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*\/\/\s*cov:\s*excl-line)" \
+            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*//\s*cov:\s*excl-line)' \
             --ignore "examples/*" \
             --ignore build.rs \
             --ignore "vendor/*" \
@@ -138,7 +138,7 @@ jobs:
             --source-dir . \
             --excl-start "cov:\s*excl-start" \
             --excl-stop "cov:\s*excl-stop" \
-            --excl-line "^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*\/\/\s*cov:\s*excl-line)" \
+            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*//\s*cov:\s*excl-line)' \
             --ignore "examples/*" \
             --ignore build.rs \
             --ignore "vendor/*" \
