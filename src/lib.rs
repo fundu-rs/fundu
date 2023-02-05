@@ -286,7 +286,7 @@ impl DurationRepr {
         let (seconds, attos) = match seconds.parse() {
             Ok(seconds) => (seconds, attos.parse()),
             Err(ParseError::Overflow) => return Ok(Duration::MAX),
-            Err(_) => unreachable!(), // only ParseError::Overflow is returned by `Seconds::parse`
+            Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
         };
 
         // allow `-0` or `-0.0` and interpret as plain `0`
@@ -509,12 +509,13 @@ impl<'a> ReprParser<'a> {
         for (pos, byte) in expected.iter().enumerate() {
             match self.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.advance(),
+                // wrong character
                 Some(_) => {
                     return Err(ParseError::Syntax(
                         self.current_pos,
                         "Invalid infinity".to_string(),
                     ))
-                } // wrong character
+                }
                 None if pos == 3 => return Ok(()), // short `inf` is allowed
                 None => {
                     return Err(ParseError::Syntax(
