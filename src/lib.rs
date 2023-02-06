@@ -393,7 +393,7 @@ impl<'a> ReprParser<'a> {
                     // the maximum number of digits that need to be considered:
                     // max(+exponent) = 1023 + max_digits(nano seconds) = 9 + 1
                     Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033, false)?),
-                    Some(_) if duration_repr.whole.is_none() => {
+                    Some(_) | None if duration_repr.whole.is_none() => {
                         return Err(ParseError::Syntax(
                             self.current_pos,
                             "Either the whole number part or the fraction must be present"

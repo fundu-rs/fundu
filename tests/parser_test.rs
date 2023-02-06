@@ -21,9 +21,8 @@ use std::time::Duration;
 #[case::negative_seconds("-1")]
 #[case::negative_seconds_with_fraction("-1.0")]
 #[case::negative_nano_seconds("-0.000000001")]
-#[should_panic]
 fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
-    parse_duration(source).unwrap();
+    assert!(parse_duration(source).is_err());
 }
 
 #[rstest]
@@ -81,9 +80,8 @@ fn test_parse_duration_when_arguments_contain_exponent(
 #[case::exponent_overflow_error_high("1e1024")]
 #[case::exponent_overflow_error_low("1e-1023")]
 #[case::exponent_parse_i16_overflow_error(&format!("1e{}", i16::MIN as i32 - 1))]
-#[should_panic]
 fn test_parse_duration_when_arguments_with_illegal_exponent_then_error(#[case] source: &str) {
-    parse_duration(source).unwrap();
+    assert!(parse_duration(source).is_err());
 }
 
 #[rstest]
@@ -140,9 +138,8 @@ fn test_parse_duration_when_arguments_are_infinity_values(#[case] source: &str) 
 #[case::infinity_long_trailing_invalid("infinityINVALID")]
 #[case::incomplete_infinity("infin")]
 #[case::infinity_with_number("inf1.0")]
-#[should_panic]
 fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(#[case] source: &str) {
-    parse_duration(source).unwrap();
+    assert!(parse_duration(source).is_err());
 }
 
 #[rstest]
@@ -175,25 +172,23 @@ fn test_parser_when_time_units(#[case] source: &str, #[case] time_units: Vec<Tim
 
 #[rstest]
 #[case::minute_short("1s", vec![TimeUnit::Minute])]
-#[should_panic]
-fn test_parser_when_time_units_are_not_present_then_panics(
+fn test_parser_when_time_units_are_not_present_then_error(
     #[case] source: &str,
     #[case] time_units: Vec<TimeUnit>,
 ) {
-    DurationParser::without_time_units()
+    assert!(DurationParser::without_time_units()
         .time_units(time_units.as_slice())
         .parse(source)
-        .unwrap();
+        .is_err());
 }
 
 #[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
-#[should_panic]
-fn test_parser_when_custom_time_unit(#[case] source: &str, #[case] time_unit: TimeUnit) {
-    DurationParser::without_time_units()
+fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
+    assert!(DurationParser::without_time_units()
         .time_unit(time_unit)
         .parse(source)
-        .unwrap();
+        .is_err());
 }
 
 #[rstest]
