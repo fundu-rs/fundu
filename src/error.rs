@@ -5,7 +5,7 @@
 
 //! Provide the [`ParseError`]
 
-use std::fmt::Display;
+use std::{error::Error, fmt::Display};
 
 /// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
@@ -19,6 +19,8 @@ pub enum ParseError {
     /// A generic error if no other error type fits
     InvalidInput(String),
 }
+
+impl Error for ParseError {}
 
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
