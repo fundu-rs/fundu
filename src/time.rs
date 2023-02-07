@@ -5,18 +5,65 @@
 
 use TimeUnit::*;
 
-/// The time units the parser can understand
+/// The default identifier of [`TimeUnit::NanoSecond`]
+pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
+/// The default identifier of [`TimeUnit::MicroSecond`]
+pub const DEFAULT_ID_MICRO_SECOND: &str = "Ms";
+/// The default identifier of [`TimeUnit::MicroSecond`]
+pub const DEFAULT_ID_MILLI_SECOND: &str = "ms";
+/// The default identifier of [`TimeUnit::Second`]
+pub const DEFAULT_ID_SECOND: &str = "s";
+/// The default identifier of [`TimeUnit::Minute`]
+pub const DEFAULT_ID_MINUTE: &str = "m";
+/// The default identifier of [`TimeUnit::Hour`]
+pub const DEFAULT_ID_HOUR: &str = "h";
+/// The default identifier of [`TimeUnit::Day`]
+pub const DEFAULT_ID_DAY: &str = "d";
+/// The default identifier of [`TimeUnit::Week`]
+pub const DEFAULT_ID_WEEK: &str = "w";
+/// The default identifier of [`TimeUnit::Month`]
+pub const DEFAULT_ID_MONTH: &str = "M";
+/// The default identifier of [`TimeUnit::Year`]
+pub const DEFAULT_ID_YEAR: &str = "y";
+
+pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
+
+/// The time units the parser can understand and needed to configure the [`DurationParser`].
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::{DurationParser, TimeUnit};
+/// use std::time::Duration;
+///
+/// assert_eq!(
+///     DurationParser::with_time_units(&[TimeUnit::NanoSecond]).parse("42ns").unwrap(),
+///     Duration::new(0, 42)
+/// );
+/// ```
+///
+/// [`DurationParser`]: crate::DurationParser
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum TimeUnit {
+    /// Represents the lowest possible time unit. The default id is given by [`DEFAULT_ID_NANO_SECOND`] = `ns`
     NanoSecond,
+    /// The default id is given by [`DEFAULT_ID_MICRO_SECOND`] = `Ms`
     MicroSecond,
+    /// The default id is given by [`DEFAULT_ID_MILLI_SECOND`] = `ms`
     MilliSecond,
+    /// The default if no time unit is given. The default id is given by [`DEFAULT_ID_SECOND`] = `s`
     Second,
+    /// The default id is given by [`DEFAULT_ID_MINUTE`] = `m`
     Minute,
+    /// The default id is given by [`DEFAULT_ID_HOUR`] = `h`
     Hour,
+    /// The default id is given by [`DEFAULT_ID_DAY`] = `d`
     Day,
+    /// The default id is given by [`DEFAULT_ID_WEEK`] = `w`
     Week,
+    /// The default id is given by [`DEFAULT_ID_MONTH`] = `M`
     Month,
+    /// Represents the hightest possible time unit. The default id is given by [`DEFAULT_ID_YEAR`] = `y`
     Year,
 }
 
@@ -25,18 +72,6 @@ impl Default for TimeUnit {
         Second
     }
 }
-
-pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
-pub const DEFAULT_ID_MICRO_SECOND: &str = "Ms";
-pub const DEFAULT_ID_MILLI_SECOND: &str = "ms";
-pub const DEFAULT_ID_SECOND: &str = "s";
-pub const DEFAULT_ID_MINUTE: &str = "m";
-pub const DEFAULT_ID_HOUR: &str = "h";
-pub const DEFAULT_ID_DAY: &str = "d";
-pub const DEFAULT_ID_WEEK: &str = "w";
-pub const DEFAULT_ID_MONTH: &str = "M";
-pub const DEFAULT_ID_YEAR: &str = "y";
-pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
 
 impl TimeUnit {
     /// Return the default identifier
