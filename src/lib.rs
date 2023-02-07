@@ -179,6 +179,28 @@ impl DurationParser {
         let mut parser = ReprParser::new(source, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
+
+    /// Return all [`TimeUnit`]s in the current set of time units.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::with_all_time_units().get_time_units(),
+    ///     vec![NanoSecond, MicroSecond, MilliSecond, Second, Minute, Hour, Day, Week, Month, Year]
+    /// );
+    ///
+    /// assert_eq!(
+    ///     DurationParser::without_time_units().time_units(&[MicroSecond, MilliSecond]).get_time_units(),
+    ///     vec![MicroSecond, MilliSecond],
+    /// );
+    /// ```
+    pub fn get_time_units(&self) -> Vec<TimeUnit> {
+        self.time_units.get_time_units()
+    }
 }
 
 /// Parse a string into a [`Duration`] by accepting a source string similar to floating point with
