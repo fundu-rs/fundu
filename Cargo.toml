@@ -20,6 +20,7 @@ bench = false
 [dev-dependencies]
 rstest = "0.16.0"
 criterion = "0.4.0"
+clap = { version = "3.2.23", features = ["cargo", "derive"] }
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
@@ -35,4 +36,12 @@ bench = false
 
 [[example]]
 name = "simple"
+test = true
+
+[[example]]
+name = "clap_derive"
+test = true
+
+[[example]]
+name = "clap_builder"
 test = true
