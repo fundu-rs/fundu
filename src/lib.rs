@@ -302,6 +302,27 @@ impl DurationParser {
         }
     }
 
+    /// Set the default [`TimeUnit`] to `unit`.
+    ///
+    /// The default time unit is applied when no time unit was given in the input string. If the
+    /// default time unit is not set with this method the parser defaults to [`TimeUnit::Second`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::with_all_time_units().default_unit(NanoSecond).parse("42").unwrap(),
+    ///     Duration::new(0, 42)
+    /// );
+    /// ```
+    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
+        self.time_units.set_default_unit(unit);
+        self
+    }
+
     /// Add a time unit to the current set of [`TimeUnit`]s.
     ///
     /// Adding an already existing [`TimeUnit`] has no effect.

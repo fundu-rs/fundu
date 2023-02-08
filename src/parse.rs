@@ -236,7 +236,10 @@ impl<'a> ReprParser<'a> {
     }
 
     pub fn parse(&mut self) -> Result<DurationRepr, ParseError> {
-        let mut duration_repr = DurationRepr::default();
+        let mut duration_repr = DurationRepr {
+            unit: self.time_units.default,
+            ..Default::default()
+        };
 
         // parse the sign if present
         if self.parse_sign_is_negative()? {

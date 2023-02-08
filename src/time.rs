@@ -120,6 +120,7 @@ impl TimeUnit {
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
     max_length: usize,
+    pub default: TimeUnit,
     nanos: Option<&'static str>,
     micros: Option<&'static str>,
     millis: Option<&'static str>,
@@ -136,6 +137,7 @@ impl Default for TimeUnits {
     fn default() -> Self {
         Self {
             max_length: DEFAULT_ID_MAX_LENGTH,
+            default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
             millis: Some(DEFAULT_ID_MILLI_SECOND),
@@ -155,6 +157,7 @@ impl TimeUnits {
     pub fn new() -> Self {
         Self {
             max_length: Default::default(),
+            default: Default::default(),
             nanos: Default::default(),
             micros: Default::default(),
             millis: Default::default(),
@@ -184,6 +187,7 @@ impl TimeUnits {
     pub fn with_all_time_units() -> Self {
         Self {
             max_length: DEFAULT_ID_MAX_LENGTH,
+            default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
             millis: Some(DEFAULT_ID_MILLI_SECOND),
@@ -263,6 +267,10 @@ impl TimeUnits {
         for unit in units {
             self.add_time_unit(*unit);
         }
+    }
+
+    pub fn set_default_unit(&mut self, unit: TimeUnit) {
+        self.default = unit;
     }
 
     /// Return `true` if this set of time units is empty.
