@@ -47,7 +47,8 @@
 //! |          M | [`Month`]
 //! |          y | [`Year`]
 //!
-//! If no time unit is given then `s` (= [`Second`]) is assumed. Some accepted strings with time units
+//! If no time unit is given and not specified otherwise with [`DurationParser::default_unit`] then
+//! `s` (= [`Second`]) is assumed. Some accepted strings with time units
 //!
 //! * `31.2s`
 //! * `200000MS`
@@ -77,7 +78,7 @@
 //!
 //! # Examples
 //!
-//! If only the default configuration is required, the [`parse_duration`] method can be used.
+//! If only the default configuration is required, the `parse_duration` method can be used.
 //!
 //! ```rust
 //! use fundu::parse_duration;
@@ -87,8 +88,8 @@
 //! assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
-//! When a customization of the accepted [`TimeUnit`] is required, then the builder
-//! [`DurationParser`] can be used.
+//! When a customization of the accepted [TimeUnit](#time-units)s is required, then the builder
+//! `DurationParser` can be used.
 //!
 //! ```rust
 //! use fundu::DurationParser;
@@ -132,6 +133,19 @@
 //! ] {
 //!     assert_eq!(parser.parse(input).unwrap(), *expected);
 //! }
+//! ```
+//!
+//! Setting the default time unit (if no time unit is given in the input string) to something different
+//! than seconds is also easily possible
+//!
+//! ```rust
+//! use fundu::{DurationParser, TimeUnit::*};
+//! use std::time::Duration;
+//!
+//! assert_eq!(
+//!     DurationParser::without_time_units().default_unit(MilliSecond).parse("1000").unwrap(),
+//!     Duration::new(1, 0)
+//! );
 //! ```
 //!
 //! Also, `fundu` tries to give informative error messages

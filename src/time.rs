@@ -120,6 +120,7 @@ impl TimeUnit {
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
     max_length: usize,
+    /// The default [`TimeUnit`]
     pub default: TimeUnit,
     nanos: Option<&'static str>,
     micros: Option<&'static str>,
@@ -269,6 +270,7 @@ impl TimeUnits {
         }
     }
 
+    /// Set the default [`TimeUnit`]
     pub fn set_default_unit(&mut self, unit: TimeUnit) {
         self.default = unit;
     }

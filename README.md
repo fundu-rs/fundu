@@ -44,7 +44,7 @@
   
 # Overview
 
-`fundu` provides a parser to parse strings into a [`std::time::Duration`]. It tries to improve on
+`fundu` provides a parser to convert strings into a [`std::time::Duration`]. It tries to improve on
 the standard method `Duration::from_secs_f64(input.parse().unwrap())` ([`Duration::from_secs_f64`])
 by
 
@@ -74,7 +74,7 @@ fundu = "0.2.2"
 
 # Examples
 
-If only the default configuration is required, the `parse_duration` method can be used.
+If only the default parser is required once, then the `parse_duration` method can be used.
 
 ```rust
 use fundu::parse_duration;
@@ -105,7 +105,19 @@ let input = "1.0e2";
 assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
 ```
 
-However, this will return an error because `y` (Years) is not a default time unit.
+However, setting the default time unit to something different than seconds can be achieved with
+
+```rust
+use fundu::{DurationParser, TimeUnit::*};
+use std::time::Duration;
+
+assert_eq!(
+    DurationParser::without_time_units().default_unit(MilliSecond).parse("1000").unwrap(),
+    Duration::new(1, 0)
+);
+```
+
+Note the following will return an error because `y` (Years) is not in the default set of [TimeUnits](#time-units).
 
 ```rust
 use fundu::DurationParser;
@@ -146,19 +158,21 @@ assert_eq!(
 );
 ```
 
+See also the [examples folder](examples) for common recipes.
+
 # Time units
 
-Time units are used to calculate the final `Duration`. `Seconds` are the default unit if no time
-unit was present in the input string. The table below gives an overview of the constructor methods
-and which time units are available. If a custom set of time units is required,
-`DurationParser::with_time_units` can be used.
+Time units are used to calculate the final `Duration`. `Second` is the default time unit (if not
+specified otherwise) and if no time unit was specified in the input string. The table below gives an
+overview of the constructor methods and which time units are available. If a custom set of time
+units is required, `DurationParser::with_time_units` can be used.
 
 Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
 --- | --- | --- | --- | --- | ---
 Nanoseconds | ns | 1e-9s | &#9745; | &#9745; | &#9744;
 Microseconds | Ms | 1e-6s | &#9745; | &#9745; | &#9744;
 Milliseconds | ms | 1e-3s |&#9745; | &#9745; | &#9744;
-Seconds | s | SI definition | &#9745; | &#9745; | &#9744; (seconds is still used as base)
+Seconds | s | SI definition | &#9745; | &#9745; | &#9744;
 Minutes | m | 60s | &#9745; | &#9745; | &#9744;
 Hours | h | 60m | &#9745; | &#9745; | &#9744;
 Days | d | 24h | &#9745; | &#9745; | &#9744;
@@ -166,9 +180,11 @@ Weeks | w | 7d | &#9745; | &#9745; | &#9744;
 Months | M | Year / 12 | &#9744; | &#9745; | &#9744;
 Years | y | 365.25d | &#9744; | &#9745; | &#9744;
 
-Note, that `Months` and `Years` are not included in the default configuration. The current
-implementation uses an approximate calculation of `Months` and `Years` in seconds. If they are
-included in the final configuration, the Julian year based calculation is used. (See table)
+Note that `Months` and `Years` are not included in the default set of time units. The current
+implementation uses an approximate calculation of `Months` and `Years` in seconds and if they are
+included in the final configuration, the [Julian
+year](https://en.wikipedia.org/wiki/Julian_year_(astronomy)) based calculation is used. (See table
+above)
 
 # Benchmarks
 
@@ -205,9 +221,7 @@ See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.ym
 
 # TODO
 
-- Improve api documentation
-- Improve performance especially for long inputs
-- Make base unit configurable to a different time unit than seconds.
+- Improve performance for long inputs
 - Implement usage of more than one identifier for time units
 - Add more build targets in the CI
 - Provide other year calculations:
