@@ -22,6 +22,7 @@ struct Seconds<'a>(Option<&'a [u8]>, Option<&'a [u8]>, Option<usize>);
 impl<'a> Seconds<'a> {
     const ZERO: Self = Seconds(None, None, None);
 
+    #[inline(always)]
     fn parse(&self) -> Result<u64, ParseError> {
         if self.is_zero() {
             return Ok(0);
@@ -52,6 +53,7 @@ impl<'a> Seconds<'a> {
         Ok(seconds)
     }
 
+    #[inline(always)]
     fn is_zero(&self) -> bool {
         self.0.map_or(true, |v| v.is_empty()) && self.1.map_or(true, |v| v.is_empty())
     }
@@ -65,6 +67,7 @@ struct Attos<'a>(Option<usize>, Option<&'a [u8]>, Option<&'a [u8]>);
 impl<'a> Attos<'a> {
     const ZERO: Self = Attos(None, None, None);
 
+    #[inline(always)]
     fn parse(&self) -> u64 {
         if self.is_zero() {
             return 0;
@@ -89,6 +92,7 @@ impl<'a> Attos<'a> {
         attos
     }
 
+    #[inline(always)]
     fn is_zero(&self) -> bool {
         self.1.map_or(true, |v| v.is_empty()) && self.2.map_or(true, |v| v.is_empty())
     }
@@ -105,6 +109,7 @@ pub struct DurationRepr {
 }
 
 impl DurationRepr {
+    #[inline(always)]
     pub fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
@@ -220,6 +225,7 @@ pub(crate) struct ReprParser<'a> {
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
+    #[inline(always)]
     pub fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
         let input = input.as_bytes();
         Self {
@@ -230,11 +236,13 @@ impl<'a> ReprParser<'a> {
         }
     }
 
+    #[inline(always)]
     fn advance(&mut self) {
         self.current_pos += 1;
         self.current_byte = self.input.get(self.current_pos);
     }
 
+    #[inline(always)]
     pub fn parse(&mut self) -> Result<DurationRepr, ParseError> {
         let mut duration_repr = DurationRepr {
             unit: self.time_units.default,
@@ -333,6 +341,7 @@ impl<'a> ReprParser<'a> {
         }
     }
 
+    #[inline(always)]
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
         let mut max_bytes = self.time_units.max_length();
         let mut bytes = Vec::<u8>::with_capacity(max_bytes);
@@ -354,6 +363,7 @@ impl<'a> ReprParser<'a> {
         ))
     }
 
+    #[inline(always)]
     fn parse_digits(
         &mut self,
         mut max: usize,
@@ -393,6 +403,7 @@ impl<'a> ReprParser<'a> {
         Ok(digits)
     }
 
+    #[inline(always)]
     fn parse_infinity(&mut self) -> Result<(), ParseError> {
         let expected = [b'i', b'n', b'f', b'i', b'n', b'i', b't', b'y'];
         for (pos, byte) in expected.iter().enumerate() {
@@ -427,6 +438,7 @@ impl<'a> ReprParser<'a> {
     }
 
     /// Parse and consume the sign if present. Return true if sign is negative.
+    #[inline(always)]
     fn parse_sign_is_negative(&mut self) -> Result<bool, ParseError> {
         match self.current_byte {
             Some(byte) if *byte == b'+' => {
@@ -445,6 +457,7 @@ impl<'a> ReprParser<'a> {
         }
     }
 
+    #[inline(always)]
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?;
 

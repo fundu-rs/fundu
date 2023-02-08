@@ -384,6 +384,7 @@ impl DurationParser {
     ///     Duration::new(0, 120_000_000),
     /// );
     /// ```
+    #[inline(never)]
     pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
         let mut parser = ReprParser::new(source, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
