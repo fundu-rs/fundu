@@ -11,8 +11,9 @@
 //!
 //! * with customizable [`TimeUnit`]s
 //! * without floating point calculations. What you put in is what you get out.
-//! * with sane limits. Infinity and numbers larger than [`Duration::MAX`] evaluate to
+//! * with sound limit handling. Infinity and numbers larger than [`Duration::MAX`] evaluate to
 //!   [`Duration::MAX`].
+//! * without restrictions on the length of the input string
 //! * with helpful error messages
 //!
 //! # Configuration and Format
@@ -34,24 +35,24 @@
 //! following time units (the first column) are accepted (directly following the number without spaces
 //! between them):
 //!
-//! | default id | [`TimeUnit`]
-//! | ----------:| ---------------
-//! |         ns | [`Nanosecond`]
-//! |         Ms | [`Microsecond`]
-//! |         ms | [`Millisecond`]
-//! |          s | [`Second`]
-//! |          m | [`Minute`]
-//! |          h | [`Hour`]
-//! |          d | [`Day`]
-//! |          w | [`Week`]
-//! |          M | [`Month`]
-//! |          y | [`Year`]
+//! | [`TimeUnit`]    | default id | is default time unit
+//! | --------------- | ----------:|:--------------------:
+//! | [`Nanosecond`]  |         ns | yes
+//! | [`Microsecond`] |         Ms | yes
+//! | [`Millisecond`] |         ms | yes
+//! | [`Second`]      |          s | yes
+//! | [`Minute`]      |          m | yes
+//! | [`Hour`]        |          h | yes
+//! | [`Day`]         |          d | yes
+//! | [`Week`]        |          w | yes
+//! | [`Month`]       |          M |  no
+//! | [`Year`]        |          y |  no
 //!
 //! If no time unit is given and not specified otherwise with [`DurationParser::default_unit`] then
 //! `s` (= [`Second`]) is assumed. Some accepted strings with time units
 //!
 //! * `31.2s`
-//! * `200000MS`
+//! * `200000Ms`
 //! * `3.14e8w`
 //! * ...
 //!
@@ -78,7 +79,7 @@
 //!
 //! # Examples
 //!
-//! If only the default configuration is required, the `parse_duration` method can be used.
+//! If only the default configuration is required, the [`parse_duration`] method can be used.
 //!
 //! ```rust
 //! use fundu::parse_duration;
@@ -88,8 +89,8 @@
 //! assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
-//! When a customization of the accepted [TimeUnit](#time-units)s is required, then the builder
-//! `DurationParser` can be used.
+//! When a customization of the accepted [`TimeUnit`]s is required, then the builder
+//! [`DurationParser`] can be used.
 //!
 //! ```rust
 //! use fundu::DurationParser;
@@ -109,7 +110,7 @@
 //! assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
-//! However, this will return an error because `y` (Years) is not a default time unit.
+//! However, the following will return an error because `y` (Years) is not a default time unit:
 //!
 //! ```rust
 //! use fundu::DurationParser;
