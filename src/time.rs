@@ -100,7 +100,7 @@ impl TimeUnit {
     /// t > s  => x(t) * m
     /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
-    pub fn multiplier(&self) -> u64 {
+    pub(crate) fn multiplier(&self) -> u64 {
         match self {
             NanoSecond => 9,
             MicroSecond => 6,
