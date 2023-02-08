@@ -3,9 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{parse_duration, DurationParser, ParseError, TimeUnit};
+use fundu::{parse_duration, DurationParser, ParseError, TimeUnit, TimeUnit::*};
 use rstest::rstest;
 use std::time::Duration;
+
+const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
+const MONTH: u64 = YEAR / 12;
 
 #[rstest]
 #[case::empty_string("")]
@@ -210,5 +213,35 @@ fn test_parse_error_messages(
             .unwrap_err()
             .to_string(),
         expected_string
+    );
+}
+
+#[rstest]
+#[case::nano_second(NanoSecond, Duration::new(0, 1))]
+#[case::micro_second(MicroSecond, Duration::new(0, 1_000))]
+#[case::milli_second(MilliSecond, Duration::new(0, 1_000_000))]
+#[case::second(Second, Duration::new(1, 0))]
+#[case::minute(Minute, Duration::new(60, 0))]
+#[case::hour(Hour, Duration::new(60 * 60, 0))]
+#[case::day(Day, Duration::new(60 * 60 * 24, 0))]
+#[case::week(Week, Duration::new(60 * 60 * 24 * 7, 0))]
+#[case::month(Month, Duration::new(MONTH, 0))]
+#[case::year(Year, Duration::new(YEAR, 0))]
+fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] expected: Duration) {
+    assert_eq!(
+        DurationParser::without_time_units()
+            .default_unit(time_unit)
+            .parse("1")
+            .unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn test_parser_get_time_units() {
+    let time_units = [NanoSecond, Second, Year];
+    assert_eq!(
+        DurationParser::with_time_units(&time_units).get_time_units(),
+        time_units.to_vec()
     );
 }

@@ -612,4 +612,21 @@ mod tests {
             ]
         )
     }
+
+    #[rstest]
+    #[case::default(TimeUnits::default())]
+    #[case::new(TimeUnits::new())]
+    #[case::with_all_time_units(TimeUnits::with_all_time_units())]
+    #[case::with_default_time_units(TimeUnits::with_default_time_units())]
+    #[case::with_time_units(TimeUnits::with_time_units(&[NanoSecond]))]
+    fn test_time_units_constructors_set_default_time_unit_to_second(#[case] time_units: TimeUnits) {
+        assert_eq!(time_units.default, Second);
+    }
+
+    #[test]
+    fn test_time_units_set_default_time_unit() {
+        let mut time_units = TimeUnits::new();
+        time_units.set_default_unit(NanoSecond);
+        assert_eq!(time_units.default, NanoSecond);
+    }
 }

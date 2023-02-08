@@ -178,9 +178,10 @@ mod error;
 mod parse;
 mod time;
 
+use std::time::Duration;
+
 pub use error::ParseError;
 use parse::ReprParser;
-use std::time::Duration;
 pub use time::TimeUnit;
 use time::TimeUnits;
 pub use time::{

@@ -6,10 +6,11 @@
 //! This module is the working horse of the parser. Public interfaces to the parser are located in
 //! the main library `lib.rs`.
 
-use crate::error::ParseError;
-use crate::time::{TimeUnit, TimeUnits};
 use std::cmp::Ordering;
 use std::time::Duration;
+
+use crate::error::ParseError;
+use crate::time::{TimeUnit, TimeUnits};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
@@ -120,7 +121,7 @@ impl DurationRepr {
         }
 
         let (whole, fract) = match (self.whole.take(), self.fract.take()) {
-            (None, None) => unreachable!("Must be handled when parsing from string."),
+            (None, None) => unreachable!("Must be handled when parsing from string."), // cov:excl-line
             (None, Some(fract)) => (vec![], fract),
             (Some(whole), None) => (whole, vec![]),
             (Some(whole), Some(fract)) => (whole, fract),
