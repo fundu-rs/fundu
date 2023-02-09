@@ -6,7 +6,7 @@
 //! This module is the working horse of the parser. Public interfaces to the parser are located in
 //! the main library `lib.rs`.
 
-use std::cmp::Ordering;
+use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
 use crate::error::ParseError;
@@ -100,7 +100,7 @@ impl<'a> Attos<'a> {
 }
 
 #[derive(Debug, Default)]
-pub struct DurationRepr {
+pub(crate) struct DurationRepr {
     is_negative: bool,
     is_infinite: bool,
     whole: Option<Vec<u8>>,
@@ -111,7 +111,7 @@ pub struct DurationRepr {
 
 impl DurationRepr {
     #[inline(always)]
-    pub fn parse(&mut self) -> Result<Duration, ParseError> {
+    pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
                 return Err(ParseError::InvalidInput("Negative infinity".to_string()));
@@ -127,12 +127,9 @@ impl DurationRepr {
             (Some(whole), Some(fract)) => (whole, fract),
         };
 
-        self.exponent -= match self.unit {
-            TimeUnit::NanoSecond
-            | TimeUnit::MicroSecond
-            | TimeUnit::MilliSecond
-            | TimeUnit::Second => self.unit.multiplier().try_into().unwrap(), // unwrap is safe here because multiplier is max == 9
-            _ => 0,
+        self.exponent -= match self.unit.cmp(&TimeUnit::Second) {
+            Less | Equal => self.unit.multiplier().try_into().unwrap(), // unwrap is safe here because multiplier is max == 9
+            Greater => 0,
         };
 
         // The maximum absolute value of the exponent is `1023`, so it is safe to cast to usize
@@ -142,7 +139,7 @@ impl DurationRepr {
         // to integers is necessary, since the exponent can move digits into the to be considered
         // final integer domain.
         let (seconds, attos) = match self.exponent.cmp(&0) {
-            Ordering::Less if whole.len() > exponent_abs => {
+            Less if whole.len() > exponent_abs => {
                 let seconds = Seconds(Some(&whole[..whole.len() - exponent_abs]), None, None);
                 let attos = Attos(
                     None,
@@ -151,22 +148,22 @@ impl DurationRepr {
                 );
                 (seconds, attos)
             }
-            Ordering::Less => {
+            Less => {
                 let seconds = Seconds::ZERO;
                 let attos = Attos(Some(exponent_abs - whole.len()), Some(&whole), Some(&fract));
                 (seconds, attos)
             }
-            Ordering::Equal => {
+            Equal => {
                 let seconds = Seconds(Some(&whole), None, None);
                 let attos = Attos(None, Some(&fract), None);
                 (seconds, attos)
             }
-            Ordering::Greater if fract.len() > exponent_abs => {
+            Greater if fract.len() > exponent_abs => {
                 let seconds = Seconds(Some(&whole), Some(&fract[..exponent_abs]), None);
                 let attos = Attos(None, Some(&fract[exponent_abs..]), None);
                 (seconds, attos)
             }
-            Ordering::Greater => {
+            Greater => {
                 let seconds = Seconds(Some(&whole), Some(&fract), Some(exponent_abs - fract.len()));
                 let attos = Attos::ZERO;
                 (seconds, attos)
@@ -182,26 +179,19 @@ impl DurationRepr {
         };
 
         // allow `-0` or `-0.0` and interpret as plain `0`
-        if self.is_negative && seconds == 0 && attos == 0 {
+        if seconds == 0 && attos == 0 {
             Ok(Duration::ZERO)
         } else if self.is_negative {
             Err(ParseError::InvalidInput("Negative number".to_string()))
         } else {
-            match self.unit {
-                TimeUnit::NanoSecond
-                | TimeUnit::MicroSecond
-                | TimeUnit::MilliSecond
-                | TimeUnit::Second => Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32)),
-                TimeUnit::Minute
-                | TimeUnit::Hour
-                | TimeUnit::Day
-                | TimeUnit::Week
-                | TimeUnit::Month
-                | TimeUnit::Year => {
-                    let attos = attos as u128 * (self.unit.multiplier() as u128);
+            match self.unit.cmp(&TimeUnit::Second) {
+                Less | Equal => Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32)),
+                Greater => {
+                    let multiplier = self.unit.multiplier();
+                    let attos = attos as u128 * (multiplier as u128);
                     Ok(
                         match seconds
-                            .checked_mul(self.unit.multiplier())
+                            .checked_mul(multiplier)
                             .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
                         {
                             Some(s) => Duration::new(
@@ -244,7 +234,7 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline(always)]
-    pub fn parse(&mut self) -> Result<DurationRepr, ParseError> {
+    pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
         let mut duration_repr = DurationRepr {
             unit: self.time_units.default,
             ..Default::default()
