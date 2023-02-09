@@ -211,6 +211,13 @@ Input | parser with time units | avg parsing time | ~ samples / s
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `3.7219 µs` | `268_679.975`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `3.7132 µs` | `269_309.490`
 
+For comparison, `fundu`'s precision and additional features only add a very low performance overhead (the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
+
+Input | avg parsing time | ~ samples / s
+--- | --- | ---
+`1` | `25.630 ns` | `39_016_777.214`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `1.7457 µs` | `572_836.111`
+
 # Platform support
 
 Since `fundu` is purely built on top of the rust `stdlib` without platform specific code, this
@@ -222,6 +229,7 @@ See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.ym
 # TODO
 
 - Improve performance for long inputs
+- Improve error messages
 - Implement usage of more than one identifier for time units
 - Add more build targets in the CI
 - Provide other year calculations:
