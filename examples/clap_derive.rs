@@ -11,7 +11,7 @@ use clap::Parser;
 use fundu::DurationParser;
 
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
+#[clap(author, version, about, long_about = None, allow_negative_numbers = true)]
 struct Args {
     #[clap(value_name = "DURATION1")]
     duration_1: String,
