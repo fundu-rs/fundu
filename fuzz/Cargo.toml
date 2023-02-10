@@ -1,0 +1,27 @@
+[package]
+name = "fundu-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.fundu]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "f64_like_input"
+path = "fuzz_targets/f64_like_input.rs"
+test = false
+doc = false
