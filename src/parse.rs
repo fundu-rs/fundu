@@ -174,11 +174,15 @@ impl DurationRepr {
         // maximum `Duration`.
         let (seconds, attos) = match seconds.parse() {
             Ok(seconds) => (seconds, attos.parse()),
+            Err(ParseError::Overflow) if self.is_negative => {
+                return Err(ParseError::InvalidInput("Negative number".to_string()))
+            }
             Err(ParseError::Overflow) => return Ok(Duration::MAX),
             Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
         };
 
-        // allow `-0` or `-0.0` and interpret as plain `0`
+        // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
+        // as zero duration
         if seconds == 0 && attos == 0 {
             Ok(Duration::ZERO)
         } else if self.is_negative {
@@ -451,6 +455,12 @@ impl<'a> ReprParser<'a> {
     #[inline(always)]
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?;
+        self.current_byte.ok_or({
+            ParseError::Syntax(
+                self.current_pos,
+                "Expected exponent but reached end of input".to_string(),
+            )
+        })?;
 
         let mut exponent = 0i16;
         while let Some(byte) = self.current_byte {

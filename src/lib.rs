@@ -12,7 +12,7 @@
 //! * with customizable [`TimeUnit`]s
 //! * without floating point calculations. What you put in is what you get out.
 //! * with sound limit handling. Infinity and numbers larger than [`Duration::MAX`] evaluate to
-//!   [`Duration::MAX`].
+//!   [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
 //! * without restrictions on the length of the input string
 //! * with helpful error messages
 //!
@@ -74,7 +74,10 @@
 //!
 //! Special cases which are not displayed in the specification:
 //!
-//! * Negative values, including negative infinity are not allowed except for `-0` (`-0.0` etc.)
+//! * Negative values, including negative infinity are not allowed. For exceptions see the next
+//!   point.
+//! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
+//! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
 //! * The exponent must be in the range `-1022 <= Exp <= 1023`
 //!
 //! # Examples
