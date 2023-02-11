@@ -69,7 +69,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-fundu = "0.2.2"
+fundu = "0.3.0"
 ```
 
 # Examples
