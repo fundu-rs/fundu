@@ -23,7 +23,7 @@ struct Seconds<'a>(Option<&'a [u8]>, Option<&'a [u8]>, Option<usize>);
 impl<'a> Seconds<'a> {
     const ZERO: Self = Seconds(None, None, None);
 
-    #[inline(always)]
+    #[inline]
     fn parse(&self) -> Result<u64, ParseError> {
         if self.is_zero() {
             return Ok(0);
@@ -54,7 +54,7 @@ impl<'a> Seconds<'a> {
         Ok(seconds)
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_zero(&self) -> bool {
         self.0.map_or(true, |v| v.is_empty()) && self.1.map_or(true, |v| v.is_empty())
     }
@@ -68,7 +68,7 @@ struct Attos<'a>(Option<usize>, Option<&'a [u8]>, Option<&'a [u8]>);
 impl<'a> Attos<'a> {
     const ZERO: Self = Attos(None, None, None);
 
-    #[inline(always)]
+    #[inline]
     fn parse(&self) -> u64 {
         if self.is_zero() {
             return 0;
@@ -93,7 +93,7 @@ impl<'a> Attos<'a> {
         attos
     }
 
-    #[inline(always)]
+    #[inline]
     fn is_zero(&self) -> bool {
         self.1.map_or(true, |v| v.is_empty()) && self.2.map_or(true, |v| v.is_empty())
     }
@@ -110,7 +110,7 @@ pub(crate) struct DurationRepr {
 }
 
 impl DurationRepr {
-    #[inline(always)]
+    #[inline]
     pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
@@ -220,7 +220,7 @@ pub(crate) struct ReprParser<'a> {
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
-    #[inline(always)]
+    #[inline]
     pub fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
         let input = input.as_bytes();
         Self {
@@ -231,24 +231,24 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn advance(&mut self) {
         self.current_pos += 1;
         self.current_byte = self.input.get(self.current_pos);
     }
 
-    #[inline(always)]
+    #[inline]
     fn get_remainder(&self) -> &[u8] {
         &self.input[self.current_pos..]
     }
 
-    #[inline(always)]
+    #[inline]
     fn finish(&mut self) {
         self.current_pos += self.get_remainder().len();
         self.current_byte = None
     }
 
-    #[inline(always)]
+    #[inline]
     pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
         let mut duration_repr = DurationRepr {
             unit: self.time_units.default,
@@ -347,7 +347,7 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
         let remainder =
             unsafe { std::str::from_utf8_unchecked(self.input.get_unchecked(self.current_pos..)) };
@@ -363,7 +363,7 @@ impl<'a> ReprParser<'a> {
         result
     }
 
-    #[inline(always)]
+    #[inline]
     fn parse_digits(
         &mut self,
         mut max: usize,
@@ -403,7 +403,7 @@ impl<'a> ReprParser<'a> {
         Ok(digits)
     }
 
-    #[inline(always)]
+    #[inline]
     fn parse_infinity(&mut self) -> Result<(), ParseError> {
         let expected = [b'i', b'n', b'f', b'i', b'n', b'i', b't', b'y'];
         for (pos, byte) in expected.iter().enumerate() {
@@ -438,7 +438,7 @@ impl<'a> ReprParser<'a> {
     }
 
     /// Parse and consume the sign if present. Return true if sign is negative.
-    #[inline(always)]
+    #[inline]
     fn parse_sign_is_negative(&mut self) -> Result<bool, ParseError> {
         match self.current_byte {
             Some(byte) if *byte == b'+' => {
@@ -457,7 +457,7 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?;
         self.current_byte.ok_or({
