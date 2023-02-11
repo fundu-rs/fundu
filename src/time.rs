@@ -290,6 +290,7 @@ impl TimeUnits {
     }
 
     /// Return the maximum length in bytes of the identifier in the current set of [`TimeUnit`].
+    #[allow(dead_code)]
     pub fn max_length(&self) -> usize {
         self.max_length
     }

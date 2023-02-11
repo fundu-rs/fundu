@@ -35,25 +35,6 @@ fn large_reference() {
     let _ = Duration::from_secs_f64(black_box(LARGE_INPUT).parse().unwrap());
 }
 
-// fn reference_benchmark(criterion: &mut Criterion) {
-//     let inputs = [
-//         ("small input", "1"),
-//         (
-//             "large input",
-//             &format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022)),
-//         ),
-//     ];
-//     let mut group = criterion.benchmark_group("reference speed");
-//     for (parameter, input) in inputs {
-//         group.bench_with_input(
-//             BenchmarkId::new("reference function", parameter),
-//             input,
-//             |b, input| b.iter(|| Duration::from_secs_f64(input.parse().unwrap())),
-//         );
-//     }
-//     group.finish();
-// }
-
 iai::main!(
     small_default_time_units,
     small_without_time_units,

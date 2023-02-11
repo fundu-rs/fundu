@@ -238,6 +238,17 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline(always)]
+    fn get_remainder(&self) -> &[u8] {
+        &self.input[self.current_pos..]
+    }
+
+    #[inline(always)]
+    fn finish(&mut self) {
+        self.current_pos += self.get_remainder().len();
+        self.current_byte = None
+    }
+
+    #[inline(always)]
     pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
         let mut duration_repr = DurationRepr {
             unit: self.time_units.default,
@@ -338,24 +349,18 @@ impl<'a> ReprParser<'a> {
 
     #[inline(always)]
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
-        let mut max_bytes = self.time_units.max_length();
-        let mut bytes = Vec::<u8>::with_capacity(max_bytes);
-        while let Some(byte) = self.current_byte {
-            if max_bytes != 0 {
-                bytes.push(*byte);
-                self.advance();
-                max_bytes -= 1;
-            } else {
-                break;
-            }
-        }
+        let remainder =
+            unsafe { std::str::from_utf8_unchecked(self.input.get_unchecked(self.current_pos..)) };
+        let result = self
+            .time_units
+            .get(remainder)
+            .ok_or(ParseError::TimeUnit(format!(
+                "Invalid time unit: '{remainder}' found at {}",
+                self.current_pos
+            )));
 
-        // Safety: The input of `parse` is &str and therefore valid utf-8
-        let string = unsafe { std::str::from_utf8_unchecked(bytes.as_slice()) };
-        self.time_units.get(string).ok_or(ParseError::Syntax(
-            self.current_pos - bytes.len(),
-            format!("Invalid time unit: {string}"),
-        ))
+        self.finish();
+        result
     }
 
     #[inline(always)]
