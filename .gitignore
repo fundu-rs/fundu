@@ -1,6 +1,7 @@
 flamegraph.svg
 perf.data
 *.profraw
+.vscode/launch.json
 
 # Swap
 [._]*.s[a-v][a-z]
@@ -25,7 +26,7 @@ tags
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
-!.vscode/launch.json
+# |.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/*.code-snippets
 

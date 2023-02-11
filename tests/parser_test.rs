@@ -3,9 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{parse_duration, DurationParser, ParseError, TimeUnit};
+use fundu::{parse_duration, DurationParser, ParseError, TimeUnit, TimeUnit::*};
 use rstest::rstest;
 use std::time::Duration;
+
+const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
+const MONTH: u64 = YEAR / 12;
 
 #[rstest]
 #[case::empty_string("")]
@@ -21,8 +24,15 @@ use std::time::Duration;
 #[case::negative_seconds("-1")]
 #[case::negative_seconds_with_fraction("-1.0")]
 #[case::negative_nano_seconds("-0.000000001")]
+#[case::exponent_with_only_plus("2E+")]
+#[case::negative_number_high_exponent("-3E75")]
+#[case::negative_number_barely_not_zero("-1.e-18")]
 fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
-    assert!(parse_duration(source).is_err());
+    let result = parse_duration(source);
+    assert!(
+        result.is_err(),
+        "Expected an error but result was: {result:?}"
+    );
 }
 
 #[rstest]
@@ -41,6 +51,7 @@ fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
 #[case::leading_zeros("000000100", Duration::new(100, 0))]
 #[case::leading_zeros_with_fraction("00000010.0", Duration::new(10, 0))]
 #[case::trailing_zeros("10.010000000", Duration::new(10, 10_000_000))]
+#[case::negative_number_negative_exponent_below_attos("-9.99999999999E-19", Duration::ZERO)]
 fn test_parse_duration_when_simple_arguments_are_valid(
     #[case] source: &str,
     #[case] expected: Duration,
@@ -210,5 +221,35 @@ fn test_parse_error_messages(
             .unwrap_err()
             .to_string(),
         expected_string
+    );
+}
+
+#[rstest]
+#[case::nano_second(NanoSecond, Duration::new(0, 1))]
+#[case::micro_second(MicroSecond, Duration::new(0, 1_000))]
+#[case::milli_second(MilliSecond, Duration::new(0, 1_000_000))]
+#[case::second(Second, Duration::new(1, 0))]
+#[case::minute(Minute, Duration::new(60, 0))]
+#[case::hour(Hour, Duration::new(60 * 60, 0))]
+#[case::day(Day, Duration::new(60 * 60 * 24, 0))]
+#[case::week(Week, Duration::new(60 * 60 * 24 * 7, 0))]
+#[case::month(Month, Duration::new(MONTH, 0))]
+#[case::year(Year, Duration::new(YEAR, 0))]
+fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] expected: Duration) {
+    assert_eq!(
+        DurationParser::without_time_units()
+            .default_unit(time_unit)
+            .parse("1")
+            .unwrap(),
+        expected
+    );
+}
+
+#[test]
+fn test_parser_get_time_units() {
+    let time_units = [NanoSecond, Second, Year];
+    assert_eq!(
+        DurationParser::with_time_units(&time_units).get_time_units(),
+        time_units.to_vec()
     );
 }

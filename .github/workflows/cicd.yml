@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           components: llvm-tools-preview
@@ -162,3 +162,37 @@ jobs:
       RUSTFLAGS: "-C instrument-coverage"
       LLVM_PROFILE_FILE: "fundu_coverage-%p-%m.profraw"
       RUST_BACKTRACE: "0"
+
+  fuzzing:
+    needs: [base]
+    name: Fuzzy testing/ubuntu-latest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: "./fuzz"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: llvm-tools
+      - uses: Swatinem/rust-cache@v2.2.0
+        with:
+          workspaces: |
+            fuzz -> target
+          cache-on-failure: true
+      - name: Prepare
+        run: sudo apt-get -y update && sudo apt-get -y install llvm
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: Run fuzzing for 5 minutes
+        shell: bash
+        run: |
+          cargo fuzz run f64_like_input -- \
+            -max_total_time=300 \
+            -print_final_stats=1 \
+            -print_corpus_stats=1 \
+            -verbosity=2
+    env:
+      RUSTFLAGS: "-C instrument-coverage"
+      LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"

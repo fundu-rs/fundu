@@ -1,6 +1,6 @@
 [package]
 name = "fundu"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Configurable, precise and fast string parser to a rust std::time::Duration"
@@ -20,6 +20,8 @@ bench = false
 [dev-dependencies]
 rstest = "0.16.0"
 criterion = "0.4.0"
+clap = { version = "3.2.23", features = ["cargo", "derive"] }
+chrono = "0.4.23"
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
@@ -35,4 +37,12 @@ bench = false
 
 [[example]]
 name = "simple"
+test = true
+
+[[example]]
+name = "clap_derive"
+test = true
+
+[[example]]
+name = "clap_builder"
 test = true

@@ -38,16 +38,18 @@
     - [Examples](#examples)
     - [Time Units](#time-units)
     - [Benchmarks](#benchmarks)
+    - [Comparison](#comparison-fundu-vs-durationtry_from_secs_f64)
     - [Platform support](#platform-support)
     - [Todo](#todo)
     - [License](#license)
   
 # Overview
 
-`fundu` provides a parser to parse strings into a [`std::time::Duration`]. It tries to improve on
-the standard method `Duration::from_secs_f64(input.parse().unwrap())` ([`Duration::from_secs_f64`])
+`fundu` provides a parser to convert strings into a [`std::time::Duration`]. It tries to improve on
+the standard methods [`Duration::from_secs_f64`] and [`Duration::try_from_secs_f64`] (which is stable since `1.66.0`) with intermediate parsing to a float via [`f64::from_str`]
 by
 
+- Merging the separate steps of parsing float like strings to `f64` and parsing of `f64` to a [`Duration`]
 - Providing customizable [TimeUnit](#time-units)s which are accepted in the input string.
 - Using no floating point calculations and precisely parse the input as it is. So, what you put
 in you is what you get out within the range of a `std::time::Duration`.
@@ -61,7 +63,9 @@ crate. `fundu` is purely built on top of the rust `stdlib`, and there are no add
 required. The accepted string format is almost the same like the scientific floating point format
 and compatible to the [`f64::from_str`] format. In other words, if the accepted input string could
 previously converted to an `f64` with `f64::from_str`, no change is needed to accept the same format
-with `fundu`. For further details see the [Documentation](https://docs.rs/crate/fundu)!
+with `fundu`. For a direct comparison of `fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
+[Comparison](#comparison-fundu-vs-durationtry_from_secs_f64). For further details see the
+[Documentation](https://docs.rs/crate/fundu)!
 
 # Installation
 
@@ -69,12 +73,12 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-fundu = "0.2.2"
+fundu = "0.3.0"
 ```
 
 # Examples
 
-If only the default configuration is required, the `parse_duration` method can be used.
+If only the default parser is required once, then the `parse_duration` method can be used.
 
 ```rust
 use fundu::parse_duration;
@@ -105,7 +109,19 @@ let input = "1.0e2";
 assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
 ```
 
-However, this will return an error because `y` (Years) is not a default time unit.
+However, setting the default time unit to something different than seconds can be achieved with
+
+```rust
+use fundu::{DurationParser, TimeUnit::*};
+use std::time::Duration;
+
+assert_eq!(
+    DurationParser::without_time_units().default_unit(MilliSecond).parse("1000").unwrap(),
+    Duration::new(1, 0)
+);
+```
+
+Note the following will return an error because `y` (Years) is not in the default set of [TimeUnits](#time-units).
 
 ```rust
 use fundu::DurationParser;
@@ -146,19 +162,25 @@ assert_eq!(
 );
 ```
 
+See also the [examples folder](examples) for common recipes. Run an example with
+
+```shell
+cargo run --example $FILE_NAME_WITHOUT_FILETYPE_SUFFIX
+```
+
 # Time units
 
-Time units are used to calculate the final `Duration`. `Seconds` are the default unit if no time
-unit was present in the input string. The table below gives an overview of the constructor methods
-and which time units are available. If a custom set of time units is required,
-`DurationParser::with_time_units` can be used.
+Time units are used to calculate the final `Duration`. `Second` is the default time unit (if not
+specified otherwise) and if no time unit was specified in the input string. The table below gives an
+overview of the constructor methods and which time units are available. If a custom set of time
+units is required, `DurationParser::with_time_units` can be used.
 
 Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
 --- | --- | --- | --- | --- | ---
 Nanoseconds | ns | 1e-9s | &#9745; | &#9745; | &#9744;
 Microseconds | Ms | 1e-6s | &#9745; | &#9745; | &#9744;
 Milliseconds | ms | 1e-3s |&#9745; | &#9745; | &#9744;
-Seconds | s | SI definition | &#9745; | &#9745; | &#9744; (seconds is still used as base)
+Seconds | s | SI definition | &#9745; | &#9745; | &#9744;
 Minutes | m | 60s | &#9745; | &#9745; | &#9744;
 Hours | h | 60m | &#9745; | &#9745; | &#9744;
 Days | d | 24h | &#9745; | &#9745; | &#9744;
@@ -166,22 +188,24 @@ Weeks | w | 7d | &#9745; | &#9745; | &#9744;
 Months | M | Year / 12 | &#9744; | &#9745; | &#9744;
 Years | y | 365.25d | &#9744; | &#9745; | &#9744;
 
-Note, that `Months` and `Years` are not included in the default configuration. The current
-implementation uses an approximate calculation of `Months` and `Years` in seconds. If they are
-included in the final configuration, the Julian year based calculation is used. (See table)
+Note that `Months` and `Years` are not included in the default set of time units. The current
+implementation uses an approximate calculation of `Months` and `Years` in seconds and if they are
+included in the final configuration, the [Julian
+year](https://en.wikipedia.org/wiki/Julian_year_(astronomy)) based calculation is used. (See table
+above)
 
 # Benchmarks
 
 To run the benchmarks on your machine, clone the repository
 
-```bash
+```shell
 git clone https://github.com/Joining7943/fundu.git
 cd fundu
 ```
 
 and then run the benchmarks with
 
-```bash
+```shell
 cargo bench
 ```
 
@@ -195,6 +219,31 @@ Input | parser with time units | avg parsing time | ~ samples / s
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `3.7219 µs` | `268_679.975`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `3.7132 µs` | `269_309.490`
 
+For comparison, `fundu`'s precision and additional features only add a very low performance overhead (the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
+
+Input | avg parsing time | ~ samples / s
+--- | --- | ---
+`1` | `25.630 ns` | `39_016_777.214`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `1.7457 µs` | `572_836.111`
+
+# Comparison `fundu` vs `Duration::(try_)from_secs_f64`
+
+Here's a short incomplete overview of differences and advantages of `fundu` over using
+`Duration::(try_)from_secs_f64(input.parse().unwrap())`
+
+Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
+--- | --- | ---
+`01271480964981728917.1` | `Duration::new(1271480964981728917, 1`) | `Duration::new(1271480964981729024, 0)`
+`1.11111111111e10` | `Duration::new(11111111111, 1)` | `Duration::new(11111111111, 100000381)`
+`1ns` | `Duration::new(0, 1)` | error parsing to `f64`: cannot parse time units
+`1000` | When changing the default unit to `MilliSecond` -> `Duration::new(1, 0)` | is always seconds based
+`1e20` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
+`infinity` | `DURATION::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
+
+Having said that, `fundu` has a small impact on [performance](#benchmarks), so if you need to parse a massive amount of
+inputs and can do without the full precision or any of its features, you may be better off using the
+native methods from the rust `stdlib`.
+
 # Platform support
 
 Since `fundu` is purely built on top of the rust `stdlib` without platform specific code, this
@@ -205,11 +254,9 @@ See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.ym
 
 # TODO
 
-- Improve api documentation
-- Improve performance especially for long inputs
-- Make base unit configurable to a different time unit than seconds.
+- Improve performance for long inputs
+- Improve error messages and error types
 - Implement usage of more than one identifier for time units
-- Add more build targets in the CI
 - Provide other year calculations:
     - mean Gregorian year
     - Sidereal year
@@ -222,6 +269,8 @@ See also [Changelog](CHANGELOG.md)
 MIT license ([LICENSE](LICENSE) or <http://opensource.org/licenses/MIT>)
 
 [`std::time::Duration`]: https://doc.rust-lang.org/std/time/struct.Duration.html
+[`Duration`]: https://doc.rust-lang.org/std/time/struct.Duration.html
 [`Duration::from_secs_f64`]: https://doc.rust-lang.org/std/time/struct.Duration.html#method.from_secs_f64
+[`Duration::try_from_secs_f64`]: https://doc.rust-lang.org/std/time/struct.Duration.html#method.try_from_secs_f64
 [`Duration::MAX`]: https://doc.rust-lang.org/std/time/struct.Duration.html#associatedconstant.MAX
 [`f64::from_str`]: https://doc.rust-lang.org/std/primitive.f64.html#impl-FromStr-for-f64

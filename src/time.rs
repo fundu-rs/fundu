@@ -5,18 +5,65 @@
 
 use TimeUnit::*;
 
-/// The time units the parser can understand
+/// The default identifier of [`TimeUnit::NanoSecond`]
+pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
+/// The default identifier of [`TimeUnit::MicroSecond`]
+pub const DEFAULT_ID_MICRO_SECOND: &str = "Ms";
+/// The default identifier of [`TimeUnit::MicroSecond`]
+pub const DEFAULT_ID_MILLI_SECOND: &str = "ms";
+/// The default identifier of [`TimeUnit::Second`]
+pub const DEFAULT_ID_SECOND: &str = "s";
+/// The default identifier of [`TimeUnit::Minute`]
+pub const DEFAULT_ID_MINUTE: &str = "m";
+/// The default identifier of [`TimeUnit::Hour`]
+pub const DEFAULT_ID_HOUR: &str = "h";
+/// The default identifier of [`TimeUnit::Day`]
+pub const DEFAULT_ID_DAY: &str = "d";
+/// The default identifier of [`TimeUnit::Week`]
+pub const DEFAULT_ID_WEEK: &str = "w";
+/// The default identifier of [`TimeUnit::Month`]
+pub const DEFAULT_ID_MONTH: &str = "M";
+/// The default identifier of [`TimeUnit::Year`]
+pub const DEFAULT_ID_YEAR: &str = "y";
+
+pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
+
+/// The time units the parser can understand and needed to configure the [`DurationParser`].
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::{DurationParser, TimeUnit};
+/// use std::time::Duration;
+///
+/// assert_eq!(
+///     DurationParser::with_time_units(&[TimeUnit::NanoSecond]).parse("42ns").unwrap(),
+///     Duration::new(0, 42)
+/// );
+/// ```
+///
+/// [`DurationParser`]: crate::DurationParser
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum TimeUnit {
+    /// Represents the lowest possible time unit. The default id is given by [`DEFAULT_ID_NANO_SECOND`] = `ns`
     NanoSecond,
+    /// The default id is given by [`DEFAULT_ID_MICRO_SECOND`] = `Ms`
     MicroSecond,
+    /// The default id is given by [`DEFAULT_ID_MILLI_SECOND`] = `ms`
     MilliSecond,
+    /// The default if no time unit is given. The default id is given by [`DEFAULT_ID_SECOND`] = `s`
     Second,
+    /// The default id is given by [`DEFAULT_ID_MINUTE`] = `m`
     Minute,
+    /// The default id is given by [`DEFAULT_ID_HOUR`] = `h`
     Hour,
+    /// The default id is given by [`DEFAULT_ID_DAY`] = `d`
     Day,
+    /// The default id is given by [`DEFAULT_ID_WEEK`] = `w`
     Week,
+    /// The default id is given by [`DEFAULT_ID_MONTH`] = `M`
     Month,
+    /// Represents the hightest possible time unit. The default id is given by [`DEFAULT_ID_YEAR`] = `y`
     Year,
 }
 
@@ -25,18 +72,6 @@ impl Default for TimeUnit {
         Second
     }
 }
-
-pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
-pub const DEFAULT_ID_MICRO_SECOND: &str = "Ms";
-pub const DEFAULT_ID_MILLI_SECOND: &str = "ms";
-pub const DEFAULT_ID_SECOND: &str = "s";
-pub const DEFAULT_ID_MINUTE: &str = "m";
-pub const DEFAULT_ID_HOUR: &str = "h";
-pub const DEFAULT_ID_DAY: &str = "d";
-pub const DEFAULT_ID_WEEK: &str = "w";
-pub const DEFAULT_ID_MONTH: &str = "M";
-pub const DEFAULT_ID_YEAR: &str = "y";
-pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
 
 impl TimeUnit {
     /// Return the default identifier
@@ -65,7 +100,7 @@ impl TimeUnit {
     /// t > s  => x(t) * m
     /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
-    pub fn multiplier(&self) -> u64 {
+    pub(crate) fn multiplier(&self) -> u64 {
         match self {
             NanoSecond => 9,
             MicroSecond => 6,
@@ -85,6 +120,8 @@ impl TimeUnit {
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
     max_length: usize,
+    /// The default [`TimeUnit`]
+    pub default: TimeUnit,
     nanos: Option<&'static str>,
     micros: Option<&'static str>,
     millis: Option<&'static str>,
@@ -101,6 +138,7 @@ impl Default for TimeUnits {
     fn default() -> Self {
         Self {
             max_length: DEFAULT_ID_MAX_LENGTH,
+            default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
             millis: Some(DEFAULT_ID_MILLI_SECOND),
@@ -120,6 +158,7 @@ impl TimeUnits {
     pub fn new() -> Self {
         Self {
             max_length: Default::default(),
+            default: Default::default(),
             nanos: Default::default(),
             micros: Default::default(),
             millis: Default::default(),
@@ -149,6 +188,7 @@ impl TimeUnits {
     pub fn with_all_time_units() -> Self {
         Self {
             max_length: DEFAULT_ID_MAX_LENGTH,
+            default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
             millis: Some(DEFAULT_ID_MILLI_SECOND),
@@ -228,6 +268,11 @@ impl TimeUnits {
         for unit in units {
             self.add_time_unit(*unit);
         }
+    }
+
+    /// Set the default [`TimeUnit`]
+    pub fn set_default_unit(&mut self, unit: TimeUnit) {
+        self.default = unit;
     }
 
     /// Return `true` if this set of time units is empty.
@@ -566,5 +611,22 @@ mod tests {
                 Year
             ]
         )
+    }
+
+    #[rstest]
+    #[case::default(TimeUnits::default())]
+    #[case::new(TimeUnits::new())]
+    #[case::with_all_time_units(TimeUnits::with_all_time_units())]
+    #[case::with_default_time_units(TimeUnits::with_default_time_units())]
+    #[case::with_time_units(TimeUnits::with_time_units(&[NanoSecond]))]
+    fn test_time_units_constructors_set_default_time_unit_to_second(#[case] time_units: TimeUnits) {
+        assert_eq!(time_units.default, Second);
+    }
+
+    #[test]
+    fn test_time_units_set_default_time_unit() {
+        let mut time_units = TimeUnits::new();
+        time_units.set_default_unit(NanoSecond);
+        assert_eq!(time_units.default, NanoSecond);
     }
 }
