@@ -349,17 +349,20 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
-        let remainder =
-            unsafe { std::str::from_utf8_unchecked(self.input.get_unchecked(self.current_pos..)) };
+        debug_assert!(
+            self.current_byte.is_some(),
+            "Don't call this function without being sure there's at least 1 byte remaining"
+        );
+        let remainder = &self.input[self.current_pos..];
+
+        // Safety: The input of `parse` is &str and therefore valid utf-8
+        let string = unsafe { std::str::from_utf8_unchecked(remainder) };
         let result = self
             .time_units
-            .get(remainder)
-            .ok_or(ParseError::TimeUnit(format!(
-                "Invalid time unit: '{remainder}' found at {}",
-                self.current_pos
-            )));
-
-        self.finish();
+            .get(string)
+            .ok_or(ParseError::TimeUnit(format!("Invalid time unit: {string}")));
+        self.current_byte = None;
+        self.current_pos += remainder.len();
         result
     }
 
