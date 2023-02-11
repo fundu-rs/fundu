@@ -5,7 +5,8 @@
 
 //! Provide the [`ParseError`]
 
-use std::{error::Error, fmt::Display};
+use std::error::Error;
+use std::fmt::Display;
 
 /// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
@@ -15,9 +16,13 @@ pub enum ParseError {
     /// Overflow error
     Overflow,
     /// Errors concerning time units
-    TimeUnitError,
+    TimeUnit(String),
     /// A generic error if no other error type fits
     InvalidInput(String),
+    NegativeExponentOverflow,
+    PositiveExponentOverflow,
+    NegativeNumber,
+    NegativeInfinity,
 }
 
 impl Error for ParseError {}
@@ -29,8 +34,12 @@ impl Display for ParseError {
                 format!("Syntax error: {reason} at column {column}")
             }
             ParseError::Overflow => "Number overflow".to_string(),
-            ParseError::TimeUnitError => "Invalid time unit".to_string(),
+            ParseError::TimeUnit(reason) => format!("Time unit error: {reason}"),
             ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
+            ParseError::NegativeExponentOverflow => "Negative exponent overflow".to_string(),
+            ParseError::PositiveExponentOverflow => "Positive exponent overflow".to_string(),
+            ParseError::NegativeNumber => "Number was negative".to_string(),
+            ParseError::NegativeInfinity => "Infinity was negative".to_string(),
         };
         f.write_str(&msg)
     }
@@ -47,7 +56,7 @@ mod tests {
         "Syntax error: Invalid character at column 10"
     )]
     #[case::overflow(ParseError::Overflow, "Number overflow")]
-    #[case::time_unit_error(ParseError::TimeUnitError, "Invalid time unit")]
+    #[case::time_unit_error(ParseError::TimeUnit("Found invalid 'y'".to_string()), "Time unit error: Found invalid 'y'")]
     #[case::invalid_input(
         ParseError::InvalidInput("Unexpected".to_string()),
         "Invalid input: Unexpected"

@@ -203,9 +203,9 @@ fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] ti
 }
 
 #[rstest]
-#[case::syntax_error("1y", ParseError::Syntax(1, "No time units allowed but found: 'y'".to_string()), "Syntax error: No time units allowed but found: 'y' at column 1")]
+#[case::syntax_error("1y", ParseError::TimeUnit("No time units allowed but found: 'y'".to_string()), "Time unit error: No time units allowed but found: 'y'")]
 #[case::overflow_error("1e-2000", ParseError::Overflow, "Number overflow")]
-#[case::invalid_input_error("-inf", ParseError::InvalidInput("Negative infinity".to_string()), "Invalid input: Negative infinity")]
+#[case::invalid_input_error("-inf", ParseError::NegativeInfinity, "Infinity was negative")]
 fn test_parse_error_messages(
     #[case] input: &str,
     #[case] expected_error: ParseError,

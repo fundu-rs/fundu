@@ -114,7 +114,7 @@ impl DurationRepr {
     pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
-                return Err(ParseError::InvalidInput("Negative infinity".to_string()));
+                return Err(ParseError::NegativeInfinity);
             } else {
                 return Ok(Duration::MAX);
             }
@@ -175,7 +175,7 @@ impl DurationRepr {
         let (seconds, attos) = match seconds.parse() {
             Ok(seconds) => (seconds, attos.parse()),
             Err(ParseError::Overflow) if self.is_negative => {
-                return Err(ParseError::InvalidInput("Negative number".to_string()))
+                return Err(ParseError::NegativeNumber)
             }
             Err(ParseError::Overflow) => return Ok(Duration::MAX),
             Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
@@ -186,7 +186,7 @@ impl DurationRepr {
         if seconds == 0 && attos == 0 {
             Ok(Duration::ZERO)
         } else if self.is_negative {
-            Err(ParseError::InvalidInput("Negative number".to_string()))
+            Err(ParseError::NegativeNumber)
         } else {
             match self.unit.cmp(&TimeUnit::Second) {
                 Less | Equal => Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32)),
@@ -318,10 +318,10 @@ impl<'a> ReprParser<'a> {
                 duration_repr.unit = unit;
             }
             Some(byte) => {
-                return Err(ParseError::Syntax(
-                    self.current_pos,
-                    format!("No time units allowed but found: '{}'", *byte as char),
-                ));
+                return Err(ParseError::TimeUnit(format!(
+                    "No time units allowed but found: '{}'",
+                    *byte as char
+                )));
             }
             None => return Ok(duration_repr),
         }
