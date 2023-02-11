@@ -1,5 +1,7 @@
 #![no_main]
 
+use std::num::IntErrorKind;
+
 use fundu::DurationParser;
 use libfuzzer_sys::fuzz_target;
 
@@ -40,9 +42,46 @@ fuzz_target!(|data: &[u8]| {
                         "Expected an error: input: {string}, f64: {parsed}, duration: {duration:?}"
                     );
                 }
-            // Everything else should be parsable by fundu and we expect no errors
+            // Everything else should be parsable by fundu besides some special handling of the exponent
+            // and the Overflow error
             } else if let Err(error) = parser.parse(&format!("{parsed}")) {
-                panic!("Expected no error: input: {string}, error: {error:?}");
+                match error {
+                    fundu::ParseError::Overflow => {
+                        match string.find(|c: char| c.eq_ignore_ascii_case(&'e')) {
+                            Some(index) => match string.get(index + 1..) {
+                                Some(exponent) => {
+                                    match exponent.parse::<i16>() {
+                                        Ok(e) if (-1022..=1023).contains(&e) => panic!(
+                                            "Overflow error: Exponent was in valid range: input: {string}, error: {error:?}"
+                                        ),
+                                        Ok(_) => {
+                                            // The overflow error is correctly returned by the parser
+                                        }
+                                        Err(error) => match error.kind() {
+                                            IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                                                // The overflow error is correctly returned by the parser
+                                            }
+                                            kind => panic!(
+                                                "Overflow error: Should not be an Overflow error: {string}, error: {error:?}, kind: {kind:?}"
+                                            ),
+                                        }
+                                    }
+                                }
+                                None => panic!(
+                                    "Overflow error: No number: input: {string}, error: {error:?}"
+                                ),
+                            },
+                            None => {
+                                panic!(
+                                    "Overflow error: No exponent: input: {string}, error: {error:?}"
+                                );
+                            }
+                        }
+                    }
+                    _ => {
+                        panic!("Expected no error: input: {string}, error: {error:?}");
+                    }
+                }
             }
         // What can't be parsed to a f64 can't be parsed by fundu
         } else if let Ok(parsed) = parser.parse(string) {

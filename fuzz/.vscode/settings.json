@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "libfuzzer",
-        "nanos"
+        "nanos",
+        "rfind"
     ]
 }
