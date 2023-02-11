@@ -22,12 +22,17 @@ rstest = "0.16.0"
 criterion = "0.4.0"
 clap = { version = "3.2.23", features = ["cargo", "derive"] }
 chrono = "0.4.23"
+iai = "0.1.1"
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
 [[bench]]
 name = "parse_duration_benchmark"
+harness = false
+
+[[bench]]
+name = "iai_parse_duration_benchmark"
 harness = false
 
 [[bench]]
