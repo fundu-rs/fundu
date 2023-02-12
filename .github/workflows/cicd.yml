@@ -9,6 +9,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
+  BENCHMARK_REGRESSION_PERCENT_FAIL: 10
 
 jobs:
   base:
@@ -196,3 +197,39 @@ jobs:
     env:
       RUSTFLAGS: "-C instrument-coverage"
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
+
+  benchmarks:
+    needs: [base]
+    name: Benchmarks/ubuntu-latest
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        benchmark:
+          - iai_bench_parsing
+          - iai_bench_time_unit_parsing
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Prepare
+        run: sudo apt-get -y update && sudo apt-get -y install valgrind
+      - name: Download reference benchmarks
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow_conclusion: success
+          name: benchmarks-${{ matrix.benchmark }}
+          check_artifacts: true
+          path: target/iai
+          if_no_artifact_found: warn
+      - name: Run benchmark ${{ matrix.benchmark }} and check for regression
+        id: run
+        shell: bash
+        run: |
+          cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
+          sed -En 's/Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' bench.out | \
+            while read p; do [[ $p -ge $BENCHMARK_REGRESSION_PERCENT_FAIL ]] && exit 1; done
+      - uses: actions/upload-artifact@v3
+        with:
+          name: benchmarks-${{ matrix.benchmark }}
+          path: target/iai

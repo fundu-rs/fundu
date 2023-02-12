@@ -12,6 +12,7 @@
     "clippy",
     "codecov",
     "cuda",
+    "dawidd",
     "dtolnay",
     "eabi",
     "eabihf",
@@ -54,6 +55,7 @@
     "Swatinem",
     "thumbv",
     "uefi",
+    "valgrind",
     "wasi"
   ]
 }
