@@ -16,7 +16,7 @@ pub enum ParseError {
     /// Overflow error
     Overflow,
     /// Errors concerning time units
-    TimeUnit(String),
+    TimeUnit(usize, String),
     /// A generic error if no other error type fits
     InvalidInput(String),
     NegativeExponentOverflow,
@@ -34,7 +34,9 @@ impl Display for ParseError {
                 format!("Syntax error: {reason} at column {column}")
             }
             ParseError::Overflow => "Number overflow".to_string(),
-            ParseError::TimeUnit(reason) => format!("Time unit error: {reason}"),
+            ParseError::TimeUnit(pos, reason) => {
+                format!("Time unit error: {reason} at column {pos}")
+            }
             ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
             ParseError::NegativeExponentOverflow => "Negative exponent overflow".to_string(),
             ParseError::PositiveExponentOverflow => "Positive exponent overflow".to_string(),
@@ -56,7 +58,7 @@ mod tests {
         "Syntax error: Invalid character at column 10"
     )]
     #[case::overflow(ParseError::Overflow, "Number overflow")]
-    #[case::time_unit_error(ParseError::TimeUnit("Found invalid 'y'".to_string()), "Time unit error: Found invalid 'y'")]
+    #[case::time_unit_error(ParseError::TimeUnit(10, "Found invalid 'y'".to_string()), "Time unit error: Found invalid 'y' at column 10")]
     #[case::invalid_input(
         ParseError::InvalidInput("Unexpected".to_string()),
         "Invalid input: Unexpected"

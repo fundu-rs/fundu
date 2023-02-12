@@ -329,10 +329,10 @@ impl<'a> ReprParser<'a> {
                 duration_repr.unit = unit;
             }
             Some(byte) => {
-                return Err(ParseError::TimeUnit(format!(
-                    "No time units allowed but found: '{}'",
-                    *byte as char
-                )));
+                return Err(ParseError::TimeUnit(
+                    self.current_pos,
+                    format!("No time units allowed but found: '{}'", *byte as char),
+                ));
             }
             None => return Ok(duration_repr),
         }
@@ -356,10 +356,10 @@ impl<'a> ReprParser<'a> {
 
         // Safety: The input of `parse` is &str and therefore valid utf-8
         let string = unsafe { std::str::from_utf8_unchecked(self.get_remainder()) };
-        let result = self
-            .time_units
-            .get(string)
-            .ok_or(ParseError::TimeUnit(format!("Invalid time unit: {string}")));
+        let result = self.time_units.get(string).ok_or(ParseError::TimeUnit(
+            self.current_pos,
+            format!("Invalid time unit: '{string}'"),
+        ));
         self.finish();
         result
     }

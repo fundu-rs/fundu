@@ -163,7 +163,7 @@
 //!         .parse("1y")
 //!         .unwrap_err()
 //!         .to_string(),
-//!     "Syntax error: No time units allowed but found: 'y' at column 1"
+//!     "Time unit error: No time units allowed but found: 'y' at column 1"
 //! );
 //! ```
 //!

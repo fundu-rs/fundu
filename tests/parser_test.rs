@@ -203,23 +203,29 @@ fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] ti
 }
 
 #[rstest]
-#[case::syntax_error("1y", ParseError::TimeUnit("No time units allowed but found: 'y'".to_string()), "Time unit error: No time units allowed but found: 'y'")]
-#[case::overflow_error("1e-2000", ParseError::Overflow, "Number overflow")]
-#[case::invalid_input_error("-inf", ParseError::NegativeInfinity, "Infinity was negative")]
+#[case::syntax_error(DurationParser::without_time_units(), "1y", ParseError::TimeUnit(1, "No time units allowed but found: 'y'".to_string()), "Time unit error: No time units allowed but found: 'y' at column 1")]
+#[case::syntax_error(DurationParser::with_all_time_units(), "1years", ParseError::TimeUnit(1, "Invalid time unit: 'years'".to_string()), "Time unit error: Invalid time unit: 'years' at column 1")]
+#[case::overflow_error(
+    DurationParser::new(),
+    "1e-2000",
+    ParseError::Overflow,
+    "Number overflow"
+)]
+#[case::invalid_input_error(
+    DurationParser::new(),
+    "-inf",
+    ParseError::NegativeInfinity,
+    "Infinity was negative"
+)]
 fn test_parse_error_messages(
+    #[case] mut parser: DurationParser,
     #[case] input: &str,
     #[case] expected_error: ParseError,
     #[case] expected_string: &str,
 ) {
+    assert_eq!(parser.parse(input), Err(expected_error));
     assert_eq!(
-        DurationParser::without_time_units().parse(input),
-        Err(expected_error)
-    );
-    assert_eq!(
-        DurationParser::without_time_units()
-            .parse(input)
-            .unwrap_err()
-            .to_string(),
+        parser.parse(input).unwrap_err().to_string(),
         expected_string
     );
 }
