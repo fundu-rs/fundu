@@ -201,6 +201,8 @@
         "args": [
           "test",
           "--no-run",
+          "--profile",
+          "inlined-debugger"
         ],
         "filter": {
           "name": "parser_test",

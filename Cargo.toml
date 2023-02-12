@@ -32,7 +32,11 @@ name = "parse_duration_benchmark"
 harness = false
 
 [[bench]]
-name = "iai_parse_duration_benchmark"
+name = "iai_bench_time_unit_parsing"
+harness = false
+
+[[bench]]
+name = "iai_bench_parsing"
 harness = false
 
 [[bench]]
