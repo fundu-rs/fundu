@@ -15,14 +15,15 @@ rust-version = "1.60.0"
 [lib]
 bench = false
 
-[dependencies]
-
 [dev-dependencies]
 rstest = "0.16.0"
 criterion = "0.4.0"
-clap = { version = "3.2.23", features = ["cargo", "derive"] }
 chrono = "0.4.23"
 iai = "0.1.1"
+
+[dev-dependencies.clap]
+version = "3.2.23"
+features = ["cargo", "derive"]
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
