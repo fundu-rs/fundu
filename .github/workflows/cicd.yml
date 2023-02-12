@@ -12,6 +12,15 @@ env:
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
 
 jobs:
+  deny:
+    name: Check dependencies/ubuntu-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          rust-version: "1.60.0"
+
   base:
     name: Build, check and test
     strategy:
@@ -19,7 +28,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         toolchain:
-          - 1.60.0 # MSRV
+          - "1.60.0" # MSRV
           - stable
           - nightly
         include:
