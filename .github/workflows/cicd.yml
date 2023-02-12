@@ -62,6 +62,8 @@ jobs:
         run: cargo fmt --check
       - name: Lint
         run: cargo +stable clippy --all-targets -- -D warnings
+        env:
+          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: git # unstable on 1.66 + 1.67
       - name: Test
         run: cargo test
 
