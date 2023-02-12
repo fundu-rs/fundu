@@ -9,7 +9,8 @@ on:
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
-  BENCHMARK_REGRESSION_PERCENT_FAIL: 10
+  BENCHMARK_REGRESSION_PERCENT_FAIL: 10 # no string
+  MSRV: "1.60.0"
 
 jobs:
   deny:
@@ -19,7 +20,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          rust-version: "1.60.0"
+          rust-version: ${{ env.MSRV }}
 
   base:
     name: Build, check and test
@@ -28,11 +29,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         toolchain:
-          - "1.60.0" # MSRV
+          - ${{ MSRV }}
           - stable
           - nightly
         include:
-          - toolchain: 1.60.0
+          - toolchain: ${{ MSRV }}
             components: rustfmt
           - toolchain: nightly
             components: rustfmt
