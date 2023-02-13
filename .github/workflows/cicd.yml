@@ -233,14 +233,25 @@ jobs:
           check_artifacts: true
           path: target/iai
           if_no_artifact_found: warn
-      - name: Run benchmark ${{ matrix.benchmark }} and check for regression
-        id: run
+      - name: Run benchmark ${{ matrix.benchmark }}
+        shell: bash
+        run: cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
+      - name: Check for regression
         shell: bash
         run: |
-          cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
-          sed -En 's/Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' bench.out | \
-            while read p; do [[ $p -ge $BENCHMARK_REGRESSION_PERCENT_FAIL ]] && exit 1; done
-          exit 0
+          echo 0 > fail
+          while IFS= read -r line; do
+            if echo "$line" | grep 'Estimated Cycles:' --color=never; then
+              p=$(sed -En 's/\s*Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' <<<"$line")
+              if [[ $p -ge ${BENCHMARK_REGRESSION_PERCENT_FAIL} ]]; then
+                echo "::error::Regressed +${p}% >= BENCHMARK_REGRESSION_PERCENT_FAIL (=${BENCHMARK_REGRESSION_PERCENT_FAIL}%)"
+                echo 2 > fail
+              fi
+            else
+              echo "$line"
+            fi
+          done < bench.out
+          exit $(< fail)
       - uses: actions/upload-artifact@v3
         with:
           name: benchmarks-${{ matrix.benchmark }}
