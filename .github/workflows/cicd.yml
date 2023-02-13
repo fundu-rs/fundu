@@ -2,7 +2,7 @@ name: Build and Check
 
 on:
   push:
-    branches: ["main", "cicd", "release"]
+    branches: ["main", "cicd", "release", "develop"]
   pull_request:
     branches: ["main"]
 
@@ -240,6 +240,7 @@ jobs:
           cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
           sed -En 's/Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' bench.out | \
             while read p; do [[ $p -ge $BENCHMARK_REGRESSION_PERCENT_FAIL ]] && exit 1; done
+          exit 0
       - uses: actions/upload-artifact@v3
         with:
           name: benchmarks-${{ matrix.benchmark }}
