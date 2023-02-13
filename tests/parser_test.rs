@@ -29,10 +29,11 @@ const MONTH: u64 = YEAR / 12;
 #[case::negative_number_barely_not_zero("-1.e-18")]
 fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
     let result = parse_duration(source);
+    // cov:excl-start
     assert!(
         result.is_err(),
         "Expected an error but result was: {result:?}"
-    );
+    ); // cov:excl-stop
 }
 
 #[rstest]
@@ -203,19 +204,41 @@ fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] ti
 }
 
 #[rstest]
-#[case::syntax_error(DurationParser::without_time_units(), "1y", ParseError::TimeUnit(1, "No time units allowed but found: 'y'".to_string()), "Time unit error: No time units allowed but found: 'y' at column 1")]
-#[case::syntax_error(DurationParser::with_all_time_units(), "1years", ParseError::TimeUnit(1, "Invalid time unit: 'years'".to_string()), "Time unit error: Invalid time unit: 'years' at column 1")]
-#[case::overflow_error(
-    DurationParser::new(),
-    "1e-2000",
-    ParseError::Overflow,
-    "Number overflow"
+#[case::time_unit_error_when_no_time_units(
+    DurationParser::without_time_units(),
+    "1y",
+    ParseError::TimeUnit(1, "No time units allowed but found: 'y'".to_string()),
+    "Time unit error: No time units allowed but found: 'y' at column 1"
 )]
-#[case::invalid_input_error(
+#[case::time_unit_error_when_all_time_units(
+    DurationParser::with_all_time_units(),
+    "1years",
+    ParseError::TimeUnit(1, "Invalid time unit: 'years'".to_string()),
+    "Time unit error: Invalid time unit: 'years' at column 1"
+)]
+#[case::negative_exponent_overflow_error(
+    DurationParser::new(),
+    "1e-1023",
+    ParseError::NegativeExponentOverflow,
+    "Negative exponent overflow: Minimum is -1022"
+)]
+#[case::positive_exponent_overflow_error(
+    DurationParser::new(),
+    "1e+1024",
+    ParseError::PositiveExponentOverflow,
+    "Positive exponent overflow: Maximum is +1023"
+)]
+#[case::negative_number_error(
+    DurationParser::new(),
+    "-1",
+    ParseError::NegativeNumber,
+    "Number was negative"
+)]
+#[case::negative_number_when_infinity_error(
     DurationParser::new(),
     "-inf",
-    ParseError::NegativeInfinity,
-    "Infinity was negative"
+    ParseError::NegativeNumber,
+    "Number was negative"
 )]
 fn test_parse_error_messages(
     #[case] mut parser: DurationParser,

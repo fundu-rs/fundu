@@ -11,18 +11,23 @@ use std::fmt::Display;
 /// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParseError {
-    /// Syntax error
+    /// A syntax error. Syntax errors report the position (column) where it was encountered and a
+    /// reason.
     Syntax(usize, String),
-    /// Overflow error
+    /// Currently only used internally for overflows of the maximum Duration.
     Overflow,
-    /// Errors concerning time units
+    /// An error concerning time units. Like [`ParseError::Syntax`]  the position where the error
+    /// occurred is included.
     TimeUnit(usize, String),
+    /// The exponent exceeded the minimum negative exponent (`-1022`)
+    NegativeExponentOverflow,
+    /// The exponent exceeded the maximum positive exponent (`+1023`)
+    PositiveExponentOverflow,
+    /// The input number was negative. Note that numbers close to `0` (`< 1e-18) are not negative
+    /// but resolve to `0`
+    NegativeNumber,
     /// A generic error if no other error type fits
     InvalidInput(String),
-    NegativeExponentOverflow,
-    PositiveExponentOverflow,
-    NegativeNumber,
-    NegativeInfinity,
 }
 
 impl Error for ParseError {}
@@ -37,11 +42,14 @@ impl Display for ParseError {
             ParseError::TimeUnit(pos, reason) => {
                 format!("Time unit error: {reason} at column {pos}")
             }
-            ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
-            ParseError::NegativeExponentOverflow => "Negative exponent overflow".to_string(),
-            ParseError::PositiveExponentOverflow => "Positive exponent overflow".to_string(),
+            ParseError::NegativeExponentOverflow => {
+                "Negative exponent overflow: Minimum is -1022".to_string()
+            }
+            ParseError::PositiveExponentOverflow => {
+                "Positive exponent overflow: Maximum is +1023".to_string()
+            }
             ParseError::NegativeNumber => "Number was negative".to_string(),
-            ParseError::NegativeInfinity => "Infinity was negative".to_string(),
+            ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
         };
         f.write_str(&msg)
     }
@@ -58,7 +66,19 @@ mod tests {
         "Syntax error: Invalid character at column 10"
     )]
     #[case::overflow(ParseError::Overflow, "Number overflow")]
-    #[case::time_unit_error(ParseError::TimeUnit(10, "Found invalid 'y'".to_string()), "Time unit error: Found invalid 'y' at column 10")]
+    #[case::time_unit_error(
+        ParseError::TimeUnit(10, "Found invalid 'y'".to_string()),
+        "Time unit error: Found invalid 'y' at column 10"
+    )]
+    #[case::negative_exponent_overflow_error(
+        ParseError::NegativeExponentOverflow,
+        "Negative exponent overflow: Minimum is -1022"
+    )]
+    #[case::positive_exponent_overflow_error(
+        ParseError::PositiveExponentOverflow,
+        "Positive exponent overflow: Maximum is +1023"
+    )]
+    #[case::negative_number_error(ParseError::NegativeNumber, "Number was negative")]
     #[case::invalid_input(
         ParseError::InvalidInput("Unexpected".to_string()),
         "Invalid input: Unexpected"

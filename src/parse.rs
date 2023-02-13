@@ -114,7 +114,7 @@ impl DurationRepr {
     pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
-                return Err(ParseError::NegativeInfinity);
+                return Err(ParseError::NegativeNumber);
             } else {
                 return Ok(Duration::MAX);
             }
@@ -476,7 +476,11 @@ impl<'a> ReprParser<'a> {
                 if (is_negative && exponent <= 1022) || (!is_negative && exponent <= 1023) {
                     self.advance();
                 } else {
-                    return Err(ParseError::Overflow);
+                    return if is_negative {
+                        Err(ParseError::NegativeExponentOverflow)
+                    } else {
+                        Err(ParseError::PositiveExponentOverflow)
+                    };
                 }
             } else {
                 break;
