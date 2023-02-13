@@ -32,7 +32,7 @@ jobs:
           - stable
           - nightly
         include:
-          - toolchain: 1.60.0
+          - toolchain: "1.60.0"
             components: rustfmt
           - toolchain: nightly
             components: rustfmt
