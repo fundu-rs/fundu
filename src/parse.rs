@@ -339,20 +339,18 @@ impl<'a> ReprParser<'a> {
 
         // check we've reached the end of input
         match self.current_byte {
-            Some(byte) => Err(ParseError::Syntax(
-                self.current_pos,
-                format!("Expected end of input but found: '{}'", *byte as char),
-            )),
+            Some(_) => unreachable!("Parsing time units consumes the rest of the input"), // cov:excl-line
             None => Ok(duration_repr),
         }
     }
 
     #[inline]
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
+        // cov:excl-start
         debug_assert!(
             self.current_byte.is_some(),
             "Don't call this function without being sure there's at least 1 byte remaining"
-        );
+        ); // cov:excl-end
 
         // Safety: The input of `parse` is &str and therefore valid utf-8
         let string = unsafe { std::str::from_utf8_unchecked(self.get_remainder()) };
