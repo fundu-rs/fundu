@@ -369,6 +369,7 @@ impl TimeUnitsLike for TimeUnits {
     }
 }
 
+#[derive(Debug)]
 pub struct CustomTimeUnits<'a> {
     default: TimeUnit,
     time_units: [(TimeUnit, Vec<&'a str>); 10],
@@ -392,7 +393,8 @@ impl<'a> CustomTimeUnits<'a> {
 }
 
 impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
-    type Unit = (TimeUnit, &'a str);
+    type Unit = (TimeUnit, &'a [&'a str]);
+
     fn new() -> Self {
         let capacity = 5;
         Self {
@@ -495,10 +497,10 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     }
 
     fn add_time_unit(&mut self, unit: Self::Unit) {
-        let (time_unit, id) = unit;
+        let (time_unit, ids) = unit;
         self.time_units[Self::map_time_unit_to_index(time_unit)]
             .1
-            .push(id);
+            .extend(ids.iter());
     }
 
     fn add_time_units(&mut self, units: &[Self::Unit]) {
@@ -817,7 +819,7 @@ mod tests {
     #[test]
     fn test_custom_time_units() {
         let mut custom = CustomTimeUnits::new();
-        custom.add_time_unit((NanoSecond, "ns"));
+        custom.add_time_unit((NanoSecond, &["ns"]));
         assert_eq!(custom.get("ns"), Some(NanoSecond));
     }
 }
