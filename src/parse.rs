@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
 use crate::error::ParseError;
-use crate::time::{TimeUnit, TimeUnits};
+use crate::time::{TimeUnit, TimeUnits, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;

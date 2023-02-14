@@ -116,6 +116,21 @@ impl TimeUnit {
     }
 }
 
+pub trait TimeUnitsLike {
+    type Unit;
+
+    fn new() -> Self;
+    fn with_default_time_units() -> Self;
+    fn with_time_units(units: &[Self::Unit]) -> Self;
+    fn with_all_time_units() -> Self;
+    fn add_time_unit(&mut self, unit: Self::Unit);
+    fn add_time_units(&mut self, units: &[Self::Unit]);
+    fn set_default_unit(&mut self, unit: TimeUnit);
+    fn is_empty(&self) -> bool;
+    fn get(&self, identifier: &str) -> Option<TimeUnit>;
+    fn get_time_units(&self) -> Vec<TimeUnit>;
+}
+
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
@@ -154,8 +169,18 @@ impl Default for TimeUnits {
 }
 
 impl TimeUnits {
+    /// Return the maximum length in bytes of the identifier in the current set of [`TimeUnit`].
+    #[allow(dead_code)]
+    pub fn max_length(&self) -> usize {
+        self.max_length
+    }
+}
+
+impl TimeUnitsLike for TimeUnits {
+    type Unit = TimeUnit;
+
     /// Create an empty set of [`TimeUnit`]s.
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             max_length: Default::default(),
             default: Default::default(),
@@ -173,19 +198,19 @@ impl TimeUnits {
     }
 
     /// Create [`TimeUnits`] with default [`TimeUnit`]s.
-    pub fn with_default_time_units() -> Self {
+    fn with_default_time_units() -> Self {
         Self::default()
     }
 
     /// Create [`TimeUnits`] with a custom set of [`TimeUnit`]s.
-    pub fn with_time_units(units: &[TimeUnit]) -> Self {
+    fn with_time_units(units: &[TimeUnit]) -> Self {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
     }
 
     /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
-    pub fn with_all_time_units() -> Self {
+    fn with_all_time_units() -> Self {
         Self {
             max_length: DEFAULT_ID_MAX_LENGTH,
             default: Default::default(),
@@ -203,7 +228,7 @@ impl TimeUnits {
     }
 
     /// Add a [`TimeUnit`] to the set of already present time units.
-    pub fn add_time_unit(&mut self, unit: TimeUnit) {
+    fn add_time_unit(&mut self, unit: TimeUnit) {
         let id = match unit {
             NanoSecond => {
                 let id = DEFAULT_ID_NANO_SECOND;
@@ -264,19 +289,19 @@ impl TimeUnits {
     }
 
     /// Add multiple [`TimeUnit`] to the set of already present time units.
-    pub fn add_time_units(&mut self, units: &[TimeUnit]) {
+    fn add_time_units(&mut self, units: &[TimeUnit]) {
         for unit in units {
             self.add_time_unit(*unit);
         }
     }
 
     /// Set the default [`TimeUnit`]
-    pub fn set_default_unit(&mut self, unit: TimeUnit) {
+    fn set_default_unit(&mut self, unit: TimeUnit) {
         self.default = unit;
     }
 
     /// Return `true` if this set of time units is empty.
-    pub fn is_empty(&self) -> bool {
+    fn is_empty(&self) -> bool {
         self.nanos.is_none()
             && self.micros.is_none()
             && self.millis.is_none()
@@ -289,17 +314,11 @@ impl TimeUnits {
             && self.years.is_none()
     }
 
-    /// Return the maximum length in bytes of the identifier in the current set of [`TimeUnit`].
-    #[allow(dead_code)]
-    pub fn max_length(&self) -> usize {
-        self.max_length
-    }
-
     /// Return the [`TimeUnit`] associated with the provided `identifier`.
     ///
     /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
     /// set of time units.
-    pub fn get(&self, identifier: &str) -> Option<TimeUnit> {
+    fn get(&self, identifier: &str) -> Option<TimeUnit> {
         let id = Some(identifier);
         if id == self.nanos {
             Some(NanoSecond)
@@ -328,7 +347,7 @@ impl TimeUnits {
 
     /// Return all [`TimeUnit`]s from the set of active time units ordered.
     #[allow(dead_code)]
-    pub fn get_time_units(&self) -> Vec<TimeUnit> {
+    fn get_time_units(&self) -> Vec<TimeUnit> {
         let mut time_units = Vec::with_capacity(10);
         for (unit, value) in &[
             (NanoSecond, self.nanos),
@@ -347,6 +366,170 @@ impl TimeUnits {
             }
         }
         time_units
+    }
+}
+
+pub struct CustomTimeUnits<'a> {
+    default: TimeUnit,
+    time_units: [(TimeUnit, Vec<&'a str>); 10],
+}
+
+impl<'a> CustomTimeUnits<'a> {
+    fn map_time_unit_to_index(unit: TimeUnit) -> usize {
+        match unit {
+            NanoSecond => 0,
+            MicroSecond => 1,
+            MilliSecond => 2,
+            Second => 3,
+            Minute => 4,
+            Hour => 5,
+            Day => 6,
+            Week => 7,
+            Month => 8,
+            Year => 9,
+        }
+    }
+}
+
+impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
+    type Unit = (TimeUnit, &'a str);
+    fn new() -> Self {
+        let capacity = 5;
+        Self {
+            default: Default::default(),
+            time_units: [
+                (NanoSecond, Vec::with_capacity(capacity)),
+                (MicroSecond, Vec::with_capacity(capacity)),
+                (MilliSecond, Vec::with_capacity(capacity)),
+                (Second, Vec::with_capacity(capacity)),
+                (Minute, Vec::with_capacity(capacity)),
+                (Hour, Vec::with_capacity(capacity)),
+                (Day, Vec::with_capacity(capacity)),
+                (Week, Vec::with_capacity(capacity)),
+                (Month, Vec::with_capacity(capacity)),
+                (Year, Vec::with_capacity(capacity)),
+            ],
+        }
+    }
+
+    fn with_default_time_units() -> Self {
+        let capacity = 5;
+        let mut nanos = Vec::with_capacity(capacity);
+        nanos.push(DEFAULT_ID_NANO_SECOND);
+        let mut micros = Vec::with_capacity(capacity);
+        micros.push(DEFAULT_ID_MICRO_SECOND);
+        let mut millis = Vec::with_capacity(capacity);
+        millis.push(DEFAULT_ID_MILLI_SECOND);
+        let mut seconds = Vec::with_capacity(capacity);
+        seconds.push(DEFAULT_ID_SECOND);
+        let mut minutes = Vec::with_capacity(capacity);
+        minutes.push(DEFAULT_ID_MINUTE);
+        let mut hours = Vec::with_capacity(capacity);
+        hours.push(DEFAULT_ID_HOUR);
+        let mut days = Vec::with_capacity(capacity);
+        days.push(DEFAULT_ID_DAY);
+        let mut weeks = Vec::with_capacity(capacity);
+        weeks.push(DEFAULT_ID_WEEK);
+        let months = Vec::with_capacity(capacity);
+        let years = Vec::with_capacity(capacity);
+        Self {
+            default: Default::default(),
+            time_units: [
+                (NanoSecond, nanos),
+                (MicroSecond, micros),
+                (MilliSecond, millis),
+                (Second, seconds),
+                (Minute, minutes),
+                (Hour, hours),
+                (Day, days),
+                (Week, weeks),
+                (Month, months),
+                (Year, years),
+            ],
+        }
+    }
+
+    fn with_time_units(units: &[Self::Unit]) -> Self {
+        let mut time_units = Self::new();
+        time_units.add_time_units(units);
+        time_units
+    }
+
+    fn with_all_time_units() -> Self {
+        let capacity = 5;
+        let mut nanos = Vec::with_capacity(capacity);
+        nanos.push(DEFAULT_ID_NANO_SECOND);
+        let mut micros = Vec::with_capacity(capacity);
+        micros.push(DEFAULT_ID_MICRO_SECOND);
+        let mut millis = Vec::with_capacity(capacity);
+        millis.push(DEFAULT_ID_MILLI_SECOND);
+        let mut seconds = Vec::with_capacity(capacity);
+        seconds.push(DEFAULT_ID_SECOND);
+        let mut minutes = Vec::with_capacity(capacity);
+        minutes.push(DEFAULT_ID_MINUTE);
+        let mut hours = Vec::with_capacity(capacity);
+        hours.push(DEFAULT_ID_HOUR);
+        let mut days = Vec::with_capacity(capacity);
+        days.push(DEFAULT_ID_DAY);
+        let mut weeks = Vec::with_capacity(capacity);
+        weeks.push(DEFAULT_ID_WEEK);
+        let mut months = Vec::with_capacity(capacity);
+        months.push(DEFAULT_ID_MONTH);
+        let mut years = Vec::with_capacity(capacity);
+        years.push(DEFAULT_ID_YEAR);
+        Self {
+            default: Default::default(),
+            time_units: [
+                (NanoSecond, nanos),
+                (MicroSecond, micros),
+                (MilliSecond, millis),
+                (Second, seconds),
+                (Minute, minutes),
+                (Hour, hours),
+                (Day, days),
+                (Week, weeks),
+                (Month, months),
+                (Year, years),
+            ],
+        }
+    }
+
+    fn add_time_unit(&mut self, unit: Self::Unit) {
+        let (time_unit, id) = unit;
+        self.time_units[Self::map_time_unit_to_index(time_unit)]
+            .1
+            .push(id);
+    }
+
+    fn add_time_units(&mut self, units: &[Self::Unit]) {
+        for unit in units {
+            self.add_time_unit(*unit);
+        }
+    }
+
+    fn set_default_unit(&mut self, unit: TimeUnit) {
+        self.default = unit;
+    }
+
+    fn is_empty(&self) -> bool {
+        self.time_units.iter().all(|(_, v)| v.is_empty())
+    }
+
+    fn get(&self, identifier: &str) -> Option<TimeUnit> {
+        // TODO: improve performance with pre-filtering by first character of `identifier`
+        for (t, v) in self.time_units.iter() {
+            if v.contains(&identifier) {
+                return Some(*t);
+            }
+        }
+        None
+    }
+
+    fn get_time_units(&self) -> Vec<TimeUnit> {
+        self.time_units
+            .iter()
+            .filter_map(|(t, v)| if !v.is_empty() { Some(*t) } else { None })
+            .collect()
     }
 }
 
@@ -629,5 +812,12 @@ mod tests {
         let mut time_units = TimeUnits::new();
         time_units.set_default_unit(NanoSecond);
         assert_eq!(time_units.default, NanoSecond);
+    }
+
+    #[test]
+    fn test_custom_time_units() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_time_unit((NanoSecond, "ns"));
+        assert_eq!(custom.get("ns"), Some(NanoSecond));
     }
 }
