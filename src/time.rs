@@ -28,6 +28,19 @@ pub const DEFAULT_ID_YEAR: &str = "y";
 
 pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
 
+pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
+    (NanoSecond, &["ns", "nsec"]),
+    (MicroSecond, &["us", "µs", "usec"]),
+    (MilliSecond, &["ms", "msec"]),
+    (Second, &["s", "sec", "second", "seconds"]),
+    (Minute, &["m", "min", "minute", "minutes"]),
+    (Hour, &["h", "hr", "hour", "hours"]),
+    (Day, &["d", "day", "days"]),
+    (Week, &["w", "week", "weeks"]),
+    (Month, &["M", "month", "months"]),
+    (Year, &["y", "year", "years"]),
+];
+
 /// The time units the parser can understand and needed to configure the [`DurationParser`].
 ///
 /// # Examples
