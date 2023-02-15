@@ -26,8 +26,6 @@ pub const DEFAULT_ID_MONTH: &str = "M";
 /// The default identifier of [`TimeUnit::Year`]
 pub const DEFAULT_ID_YEAR: &str = "y";
 
-pub const DEFAULT_ID_MAX_LENGTH: usize = 2;
-
 pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (NanoSecond, &["ns", "nsec"]),
     (MicroSecond, &["us", "µs", "usec"]),
@@ -154,7 +152,6 @@ pub trait TimeUnitsLike<T> {
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
-    max_length: usize,
     /// The default [`TimeUnit`]
     pub default: TimeUnit,
     nanos: Option<&'static str>,
@@ -172,7 +169,6 @@ pub struct TimeUnits {
 impl Default for TimeUnits {
     fn default() -> Self {
         Self {
-            max_length: DEFAULT_ID_MAX_LENGTH,
             default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
@@ -188,19 +184,10 @@ impl Default for TimeUnits {
     }
 }
 
-impl TimeUnits {
-    /// Return the maximum length in bytes of the identifier in the current set of [`TimeUnit`].
-    #[allow(dead_code)]
-    pub fn max_length(&self) -> usize {
-        self.max_length
-    }
-}
-
 impl TimeUnitsLike<TimeUnit> for TimeUnits {
     /// Create an empty set of [`TimeUnit`]s.
     fn new() -> Self {
         Self {
-            max_length: Default::default(),
             default: Default::default(),
             nanos: Default::default(),
             micros: Default::default(),
@@ -230,7 +217,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
     /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
     fn with_all_time_units() -> Self {
         Self {
-            max_length: DEFAULT_ID_MAX_LENGTH,
             default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
@@ -247,63 +233,38 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
 
     /// Add a [`TimeUnit`] to the set of already present time units.
     fn add_time_unit(&mut self, unit: TimeUnit) {
-        let id = match unit {
+        match unit {
             NanoSecond => {
-                let id = DEFAULT_ID_NANO_SECOND;
-                self.nanos = Some(id);
-                id
+                self.nanos = Some(DEFAULT_ID_NANO_SECOND);
             }
             MicroSecond => {
-                let id = DEFAULT_ID_MICRO_SECOND;
-                self.micros = Some(id);
-                id
+                self.micros = Some(DEFAULT_ID_MICRO_SECOND);
             }
             MilliSecond => {
-                let id = DEFAULT_ID_MILLI_SECOND;
-                self.millis = Some(id);
-                id
+                self.millis = Some(DEFAULT_ID_MILLI_SECOND);
             }
             Second => {
-                let id = DEFAULT_ID_SECOND;
-                self.seconds = Some(id);
-                id
+                self.seconds = Some(DEFAULT_ID_SECOND);
             }
             Minute => {
-                let id = DEFAULT_ID_MINUTE;
-                self.minutes = Some(id);
-                id
+                self.minutes = Some(DEFAULT_ID_MINUTE);
             }
             Hour => {
-                let id = DEFAULT_ID_HOUR;
-                self.hours = Some(id);
-                id
+                self.hours = Some(DEFAULT_ID_HOUR);
             }
             Day => {
-                let id = DEFAULT_ID_DAY;
-                self.days = Some(id);
-                id
+                self.days = Some(DEFAULT_ID_DAY);
             }
             Week => {
-                let id = DEFAULT_ID_WEEK;
-                self.weeks = Some(id);
-                id
+                self.weeks = Some(DEFAULT_ID_WEEK);
             }
             Month => {
-                let id = DEFAULT_ID_MONTH;
-                self.months = Some(id);
-                id
+                self.months = Some(DEFAULT_ID_MONTH);
             }
             Year => {
-                let id = DEFAULT_ID_YEAR;
-                self.years = Some(id);
-                id
+                self.years = Some(DEFAULT_ID_YEAR);
             }
         };
-
-        let length = id.len();
-        if self.max_length < length {
-            self.max_length = length;
-        }
     }
 
     /// Add multiple [`TimeUnit`] to the set of already present time units.
@@ -364,7 +325,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
     }
 
     /// Return all [`TimeUnit`]s from the set of active time units ordered.
-    #[allow(dead_code)]
     fn get_time_units(&self) -> Vec<TimeUnit> {
         let mut time_units = Vec::with_capacity(10);
         for (unit, value) in &[
@@ -713,25 +673,20 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, Some("ns"), 2)]
-    #[case::nano_second(MicroSecond, Some("Ms"), 2)]
-    #[case::nano_second(MilliSecond, Some("ms"), 2)]
-    #[case::nano_second(Second, Some("s"), 1)]
-    #[case::nano_second(Minute, Some("m"), 1)]
-    #[case::nano_second(Hour, Some("h"), 1)]
-    #[case::nano_second(Day, Some("d"), 1)]
-    #[case::nano_second(Week, Some("w"), 1)]
-    #[case::nano_second(Month, Some("M"), 1)]
-    #[case::nano_second(Year, Some("y"), 1)]
-    fn test_time_units_add_time_unit(
-        #[case] time_unit: TimeUnit,
-        #[case] expected: Option<&str>,
-        #[case] max_length: usize,
-    ) {
+    #[case::nano_second(NanoSecond, Some("ns"))]
+    #[case::nano_second(MicroSecond, Some("Ms"))]
+    #[case::nano_second(MilliSecond, Some("ms"))]
+    #[case::nano_second(Second, Some("s"))]
+    #[case::nano_second(Minute, Some("m"))]
+    #[case::nano_second(Hour, Some("h"))]
+    #[case::nano_second(Day, Some("d"))]
+    #[case::nano_second(Week, Some("w"))]
+    #[case::nano_second(Month, Some("M"))]
+    #[case::nano_second(Year, Some("y"))]
+    fn test_time_units_add_time_unit(#[case] time_unit: TimeUnit, #[case] expected: Option<&str>) {
         let mut time_units = TimeUnits::new();
         time_units.add_time_unit(time_unit);
         assert_time_unit(&time_units, time_unit, expected);
-        assert_eq!(time_units.max_length(), max_length);
         assert_eq!(time_units.get_time_units(), vec![time_unit]);
     }
 

@@ -329,10 +329,12 @@ pub struct DurationParser {
 }
 
 impl<'a> DurationParserBuilder<'a, TimeUnit> for DurationParser {
+    #[inline]
     fn get_time_units(&self) -> &dyn TimeUnitsLike<TimeUnit> {
         &self.time_units
     }
 
+    #[inline]
     fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<TimeUnit> {
         &mut self.time_units
     }
@@ -438,10 +440,12 @@ pub struct CustomDurationParser<'a> {
 }
 
 impl<'a> DurationParserBuilder<'a, (TimeUnit, &'a [&'a str])> for CustomDurationParser<'a> {
+    #[inline]
     fn get_time_units(&self) -> &dyn TimeUnitsLike<(TimeUnit, &'a [&'a str])> {
         &self.time_units
     }
 
+    #[inline]
     fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<(TimeUnit, &'a [&'a str])> {
         &mut self.time_units
     }
