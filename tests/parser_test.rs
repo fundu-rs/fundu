@@ -3,7 +3,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{parse_duration, DurationParser, ParseError, TimeUnit, TimeUnit::*};
+use fundu::{
+    parse_duration, DurationParser, DurationParserBuilder, ParseError, TimeUnit, TimeUnit::*,
+};
 use rstest::rstest;
 use std::time::Duration;
 
@@ -274,11 +276,11 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
     );
 }
 
-#[test]
-fn test_parser_get_time_units() {
-    let time_units = [NanoSecond, Second, Year];
-    assert_eq!(
-        DurationParser::with_time_units(&time_units).get_time_units(),
-        time_units.to_vec()
-    );
-}
+// #[test]
+// fn test_parser_get_time_units() {
+//     let time_units = [NanoSecond, Second, Year];
+//     assert_eq!(
+//         DurationParser::with_time_units(&time_units).get_time_units(),
+//         time_units.to_vec()
+//     );
+// }

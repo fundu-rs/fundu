@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
 use crate::error::ParseError;
-use crate::time::{TimeUnit, TimeUnits, TimeUnitsLike};
+use crate::time::{TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
@@ -211,17 +211,17 @@ impl DurationRepr {
     }
 }
 
-pub(crate) struct ReprParser<'a> {
+pub(crate) struct ReprParser<'a, T> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
-    time_units: &'a TimeUnits,
+    time_units: &'a dyn TimeUnitsLike<T>,
     input: &'a [u8],
 }
 
 /// Parse a source string into a [`DurationRepr`].
-impl<'a> ReprParser<'a> {
+impl<'a, T> ReprParser<'a, T> {
     #[inline]
-    pub fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
+    pub fn new(input: &'a str, time_units: &'a dyn TimeUnitsLike<T>) -> Self {
         let input = input.as_bytes();
         Self {
             current_byte: input.first(),
@@ -251,7 +251,7 @@ impl<'a> ReprParser<'a> {
     #[inline]
     pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
         let mut duration_repr = DurationRepr {
-            unit: self.time_units.default,
+            unit: self.time_units.get_default(),
             ..Default::default()
         };
 

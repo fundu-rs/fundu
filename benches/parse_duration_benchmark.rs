@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu::DurationParser;
+use fundu::{DurationParser, DurationParserBuilder};
 
 fn duration_parser_benchmark(criterion: &mut Criterion) {
     let inputs = [

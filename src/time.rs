@@ -46,7 +46,7 @@ pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
 /// # Examples
 ///
 /// ```rust
-/// use fundu::{DurationParser, TimeUnit};
+/// use fundu::{DurationParser, DurationParserBuilder, TimeUnit};
 /// use std::time::Duration;
 ///
 /// assert_eq!(
@@ -129,19 +129,26 @@ impl TimeUnit {
     }
 }
 
-pub trait TimeUnitsLike {
-    type Unit;
-
-    fn new() -> Self;
-    fn with_default_time_units() -> Self;
-    fn with_time_units(units: &[Self::Unit]) -> Self;
-    fn with_all_time_units() -> Self;
-    fn add_time_unit(&mut self, unit: Self::Unit);
-    fn add_time_units(&mut self, units: &[Self::Unit]);
+pub trait TimeUnitsLike<T> {
+    fn new() -> Self
+    where
+        Self: Sized;
+    fn with_default_time_units() -> Self
+    where
+        Self: Sized;
+    fn with_time_units(units: &[T]) -> Self
+    where
+        Self: Sized;
+    fn with_all_time_units() -> Self
+    where
+        Self: Sized;
+    fn add_time_unit(&mut self, unit: T);
+    fn add_time_units(&mut self, units: &[T]);
     fn set_default_unit(&mut self, unit: TimeUnit);
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<TimeUnit>;
     fn get_time_units(&self) -> Vec<TimeUnit>;
+    fn get_default(&self) -> TimeUnit;
 }
 
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
@@ -189,9 +196,7 @@ impl TimeUnits {
     }
 }
 
-impl TimeUnitsLike for TimeUnits {
-    type Unit = TimeUnit;
-
+impl TimeUnitsLike<TimeUnit> for TimeUnits {
     /// Create an empty set of [`TimeUnit`]s.
     fn new() -> Self {
         Self {
@@ -380,6 +385,10 @@ impl TimeUnitsLike for TimeUnits {
         }
         time_units
     }
+
+    fn get_default(&self) -> TimeUnit {
+        self.default
+    }
 }
 
 #[derive(Debug)]
@@ -405,9 +414,7 @@ impl<'a> CustomTimeUnits<'a> {
     }
 }
 
-impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
-    type Unit = (TimeUnit, &'a [&'a str]);
-
+impl<'a> TimeUnitsLike<(TimeUnit, &'a [&'a str])> for CustomTimeUnits<'a> {
     fn new() -> Self {
         let capacity = 5;
         Self {
@@ -428,7 +435,8 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     }
 
     fn with_default_time_units() -> Self {
-        let capacity = 5;
+        // TODO: use vec![] instead
+        let capacity = 1;
         let mut nanos = Vec::with_capacity(capacity);
         nanos.push(DEFAULT_ID_NANO_SECOND);
         let mut micros = Vec::with_capacity(capacity);
@@ -464,13 +472,14 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
         }
     }
 
-    fn with_time_units(units: &[Self::Unit]) -> Self {
+    fn with_time_units(units: &[(TimeUnit, &'a [&'a str])]) -> Self {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
     }
 
     fn with_all_time_units() -> Self {
+        // TODO: use vec![] with capacity 1 instead
         let capacity = 5;
         let mut nanos = Vec::with_capacity(capacity);
         nanos.push(DEFAULT_ID_NANO_SECOND);
@@ -509,14 +518,14 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
         }
     }
 
-    fn add_time_unit(&mut self, unit: Self::Unit) {
+    fn add_time_unit(&mut self, unit: (TimeUnit, &'a [&'a str])) {
         let (time_unit, ids) = unit;
         self.time_units[Self::map_time_unit_to_index(time_unit)]
             .1
             .extend(ids.iter());
     }
 
-    fn add_time_units(&mut self, units: &[Self::Unit]) {
+    fn add_time_units(&mut self, units: &[(TimeUnit, &'a [&'a str])]) {
         for unit in units {
             self.add_time_unit(*unit);
         }
@@ -545,6 +554,10 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
             .iter()
             .filter_map(|(t, v)| if !v.is_empty() { Some(*t) } else { None })
             .collect()
+    }
+
+    fn get_default(&self) -> TimeUnit {
+        self.default
     }
 }
 

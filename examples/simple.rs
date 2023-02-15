@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use fundu::{DurationParser, TimeUnit};
+use fundu::{DurationParser, DurationParserBuilder, TimeUnit};
 
 fn main() {
     let input = "100y";

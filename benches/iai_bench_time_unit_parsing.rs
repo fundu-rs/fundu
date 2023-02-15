@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::DurationParser;
+use fundu::{DurationParser, DurationParserBuilder};
 use iai::black_box;
 
 const SMALL_INPUT: &str = "1";
