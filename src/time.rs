@@ -351,10 +351,13 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
     }
 }
 
+type Identifiers<'a> = (TimeUnit, Vec<&'a str>);
+pub type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
+
 #[derive(Debug)]
 pub struct CustomTimeUnits<'a> {
     default: TimeUnit,
-    time_units: [(TimeUnit, Vec<&'a str>); 10],
+    time_units: [Identifiers<'a>; 10],
 }
 
 impl<'a> CustomTimeUnits<'a> {
@@ -374,7 +377,7 @@ impl<'a> CustomTimeUnits<'a> {
     }
 }
 
-impl<'a> TimeUnitsLike<(TimeUnit, &'a [&'a str])> for CustomTimeUnits<'a> {
+impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
     fn new() -> Self {
         let capacity = 5;
         Self {
@@ -432,7 +435,7 @@ impl<'a> TimeUnitsLike<(TimeUnit, &'a [&'a str])> for CustomTimeUnits<'a> {
         }
     }
 
-    fn with_time_units(units: &[(TimeUnit, &'a [&'a str])]) -> Self {
+    fn with_time_units(units: &[IdentifiersSlice<'a>]) -> Self {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
@@ -478,14 +481,14 @@ impl<'a> TimeUnitsLike<(TimeUnit, &'a [&'a str])> for CustomTimeUnits<'a> {
         }
     }
 
-    fn add_time_unit(&mut self, unit: (TimeUnit, &'a [&'a str])) {
+    fn add_time_unit(&mut self, unit: IdentifiersSlice<'a>) {
         let (time_unit, ids) = unit;
         self.time_units[Self::map_time_unit_to_index(time_unit)]
             .1
             .extend(ids.iter());
     }
 
-    fn add_time_units(&mut self, units: &[(TimeUnit, &'a [&'a str])]) {
+    fn add_time_units(&mut self, units: &[IdentifiersSlice<'a>]) {
         for unit in units {
             self.add_time_unit(*unit);
         }

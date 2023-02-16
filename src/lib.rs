@@ -187,7 +187,7 @@ use std::time::Duration;
 pub use error::ParseError;
 use parse::ReprParser;
 pub use time::TimeUnit;
-use time::{CustomTimeUnits, TimeUnits, TimeUnitsLike};
+use time::{CustomTimeUnits, IdentifiersSlice, TimeUnits, TimeUnitsLike};
 pub use time::{
     DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
     DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,
@@ -439,14 +439,14 @@ pub struct CustomDurationParser<'a> {
     time_units: CustomTimeUnits<'a>,
 }
 
-impl<'a> DurationParserBuilder<'a, (TimeUnit, &'a [&'a str])> for CustomDurationParser<'a> {
+impl<'a> DurationParserBuilder<'a, IdentifiersSlice<'a>> for CustomDurationParser<'a> {
     #[inline]
-    fn get_time_units(&self) -> &dyn TimeUnitsLike<(TimeUnit, &'a [&'a str])> {
+    fn get_time_units(&self) -> &dyn TimeUnitsLike<IdentifiersSlice<'a>> {
         &self.time_units
     }
 
     #[inline]
-    fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<(TimeUnit, &'a [&'a str])> {
+    fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<IdentifiersSlice<'a>> {
         &mut self.time_units
     }
 }
@@ -464,7 +464,7 @@ impl<'a> CustomDurationParser<'a> {
         }
     }
 
-    pub fn with_time_units(units: &'a [(TimeUnit, &'a [&'a str])]) -> Self {
+    pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
         }
