@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use fundu::{DurationParser, DurationParserBuilder};
+use fundu::DurationParser;
 use iai::black_box;
 
 const LARGE_INPUT: &str =

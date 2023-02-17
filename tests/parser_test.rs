@@ -3,9 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{
-    parse_duration, DurationParser, DurationParserBuilder, ParseError, TimeUnit, TimeUnit::*,
-};
+use fundu::{parse_duration, DurationParser, ParseError, TimeUnit, TimeUnit::*};
 use rstest::rstest;
 use std::time::Duration;
 

@@ -8,7 +8,7 @@
 //! positional argument.
 
 use clap::Parser;
-use fundu::{DurationParser, DurationParserBuilder};
+use fundu::DurationParser;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None, allow_negative_numbers = true)]

@@ -2,7 +2,7 @@
 
 use std::num::IntErrorKind;
 
-use fundu::{DurationParser, DurationParserBuilder, ParseError};
+use fundu::{DurationParser, ParseError};
 use libfuzzer_sys::fuzz_target;
 
 fn check_exponent_overflow(input: &str, error: ParseError) {

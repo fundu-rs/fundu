@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use clap::{arg, command};
-use fundu::{DurationParser, DurationParserBuilder};
+use fundu::DurationParser;
 
 fn main() {
     let matches = command!()

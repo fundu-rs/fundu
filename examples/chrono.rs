@@ -10,7 +10,7 @@
 //! std::time::Duration::MAX and then convert the result to a Chrono::Duration.
 
 use chrono::Duration as ChronoDuration;
-use fundu::{DurationParser, DurationParserBuilder};
+use fundu::DurationParser;
 
 fn main() {
     let std_duration = DurationParser::new()

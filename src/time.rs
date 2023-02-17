@@ -44,7 +44,7 @@ pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
 /// # Examples
 ///
 /// ```rust
-/// use fundu::{DurationParser, DurationParserBuilder, TimeUnit};
+/// use fundu::{DurationParser, TimeUnit};
 /// use std::time::Duration;
 ///
 /// assert_eq!(
