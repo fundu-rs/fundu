@@ -197,29 +197,9 @@ pub use time::{
 pub trait DurationParserBuilder<'a, T> {
     fn get_time_units(&self) -> &dyn TimeUnitsLike<T>;
     fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<T>;
+    fn get_default_unit(&self) -> TimeUnit;
     fn get_current_time_units(&self) -> Vec<TimeUnit> {
         self.get_time_units().get_time_units()
-    }
-
-    /// Set the default [`TimeUnit`] to `unit`.
-    ///
-    /// The default time unit is applied when no time unit was given in the input string. If the
-    /// default time unit is not set with this method the parser defaults to [`TimeUnit::Second`].
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::{DurationParser, DurationParserBuilder, TimeUnit::*};
-    /// use std::time::Duration;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::with_all_time_units().default_unit(NanoSecond).parse("42").unwrap(),
-    ///     Duration::new(0, 42)
-    /// );
-    /// ```
-    fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.get_time_units_mut().set_default_unit(unit);
-        self
     }
 
     /// Add a time unit to the current set of [`TimeUnit`]s.
@@ -285,7 +265,7 @@ pub trait DurationParserBuilder<'a, T> {
     /// ```
     #[inline(never)]
     fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, self.get_time_units());
+        let mut parser = ReprParser::new(source, self.get_default_unit(), self.get_time_units());
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }
@@ -326,6 +306,7 @@ pub trait DurationParserBuilder<'a, T> {
 /// ```
 pub struct DurationParser {
     time_units: TimeUnits,
+    default_unit: TimeUnit,
 }
 
 impl<'a> DurationParserBuilder<'a, TimeUnit> for DurationParser {
@@ -337,6 +318,10 @@ impl<'a> DurationParserBuilder<'a, TimeUnit> for DurationParser {
     #[inline]
     fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<TimeUnit> {
         &mut self.time_units
+    }
+
+    fn get_default_unit(&self) -> TimeUnit {
+        self.default_unit
     }
 }
 
@@ -361,6 +346,7 @@ impl DurationParser {
     pub fn new() -> Self {
         Self {
             time_units: TimeUnits::with_default_time_units(),
+            default_unit: Default::default(),
         }
     }
 
@@ -380,6 +366,7 @@ impl DurationParser {
     pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
         Self {
             time_units: TimeUnits::with_time_units(time_units),
+            default_unit: Default::default(),
         }
     }
 
@@ -406,6 +393,7 @@ impl DurationParser {
     pub fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
+            default_unit: Default::default(),
         }
     }
 
@@ -425,7 +413,29 @@ impl DurationParser {
     pub fn with_all_time_units() -> Self {
         Self {
             time_units: TimeUnits::with_all_time_units(),
+            default_unit: Default::default(),
         }
+    }
+
+    /// Set the default [`TimeUnit`] to `unit`.
+    ///
+    /// The default time unit is applied when no time unit was given in the input string. If the
+    /// default time unit is not set with this method the parser defaults to [`TimeUnit::Second`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, DurationParserBuilder, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::with_all_time_units().default_unit(NanoSecond).parse("42").unwrap(),
+    ///     Duration::new(0, 42)
+    /// );
+    /// ```
+    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
+        self.default_unit = unit;
+        self
     }
 }
 
@@ -437,6 +447,7 @@ impl Default for DurationParser {
 
 pub struct CustomDurationParser<'a> {
     time_units: CustomTimeUnits<'a>,
+    default_unit: TimeUnit,
 }
 
 impl<'a> DurationParserBuilder<'a, IdentifiersSlice<'a>> for CustomDurationParser<'a> {
@@ -449,25 +460,37 @@ impl<'a> DurationParserBuilder<'a, IdentifiersSlice<'a>> for CustomDurationParse
     fn get_time_units_mut(&mut self) -> &mut dyn TimeUnitsLike<IdentifiersSlice<'a>> {
         &mut self.time_units
     }
+
+    fn get_default_unit(&self) -> TimeUnit {
+        self.default_unit
+    }
 }
 
 impl<'a> CustomDurationParser<'a> {
     pub fn new() -> Self {
         Self {
             time_units: CustomTimeUnits::new(),
+            default_unit: Default::default(),
         }
     }
 
     pub fn with_default_time_units() -> Self {
         Self {
             time_units: CustomTimeUnits::with_default_time_units(),
+            default_unit: Default::default(),
         }
     }
 
     pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
+            default_unit: Default::default(),
         }
+    }
+
+    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
+        self.default_unit = unit;
+        self
     }
 }
 

@@ -215,18 +215,24 @@ pub(crate) struct ReprParser<'a, T> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
     time_units: &'a dyn TimeUnitsLike<T>,
+    default_unit: TimeUnit,
     input: &'a [u8],
 }
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a, T> ReprParser<'a, T> {
     #[inline]
-    pub fn new(input: &'a str, time_units: &'a dyn TimeUnitsLike<T>) -> Self {
+    pub fn new(
+        input: &'a str,
+        default_unit: TimeUnit,
+        time_units: &'a dyn TimeUnitsLike<T>,
+    ) -> Self {
         let input = input.as_bytes();
         Self {
             current_byte: input.first(),
             input,
             current_pos: 0,
+            default_unit,
             time_units,
         }
     }
@@ -251,7 +257,7 @@ impl<'a, T> ReprParser<'a, T> {
     #[inline]
     pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
         let mut duration_repr = DurationRepr {
-            unit: self.time_units.get_default(),
+            unit: self.default_unit,
             ..Default::default()
         };
 

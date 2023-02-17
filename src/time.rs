@@ -142,18 +142,14 @@ pub trait TimeUnitsLike<T> {
         Self: Sized;
     fn add_time_unit(&mut self, unit: T);
     fn add_time_units(&mut self, units: &[T]);
-    fn set_default_unit(&mut self, unit: TimeUnit);
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<TimeUnit>;
     fn get_time_units(&self) -> Vec<TimeUnit>;
-    fn get_default(&self) -> TimeUnit;
 }
 
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
-    /// The default [`TimeUnit`]
-    pub default: TimeUnit,
     nanos: Option<&'static str>,
     micros: Option<&'static str>,
     millis: Option<&'static str>,
@@ -169,7 +165,6 @@ pub struct TimeUnits {
 impl Default for TimeUnits {
     fn default() -> Self {
         Self {
-            default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
             millis: Some(DEFAULT_ID_MILLI_SECOND),
@@ -188,7 +183,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
     /// Create an empty set of [`TimeUnit`]s.
     fn new() -> Self {
         Self {
-            default: Default::default(),
             nanos: Default::default(),
             micros: Default::default(),
             millis: Default::default(),
@@ -217,7 +211,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
     /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
     fn with_all_time_units() -> Self {
         Self {
-            default: Default::default(),
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
             millis: Some(DEFAULT_ID_MILLI_SECOND),
@@ -272,11 +265,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         for unit in units {
             self.add_time_unit(*unit);
         }
-    }
-
-    /// Set the default [`TimeUnit`]
-    fn set_default_unit(&mut self, unit: TimeUnit) {
-        self.default = unit;
     }
 
     /// Return `true` if this set of time units is empty.
@@ -345,10 +333,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         }
         time_units
     }
-
-    fn get_default(&self) -> TimeUnit {
-        self.default
-    }
 }
 
 type Identifiers<'a> = (TimeUnit, Vec<&'a str>);
@@ -356,7 +340,6 @@ pub type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
 
 #[derive(Debug)]
 pub struct CustomTimeUnits<'a> {
-    default: TimeUnit,
     time_units: [Identifiers<'a>; 10],
 }
 
@@ -381,7 +364,6 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
     fn new() -> Self {
         let capacity = 5;
         Self {
-            default: Default::default(),
             time_units: [
                 (NanoSecond, Vec::with_capacity(capacity)),
                 (MicroSecond, Vec::with_capacity(capacity)),
@@ -419,7 +401,6 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
         let months = Vec::with_capacity(capacity);
         let years = Vec::with_capacity(capacity);
         Self {
-            default: Default::default(),
             time_units: [
                 (NanoSecond, nanos),
                 (MicroSecond, micros),
@@ -465,7 +446,6 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
         let mut years = Vec::with_capacity(capacity);
         years.push(DEFAULT_ID_YEAR);
         Self {
-            default: Default::default(),
             time_units: [
                 (NanoSecond, nanos),
                 (MicroSecond, micros),
@@ -494,10 +474,6 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
         }
     }
 
-    fn set_default_unit(&mut self, unit: TimeUnit) {
-        self.default = unit;
-    }
-
     fn is_empty(&self) -> bool {
         self.time_units.iter().all(|(_, v)| v.is_empty())
     }
@@ -517,10 +493,6 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
             .iter()
             .filter_map(|(t, v)| if !v.is_empty() { Some(*t) } else { None })
             .collect()
-    }
-
-    fn get_default(&self) -> TimeUnit {
-        self.default
     }
 }
 
@@ -781,23 +753,6 @@ mod tests {
                 Year
             ]
         )
-    }
-
-    #[rstest]
-    #[case::default(TimeUnits::default())]
-    #[case::new(TimeUnits::new())]
-    #[case::with_all_time_units(TimeUnits::with_all_time_units())]
-    #[case::with_default_time_units(TimeUnits::with_default_time_units())]
-    #[case::with_time_units(TimeUnits::with_time_units(&[NanoSecond]))]
-    fn test_time_units_constructors_set_default_time_unit_to_second(#[case] time_units: TimeUnits) {
-        assert_eq!(time_units.default, Second);
-    }
-
-    #[test]
-    fn test_time_units_set_default_time_unit() {
-        let mut time_units = TimeUnits::new();
-        time_units.set_default_unit(NanoSecond);
-        assert_eq!(time_units.default, NanoSecond);
     }
 
     #[test]
