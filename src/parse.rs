@@ -360,10 +360,9 @@ impl<'a, T> ReprParser<'a, T> {
 
         // Safety: The input of `parse` is &str and therefore valid utf-8
         let string = unsafe { std::str::from_utf8_unchecked(self.get_remainder()) };
-        let result = self.time_units.get(string).ok_or(ParseError::TimeUnit(
-            self.current_pos,
-            format!("Invalid time unit: '{string}'"),
-        ));
+        let result = self.time_units.get(string).ok_or_else(|| {
+            ParseError::TimeUnit(self.current_pos, format!("Invalid time unit: '{string}'"))
+        });
         self.finish();
         result
     }
