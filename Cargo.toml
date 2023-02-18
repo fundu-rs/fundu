@@ -15,6 +15,11 @@ rust-version = "1.60.0"
 [lib]
 bench = false
 
+[features]
+default = ["standard"]
+standard = []
+custom = []
+
 [dev-dependencies]
 rstest = "0.16.0"
 criterion = "0.4.0"
