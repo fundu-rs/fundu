@@ -66,15 +66,15 @@ jobs:
           rustup show
           rustup component list | grep installed
       - name: Build
-        run: cargo build
+        run: cargo build --all-features
       - name: Format
         run: cargo fmt --check
       - name: Lint
-        run: cargo +stable clippy --all-targets -- -D warnings
+        run: cargo +stable clippy --all-features --all-targets -- -D warnings
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: git # unstable on 1.66 + 1.67
       - name: Test
-        run: cargo test
+        run: cargo test --all-features
 
   docs:
     needs: [base]
@@ -85,9 +85,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Run doc tests
-        run: cargo test --doc
+        run: cargo test --all-features --doc
       - name: Check Documentation
-        run: cargo doc --no-deps --document-private-items
+        run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
     needs: [base]
@@ -127,9 +127,9 @@ jobs:
       - name: Clean
         run: cargo clean
       - name: Build
-        run: cargo build --profile coverage
+        run: cargo build --all-features --profile coverage
       - name: Test
-        run: cargo test --tests --profile coverage
+        run: cargo test --all-features --tests --profile coverage
       - name: Generate code coverage
         shell: bash
         run: |
@@ -200,7 +200,7 @@ jobs:
       - name: Run fuzzing for 5 minutes
         shell: bash
         run: |
-          cargo fuzz run f64_like_input -- \
+          cargo fuzz run --all-features f64_like_input -- \
             -max_total_time=300 \
             -print_final_stats=1 \
             -print_corpus_stats=1 \
