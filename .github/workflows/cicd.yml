@@ -240,8 +240,15 @@ jobs:
         shell: bash
         run: |
           echo 0 > fail
+          echo 0 > skip
           while IFS= read -r line; do
-            if echo "$line" | grep 'Estimated Cycles:' --color=never; then
+            skip=$(( $(< skip) > 0 ))
+            if grep -Eq '^\S*reference$' --color=never <<<"$line"; then
+              echo 5 > skip
+            else
+              echo $(( $(< skip) - 1 )) > skip
+            fi
+            if [[ $skip -eq 0 ]] && grep 'Estimated Cycles:' --color=never <<<"$line"; then
               p=$(sed -En 's/\s*Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' <<<"$line")
               if [[ $p -ge ${BENCHMARK_REGRESSION_PERCENT_FAIL} ]]; then
                 echo "::error::Regressed +${p}% >= BENCHMARK_REGRESSION_PERCENT_FAIL (=${BENCHMARK_REGRESSION_PERCENT_FAIL}%)"
