@@ -62,32 +62,11 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         }
     }
 
-    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
-    fn with_default_time_units() -> Self {
-        Self::default()
-    }
-
     /// Create [`TimeUnits`] with a custom set of [`TimeUnit`]s.
     fn with_time_units(units: &[TimeUnit]) -> Self {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
-    }
-
-    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
-    fn with_all_time_units() -> Self {
-        Self {
-            nanos: Some(DEFAULT_ID_NANO_SECOND),
-            micros: Some(DEFAULT_ID_MICRO_SECOND),
-            millis: Some(DEFAULT_ID_MILLI_SECOND),
-            seconds: Some(DEFAULT_ID_SECOND),
-            minutes: Some(DEFAULT_ID_MINUTE),
-            hours: Some(DEFAULT_ID_HOUR),
-            days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_WEEK),
-            months: Some(DEFAULT_ID_MONTH),
-            years: Some(DEFAULT_ID_YEAR),
-        }
     }
 
     /// Add a [`TimeUnit`] to the set of already present time units.
@@ -201,7 +180,30 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
     }
 }
 
-/// Create a new parser with a custom set of [`TimeUnit`]s.
+impl TimeUnits {
+    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
+    fn with_default_time_units() -> Self {
+        Self::default()
+    }
+
+    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
+    fn with_all_time_units() -> Self {
+        Self {
+            nanos: Some(DEFAULT_ID_NANO_SECOND),
+            micros: Some(DEFAULT_ID_MICRO_SECOND),
+            millis: Some(DEFAULT_ID_MILLI_SECOND),
+            seconds: Some(DEFAULT_ID_SECOND),
+            minutes: Some(DEFAULT_ID_MINUTE),
+            hours: Some(DEFAULT_ID_HOUR),
+            days: Some(DEFAULT_ID_DAY),
+            weeks: Some(DEFAULT_ID_WEEK),
+            months: Some(DEFAULT_ID_MONTH),
+            years: Some(DEFAULT_ID_YEAR),
+        }
+    }
+}
+
+/// A parser with a customizable set of [`TimeUnit`]s with default identifiers.
 ///
 /// See also the [module level documentation](crate) for more details and more information about the
 /// format.
@@ -353,6 +355,24 @@ impl DurationParser {
         self
     }
 
+    /// Return the currently defined set of [`TimeUnit`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// assert_eq!(
+    ///     parser.get_current_time_units(),
+    ///     vec![]
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.time_unit(NanoSecond).get_current_time_units(),
+    ///     vec![NanoSecond]
+    /// );
     pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
         self.time_units.get_time_units()
     }

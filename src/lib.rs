@@ -9,12 +9,20 @@
 //!
 //! `fundu` is a configurable, precise and fast string parser
 //!
-//! * with customizable [`TimeUnit`]s
+//! * with fully customizable [`TimeUnit`]s
 //! * without floating point calculations. What you put in is what you get out.
 //! * with sound limit handling. Infinity and numbers larger than [`Duration::MAX`] evaluate to
 //!   [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
 //! * without restrictions on the length of the input string
 //! * with helpful error messages
+//!
+//! # Features
+//!
+//! The `standard` feature exposes a [`DurationParser`] with time units which can be customized,
+//! although the `identifiers` are fixed. The `custom` feature provides a [`CustomDurationParser`]
+//! with fully customizable identifiers for each [`TimeUnit`]. They both share most of the
+//! functionality, so in the following sections only the `DurationParser` is presented. See the
+//! [`CustomDurationParser`] documentation for further details.
 //!
 //! # Configuration and Format
 //!
@@ -74,6 +82,8 @@
 //!
 //! Special cases which are not displayed in the specification:
 //!
+//! * The `TimeUnit` rule is based on the default identifiers as defined in table above. They can
+//!   also be completely customized with the [`CustomDurationParser`].
 //! * Negative values, including negative infinity are not allowed. For exceptions see the next
 //!   point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
@@ -100,7 +110,10 @@
 //! use std::time::Duration;
 //!
 //! let input = "3m";
-//! assert_eq!(DurationParser::with_all_time_units().parse(input).unwrap(), Duration::new(180, 0));
+//! assert_eq!(
+//!     DurationParser::with_all_time_units().parse(input).unwrap(),
+//!     Duration::new(180, 0)
+//! );
 //! ```
 //!
 //! When no time units are configured, seconds is assumed.
@@ -110,7 +123,10 @@
 //! use std::time::Duration;
 //!
 //! let input = "1.0e2";
-//! assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
+//! assert_eq!(
+//!     DurationParser::without_time_units().parse(input).unwrap(),
+//!     Duration::new(100, 0)
+//! );
 //! ```
 //!
 //! However, the following will return an error because `y` (Years) is not a default time unit:
@@ -147,7 +163,10 @@
 //! use std::time::Duration;
 //!
 //! assert_eq!(
-//!     DurationParser::without_time_units().default_unit(MilliSecond).parse("1000").unwrap(),
+//!     DurationParser::without_time_units()
+//!         .default_unit(MilliSecond)
+//!         .parse("1000")
+//!         .unwrap(),
 //!     Duration::new(1, 0)
 //! );
 //! ```
@@ -167,6 +186,8 @@
 //! );
 //! ```
 //!
+//! [`Duration::MAX`]: [`std::Duration::MAX`]
+//! [`Duration::ZERO`]: [`std::Duration::ZERO`]
 //! [`NanoSecond`]: [`TimeUnit::NanoSecond`]
 //! [`MicroSecond`]: [`TimeUnit::MicroSecond`]
 //! [`MilliSecond`]: [`TimeUnit::MilliSecond`]
@@ -188,11 +209,11 @@ pub use time::TimeUnit;
 pub use time::{
     DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
     DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,
-    DEFAULT_ID_WEEK, DEFAULT_ID_YEAR, SYSTEMD_TIME_UNITS,
+    DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
 
 #[cfg(feature = "standard")]
 pub use builder::standard::{parse_duration, DurationParser};
 
 #[cfg(feature = "custom")]
-pub use builder::custom::CustomDurationParser;
+pub use builder::custom::{CustomDurationParser, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS};

@@ -12,6 +12,34 @@ use crate::{
 };
 use std::time::Duration;
 
+/// Part of the `custom` feature with [`TimeUnit`] ids as defined in [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
+pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
+    (NanoSecond, &["ns", "nsec"]),
+    (MicroSecond, &["us", "µs", "usec"]),
+    (MilliSecond, &["ms", "msec"]),
+    (Second, &["s", "sec", "second", "seconds"]),
+    (Minute, &["m", "min", "minute", "minutes"]),
+    (Hour, &["h", "hr", "hour", "hours"]),
+    (Day, &["d", "day", "days"]),
+    (Week, &["w", "week", "weeks"]),
+    (Month, &["M", "month", "months"]),
+    (Year, &["y", "year", "years"]),
+];
+
+/// Part of the `custom` feature with all [`TimeUnit`] ids as defined in the `default` feature
+pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
+    (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
+    (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
+    (MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
+    (Second, &[DEFAULT_ID_SECOND]),
+    (Minute, &[DEFAULT_ID_MINUTE]),
+    (Hour, &[DEFAULT_ID_HOUR]),
+    (Day, &[DEFAULT_ID_DAY]),
+    (Week, &[DEFAULT_ID_WEEK]),
+    (Month, &[DEFAULT_ID_MONTH]),
+    (Year, &[DEFAULT_ID_YEAR]),
+];
+
 type Identifiers<'a> = (TimeUnit, Vec<&'a str>);
 type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
 
@@ -56,93 +84,17 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
         }
     }
 
-    fn with_default_time_units() -> Self {
-        // TODO: use vec![] instead
-        let capacity = 1;
-        let mut nanos = Vec::with_capacity(capacity);
-        nanos.push(DEFAULT_ID_NANO_SECOND);
-        let mut micros = Vec::with_capacity(capacity);
-        micros.push(DEFAULT_ID_MICRO_SECOND);
-        let mut millis = Vec::with_capacity(capacity);
-        millis.push(DEFAULT_ID_MILLI_SECOND);
-        let mut seconds = Vec::with_capacity(capacity);
-        seconds.push(DEFAULT_ID_SECOND);
-        let mut minutes = Vec::with_capacity(capacity);
-        minutes.push(DEFAULT_ID_MINUTE);
-        let mut hours = Vec::with_capacity(capacity);
-        hours.push(DEFAULT_ID_HOUR);
-        let mut days = Vec::with_capacity(capacity);
-        days.push(DEFAULT_ID_DAY);
-        let mut weeks = Vec::with_capacity(capacity);
-        weeks.push(DEFAULT_ID_WEEK);
-        let months = Vec::with_capacity(capacity);
-        let years = Vec::with_capacity(capacity);
-        Self {
-            time_units: [
-                (NanoSecond, nanos),
-                (MicroSecond, micros),
-                (MilliSecond, millis),
-                (Second, seconds),
-                (Minute, minutes),
-                (Hour, hours),
-                (Day, days),
-                (Week, weeks),
-                (Month, months),
-                (Year, years),
-            ],
-        }
-    }
-
     fn with_time_units(units: &[IdentifiersSlice<'a>]) -> Self {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
     }
 
-    fn with_all_time_units() -> Self {
-        // TODO: use vec![] with capacity 1 instead
-        let capacity = 5;
-        let mut nanos = Vec::with_capacity(capacity);
-        nanos.push(DEFAULT_ID_NANO_SECOND);
-        let mut micros = Vec::with_capacity(capacity);
-        micros.push(DEFAULT_ID_MICRO_SECOND);
-        let mut millis = Vec::with_capacity(capacity);
-        millis.push(DEFAULT_ID_MILLI_SECOND);
-        let mut seconds = Vec::with_capacity(capacity);
-        seconds.push(DEFAULT_ID_SECOND);
-        let mut minutes = Vec::with_capacity(capacity);
-        minutes.push(DEFAULT_ID_MINUTE);
-        let mut hours = Vec::with_capacity(capacity);
-        hours.push(DEFAULT_ID_HOUR);
-        let mut days = Vec::with_capacity(capacity);
-        days.push(DEFAULT_ID_DAY);
-        let mut weeks = Vec::with_capacity(capacity);
-        weeks.push(DEFAULT_ID_WEEK);
-        let mut months = Vec::with_capacity(capacity);
-        months.push(DEFAULT_ID_MONTH);
-        let mut years = Vec::with_capacity(capacity);
-        years.push(DEFAULT_ID_YEAR);
-        Self {
-            time_units: [
-                (NanoSecond, nanos),
-                (MicroSecond, micros),
-                (MilliSecond, millis),
-                (Second, seconds),
-                (Minute, minutes),
-                (Hour, hours),
-                (Day, days),
-                (Week, weeks),
-                (Month, months),
-                (Year, years),
-            ],
-        }
-    }
-
     fn add_time_unit(&mut self, unit: IdentifiersSlice<'a>) {
         let (time_unit, ids) = unit;
         self.time_units[Self::map_time_unit_to_index(time_unit)]
             .1
-            .extend(ids.iter());
+            .extend(ids.iter().filter(|s| !s.is_empty()))
     }
 
     fn add_time_units(&mut self, units: &[IdentifiersSlice<'a>]) {
@@ -173,12 +125,44 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
     }
 }
 
+/// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
 pub struct CustomDurationParser<'a> {
     time_units: CustomTimeUnits<'a>,
     default_unit: TimeUnit,
 }
 
 impl<'a> CustomDurationParser<'a> {
+    /// Create a new empty [`CustomDurationParser`].
+    ///
+    /// Add time units as you like with [`CustomDurationParser::time_unit`] or multiple time units
+    /// at once with [`CustomDurationParser::time_units`]. Note there's also
+    /// [`CustomDurationParser::with_time_units`] which initializes the parser with a set time units with
+    /// custom `ids`. The default time unit can be changed with
+    /// [`CustomDurationParser::default_unit`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::new();
+    /// assert_eq!(
+    ///     parser.get_current_time_units(),
+    ///     vec![]
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.parse("100.0").unwrap(),
+    ///     Duration::new(100, 0)
+    /// );
+    ///
+    /// parser.default_unit(Minute);
+    /// assert_eq!(
+    ///     parser.parse("1.0e2").unwrap(),
+    ///     Duration::new(6000, 0)
+    /// );
+    /// ```
     pub fn new() -> Self {
         Self {
             time_units: CustomTimeUnits::new(),
@@ -186,13 +170,49 @@ impl<'a> CustomDurationParser<'a> {
         }
     }
 
-    pub fn with_default_time_units() -> Self {
-        Self {
-            time_units: CustomTimeUnits::with_default_time_units(),
-            default_unit: Default::default(),
-        }
-    }
-
+    /// Create a new [`CustomDurationParser`] with an initial set of custom identifiers for each
+    /// [`TimeUnit`]s in `units`.
+    ///
+    /// Not all time units need to be defined, so if there is no intention to include a specific
+    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this library does not check
+    /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there are no
+    /// other limitations. There is also no check for duplicate `ids`, and empty `ids` are ignored.
+    /// Note the ids for time units are case sensitive.
+    ///
+    /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
+    /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the
+    ///   [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
+    ///   documentation
+    /// * [`DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default ids as
+    ///   used the standard crate by [`crate::DurationParser`]
+    ///
+    /// # Security
+    ///
+    /// If there is the intention to expose the defining of [`TimeUnit`]s to an untrusted source,
+    /// you may be good advised to limit the possible characters to something safer like
+    /// [`char::is_alphabetic`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(
+    ///     &[(Second, &["s"]), (Minute, &["Min"]), (Hour, &["ώρα"])]
+    /// );
+    /// assert_eq!(
+    ///     parser.get_current_time_units(),
+    ///     vec![Second, Minute, Hour]
+    /// );
+    ///
+    /// assert!(parser.parse("42.0min").is_err()); // Note the small letter `m` instead of `M`
+    ///
+    /// assert_eq!(
+    ///     parser.parse("42e-1ώρα").unwrap(),
+    ///     Duration::new(15120, 0)
+    /// );
+    /// ```
     pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
@@ -208,11 +228,11 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
     /// assert_eq!(
-    ///     DurationParser::with_all_time_units().default_unit(NanoSecond).parse("42").unwrap(),
+    ///     CustomDurationParser::new().default_unit(NanoSecond).parse("42").unwrap(),
     ///     Duration::new(0, 42)
     /// );
     /// ```
@@ -221,48 +241,86 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
-    pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
-        self.time_units.get_time_units()
-    }
-
-    /// Add a time unit to the current set of [`TimeUnit`]s.
-    ///
-    /// Adding an already existing [`TimeUnit`] has no effect.
+    /// Return the currently defined set of [`TimeUnit`].
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
+    /// let mut parser = CustomDurationParser::new();
     /// assert_eq!(
-    ///     DurationParser::new().time_unit(Month).time_unit(Year).get_current_time_units(),
-    ///     DurationParser::with_all_time_units().get_current_time_units(),
+    ///     parser.get_current_time_units(),
+    ///     vec![]
     /// );
     ///
     /// assert_eq!(
-    ///     DurationParser::without_time_units().time_unit(Second).get_current_time_units(),
-    ///     vec![Second],
+    ///     parser.time_unit(NanoSecond, &["ns"]).get_current_time_units(),
+    ///     vec![NanoSecond]
+    /// );
+    pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
+        self.time_units.get_time_units()
+    }
+
+    /// Add a custom [`TimeUnit`] with the specified `identifier`s to the current set of time units.
+    ///
+    /// This method can be called multiple times for the same [`TimeUnit`] and just appends the
+    /// `ids` to the existing set.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::new();;
+    /// parser.time_unit(Minute, &["minutes", "λεπτό"]);
+    ///
+    /// assert_eq!(
+    ///     parser.parse("42minutes").unwrap(),
+    ///     Duration::new(2520, 0)
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.parse("42λεπτό").unwrap(),
+    ///     Duration::new(2520, 0)
+    /// );
+    ///
+    /// assert!(parser.parse("42Minutes").is_err());
+    ///
+    /// parser.time_unit(Minute, &["Minutes"]);
+    ///
+    /// assert_eq!(
+    ///     parser.parse("42Minutes").unwrap(),
+    ///     Duration::new(2520, 0)
     /// );
     /// ```
-    pub fn time_unit(&mut self, unit: IdentifiersSlice<'a>) -> &mut Self {
-        self.time_units.add_time_unit(unit);
+    pub fn time_unit(&mut self, unit: TimeUnit, identifiers: &'a [&'a str]) -> &mut Self {
+        self.time_units.add_time_unit((unit, identifiers));
         self
     }
 
     /// Add multiple [`TimeUnit`]s to the current set of time units.
     ///
-    /// Adding a [`TimeUnit`] which is already present has no effect.
+    /// This method calls [`CustomDurationParser::time_unit`] for every [`TimeUnit`] found in
+    /// `units`. See [`CustomDurationParser::with_time_units`] for thorough documentation of valid
+    /// `identifiers`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
+    /// let mut parser = CustomDurationParser::new();
     /// assert_eq!(
-    ///     DurationParser::without_time_units().time_units(&[MicroSecond, MilliSecond]).get_current_time_units(),
-    ///     vec![MicroSecond, MilliSecond],
+    ///     parser.time_units(
+    ///         &[(MicroSecond, &["µ", "Ms"]), (Second, &["s", "seconds"])]
+    ///     )
+    ///     .parse("1µ")
+    ///     .unwrap(),
+    ///     Duration::new(0, 1000),
     /// );
     /// ```
     pub fn time_units(&mut self, units: &'a [IdentifiersSlice]) -> &mut Self {
@@ -278,11 +336,11 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
     /// assert_eq!(
-    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
+    ///     CustomDurationParser::new().parse("1.2e-1").unwrap(),
     ///     Duration::new(0, 120_000_000),
     /// );
     /// ```

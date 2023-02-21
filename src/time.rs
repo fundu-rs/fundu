@@ -26,19 +26,6 @@ pub const DEFAULT_ID_MONTH: &str = "M";
 /// The default identifier of [`TimeUnit::Year`]
 pub const DEFAULT_ID_YEAR: &str = "y";
 
-pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
-    (NanoSecond, &["ns", "nsec"]),
-    (MicroSecond, &["us", "µs", "usec"]),
-    (MilliSecond, &["ms", "msec"]),
-    (Second, &["s", "sec", "second", "seconds"]),
-    (Minute, &["m", "min", "minute", "minutes"]),
-    (Hour, &["h", "hr", "hour", "hours"]),
-    (Day, &["d", "day", "days"]),
-    (Week, &["w", "week", "weeks"]),
-    (Month, &["M", "month", "months"]),
-    (Year, &["y", "year", "years"]),
-];
-
 /// The time units the parser can understand and needed to configure the [`DurationParser`].
 ///
 /// # Examples
@@ -131,13 +118,7 @@ pub trait TimeUnitsLike<T> {
     fn new() -> Self
     where
         Self: Sized;
-    fn with_default_time_units() -> Self
-    where
-        Self: Sized;
     fn with_time_units(units: &[T]) -> Self
-    where
-        Self: Sized;
-    fn with_all_time_units() -> Self
     where
         Self: Sized;
     fn add_time_unit(&mut self, unit: T);
