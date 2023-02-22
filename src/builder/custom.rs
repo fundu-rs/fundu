@@ -360,11 +360,242 @@ impl<'a> Default for CustomDurationParser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rstest::rstest;
+
+    const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
+    const MONTH: u64 = YEAR / 12;
 
     #[test]
-    fn test_custom_time_units() {
+    fn test_custom_time_units_init_new() {
+        let custom = CustomTimeUnits::new();
+        assert_eq!(custom.time_units.len(), 10);
+        assert_eq!(
+            custom
+                .time_units
+                .iter()
+                .map(|p| p.0)
+                .collect::<Vec<TimeUnit>>(),
+            vec![
+                NanoSecond,
+                MicroSecond,
+                MilliSecond,
+                Second,
+                Minute,
+                Hour,
+                Day,
+                Week,
+                Month,
+                Year
+            ]
+        );
+        assert!(custom.time_units.iter().all(|p| p.1.is_empty()));
+        assert!(custom.is_empty());
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, &["some"], 0)]
+    #[case::nano_second_with_multiple_ids(NanoSecond, &["some", "other", "деякі"], 0)]
+    #[case::micro_second(MicroSecond, &["some"], 1)]
+    #[case::micro_second_with_multiple_ids(MicroSecond, &["some", "other", "деякі"], 1)]
+    #[case::milli_second(MilliSecond, &["some"], 2)]
+    #[case::milli_second_with_multiple_ids(MilliSecond, &["some", "other", "деякі"], 2)]
+    #[case::second(Second, &["some"], 3)]
+    #[case::second_with_multiple_ids(Second, &["some", "other", "деякі"], 3)]
+    #[case::minute(Minute, &["some"], 4)]
+    #[case::minute_with_multiple_ids(Minute, &["some", "other", "деякі"], 4)]
+    #[case::hour(Hour, &["some"], 5)]
+    #[case::hour_with_multiple_ids(Hour, &["some", "other", "деякі"], 5)]
+    #[case::day(Day, &["some"], 6)]
+    #[case::day_with_multiple_ids(Day, &["some", "other", "деякі"], 6)]
+    #[case::week(Week, &["some"], 7)]
+    #[case::week_with_multiple_ids(Week, &["some", "other", "деякі"], 7)]
+    #[case::month(Month, &["some"], 8)]
+    #[case::month_with_multiple_ids(Month, &["some", "other", "деякі"], 8)]
+    #[case::year(Year, &["some"], 9)]
+    #[case::year_with_multiple_ids(Year, &["some", "other", "деякі"], 9)]
+    fn test_custom_time_units_init_with_time_units(
+        #[case] time_unit: TimeUnit,
+        #[case] ids: &[&str],
+        #[case] expected_index: usize,
+    ) {
+        let custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
+
+        assert!(!custom.is_empty());
+        assert_eq!(
+            custom.time_units.get(expected_index),
+            Some(&(time_unit, Vec::from(ids)))
+        );
+        assert_eq!(
+            CustomTimeUnits::map_time_unit_to_index(time_unit),
+            expected_index
+        );
+        assert_eq!(custom.get_time_units(), vec![time_unit]);
+    }
+
+    #[test]
+    fn test_custom_time_units_init_with_time_units_when_multiple_equal_ids() {
+        let custom = CustomTimeUnits::with_time_units(&[(NanoSecond, &["same", "same"])]);
+        assert!(!custom.is_empty());
+        assert_eq!(custom.get_time_units(), vec![NanoSecond]);
+        assert_eq!(custom.get("same"), Some(NanoSecond));
+    }
+
+    #[test]
+    fn test_custom_time_units_when_add_time_unit() {
         let mut custom = CustomTimeUnits::new();
-        custom.add_time_unit((NanoSecond, &["ns"]));
-        assert_eq!(custom.get("ns"), Some(NanoSecond));
+        custom.add_time_unit((MicroSecond, &["some", "ids"]));
+        assert!(custom
+            .time_units
+            .iter()
+            .filter(|p| p.0 != MicroSecond)
+            .all(|p| p.1.is_empty()));
+        assert_eq!(
+            custom
+                .time_units
+                .get(CustomTimeUnits::map_time_unit_to_index(MicroSecond)),
+            Some(&(MicroSecond, vec!["some", "ids"]))
+        );
+        assert_eq!(custom.get("some"), Some(MicroSecond));
+        assert_eq!(custom.get("ids"), Some(MicroSecond));
+        assert_eq!(custom.get("does not exist"), None);
+        assert!(!custom.is_empty());
+    }
+
+    #[test]
+    fn test_custom_time_units_when_adding_time_unit_with_empty_slice_then_not_added() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_time_unit((MicroSecond, &[]));
+        assert!(custom.is_empty());
+        assert_eq!(custom.get_time_units(), vec![]);
+    }
+
+    #[test]
+    fn test_custom_time_units_when_adding_time_unit_with_empty_id_then_not_added() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_time_unit((MicroSecond, &[""]));
+        assert!(custom.is_empty());
+        assert_eq!(custom.get_time_units(), vec![]);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_init_new() {
+        let mut parser = CustomDurationParser::new();
+        assert_eq!(parser.default_unit, Second);
+        assert!(parser.time_units.is_empty());
+        assert_eq!(parser.get_current_time_units(), vec![]);
+        assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
+        assert_eq!(
+            parser.parse("1.0s"),
+            Err(ParseError::TimeUnit(
+                3,
+                "No time units allowed but found: 's'".to_string()
+            ))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_init_with_time_units() {
+        let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+        assert_eq!(parser.default_unit, Second);
+        assert_eq!(
+            Vec::from(parser.time_units.time_units.as_slice()),
+            DEFAULT_TIME_UNITS
+                .iter()
+                .map(|(t, v)| (*t, Vec::from(*v)))
+                .collect::<Vec<(TimeUnit, Vec<&str>)>>()
+        );
+        assert_eq!(
+            parser.get_current_time_units(),
+            DEFAULT_TIME_UNITS
+                .iter()
+                .map(|(t, _)| *t)
+                .collect::<Vec<TimeUnit>>()
+        );
+        assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_init_default() {
+        let parser = CustomDurationParser::default();
+        assert!(parser.time_units.is_empty());
+        assert_eq!(parser.get_current_time_units(), vec![]);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_add_time_unit() {
+        let mut parser = CustomDurationParser::new();
+        parser.time_unit(NanoSecond, &["nanos"]);
+        assert!(!parser.time_units.is_empty());
+        assert_eq!(
+            Vec::from_iter(
+                parser
+                    .time_units
+                    .time_units
+                    .iter()
+                    .filter(|(_, v)| !v.is_empty())
+            ),
+            vec![&(NanoSecond, vec!["nanos"])]
+        );
+        assert_eq!(parser.get_current_time_units(), vec![NanoSecond]);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_add_time_units() {
+        let mut parser = CustomDurationParser::new();
+        parser.time_units(&[(NanoSecond, &["ns", "nanos"]), (MilliSecond, &["ms"])]);
+        assert_eq!(
+            Vec::from_iter(
+                parser
+                    .time_units
+                    .time_units
+                    .iter()
+                    .filter(|(_, v)| !v.is_empty())
+            ),
+            vec![
+                &(NanoSecond, vec!["ns", "nanos"]),
+                &(MilliSecond, vec!["ms"])
+            ]
+        );
+        assert_eq!(
+            parser.get_current_time_units(),
+            vec![NanoSecond, MilliSecond]
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_setting_default_time_unit() {
+        let mut parser = CustomDurationParser::new();
+        parser.default_unit(NanoSecond);
+
+        assert_eq!(parser.default_unit, NanoSecond);
+        assert_eq!(parser.parse("1"), Ok(Duration::new(0, 1)));
+    }
+
+    #[rstest]
+    #[case::nano_second("1ns", Duration::new(0, 1))]
+    #[case::micro_second("1Ms", Duration::new(0, 1000))]
+    #[case::milli_second("1ms", Duration::new(0, 1_000_000))]
+    #[case::second("1s", Duration::new(1, 0))]
+    #[case::minute("1m", Duration::new(60, 0))]
+    #[case::hour("1h", Duration::new(60 * 60, 0))]
+    #[case::day("1d", Duration::new(60 * 60 * 24, 0))]
+    #[case::week("1w", Duration::new(60 * 60 * 24 * 7, 0))]
+    #[case::month("1M", Duration::new(MONTH, 0))]
+    #[case::year("1y", Duration::new(YEAR, 0))]
+    fn test_custom_duration_parser_parse_when_default_time_units(
+        #[case] input: &str,
+        #[case] expected: Duration,
+    ) {
+        let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+        assert_eq!(parser.parse(input), Ok(expected));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_parse_when_non_ascii() {
+        let mut parser = CustomDurationParser::with_time_units(&[(MilliSecond, &["мілісекунда"])]);
+        assert_eq!(
+            parser.parse("1мілісекунда"),
+            Ok(Duration::new(0, 1_000_000))
+        );
     }
 }

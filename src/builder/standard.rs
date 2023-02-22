@@ -363,7 +363,7 @@ impl DurationParser {
     /// use fundu::{DurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = DurationParser::new();
+    /// let mut parser = DurationParser::without_time_units();
     /// assert_eq!(
     ///     parser.get_current_time_units(),
     ///     vec![]
@@ -707,6 +707,25 @@ mod tests {
                 Week,
                 Month,
                 Year
+            ]
+        )
+    }
+
+    #[test]
+    fn test_duration_parser_init_when_default() {
+        let parser = DurationParser::default();
+        assert!(!parser.time_units.is_empty());
+        assert_eq!(
+            parser.get_current_time_units(),
+            vec![
+                NanoSecond,
+                MicroSecond,
+                MilliSecond,
+                Second,
+                Minute,
+                Hour,
+                Day,
+                Week
             ]
         )
     }
