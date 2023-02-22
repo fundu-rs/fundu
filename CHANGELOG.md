@@ -24,6 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Fully customizable identifiers for time units in a new struct `CustomDurationParser`
+
+### Changed
+
+- Include more error types in `ParseError`
+- Improve performance of time unit parsing
+
 ## [0.3.0] - 2023-02-11
 
 ### Added

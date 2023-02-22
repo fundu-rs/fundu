@@ -53,6 +53,7 @@
     "softfloat",
     "sparcv",
     "stdlib",
+    "struct",
     "Swatinem",
     "thumbv",
     "uefi",
