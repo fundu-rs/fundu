@@ -345,7 +345,7 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     #[inline(never)]
-    pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
+    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         let mut parser = ReprParser::new(source, self.default_unit, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
@@ -479,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_init_new() {
-        let mut parser = CustomDurationParser::new();
+        let parser = CustomDurationParser::new();
         assert_eq!(parser.default_unit, Second);
         assert!(parser.time_units.is_empty());
         assert_eq!(parser.get_current_time_units(), vec![]);
@@ -495,7 +495,7 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_init_with_time_units() {
-        let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+        let parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
         assert_eq!(parser.default_unit, Second);
         assert_eq!(
             Vec::from(parser.time_units.time_units.as_slice()),
@@ -586,13 +586,13 @@ mod tests {
         #[case] input: &str,
         #[case] expected: Duration,
     ) {
-        let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+        let parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
         assert_eq!(parser.parse(input), Ok(expected));
     }
 
     #[test]
     fn test_custom_duration_parser_parse_when_non_ascii() {
-        let mut parser = CustomDurationParser::with_time_units(&[(MilliSecond, &["мілісекунда"])]);
+        let parser = CustomDurationParser::with_time_units(&[(MilliSecond, &["мілісекунда"])]);
         assert_eq!(
             parser.parse("1мілісекунда"),
             Ok(Duration::new(0, 1_000_000))

@@ -439,7 +439,7 @@ impl DurationParser {
     /// );
     /// ```
     #[inline(never)]
-    pub fn parse(&mut self, source: &str) -> Result<Duration, ParseError> {
+    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         let mut parser = ReprParser::new(source, self.default_unit, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }

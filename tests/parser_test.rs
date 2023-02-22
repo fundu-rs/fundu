@@ -241,7 +241,7 @@ fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] ti
     "Number was negative"
 )]
 fn test_parse_error_messages(
-    #[case] mut parser: DurationParser,
+    #[case] parser: DurationParser,
     #[case] input: &str,
     #[case] expected_error: ParseError,
     #[case] expected_string: &str,

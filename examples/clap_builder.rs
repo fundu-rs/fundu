@@ -13,7 +13,7 @@ fn main() {
             arg!([DURATION2] "An optional duration to sum with the first duration").required(false),
         )
         .get_matches();
-    let mut parser = DurationParser::new();
+    let parser = DurationParser::new();
 
     if let Some(arg2) = matches.get_one::<String>("DURATION2") {
         let sum = parser
