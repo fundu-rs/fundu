@@ -101,7 +101,7 @@ impl LookupData {
 }
 
 impl<'a> CustomTimeUnits<'a> {
-    pub fn with_capacity(capacity: usize) -> Self {
+    fn with_capacity(capacity: usize) -> Self {
         Self {
             min_length: usize::MAX,
             max_length: 0,
