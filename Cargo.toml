@@ -41,6 +41,10 @@ name = "parse_duration_benchmark"
 harness = false
 
 [[bench]]
+name = "custom_duration_parser_benchmark"
+harness = false
+
+[[bench]]
 name = "iai_bench_time_unit_parsing"
 harness = false
 
