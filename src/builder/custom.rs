@@ -40,61 +40,119 @@ pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (Year, &[DEFAULT_ID_YEAR]),
 ];
 
-type Identifiers<'a> = (TimeUnit, Vec<&'a str>);
+type Identifiers<'a> = (LookupData, Vec<&'a str>);
 type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
 
 #[derive(Debug)]
 struct CustomTimeUnits<'a> {
+    min_length: usize,
+    max_length: usize,
     time_units: [Identifiers<'a>; 10],
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+struct LookupData {
+    min_length: usize,
+    max_length: usize,
+    time_unit: TimeUnit,
+}
+
+impl LookupData {
+    fn new(time_unit: TimeUnit) -> Self {
+        Self {
+            min_length: usize::MAX,
+            max_length: 0,
+            time_unit,
+        }
+    }
+
+    fn update(&mut self, identifier: &str) {
+        let len = identifier.len();
+        if self.min_length > len {
+            self.min_length = len;
+        }
+        if self.max_length < len {
+            self.max_length = len;
+        }
+    }
+
+    fn check(&self, identifier: &str) -> bool {
+        let len = identifier.len();
+        self.min_length <= len && self.max_length >= len
+    }
+
+    fn is_empty(&self) -> bool {
+        self.min_length == usize::MAX && self.max_length == 0
+    }
+}
+
 impl<'a> CustomTimeUnits<'a> {
-    fn map_time_unit_to_index(unit: TimeUnit) -> usize {
-        match unit {
-            NanoSecond => 0,
-            MicroSecond => 1,
-            MilliSecond => 2,
-            Second => 3,
-            Minute => 4,
-            Hour => 5,
-            Day => 6,
-            Week => 7,
-            Month => 8,
-            Year => 9,
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self {
+            min_length: usize::MAX,
+            max_length: 0,
+            time_units: [
+                (LookupData::new(NanoSecond), Vec::with_capacity(capacity)),
+                (LookupData::new(MicroSecond), Vec::with_capacity(capacity)),
+                (LookupData::new(MilliSecond), Vec::with_capacity(capacity)),
+                (LookupData::new(Second), Vec::with_capacity(capacity)),
+                (LookupData::new(Minute), Vec::with_capacity(capacity)),
+                (LookupData::new(Hour), Vec::with_capacity(capacity)),
+                (LookupData::new(Day), Vec::with_capacity(capacity)),
+                (LookupData::new(Week), Vec::with_capacity(capacity)),
+                (LookupData::new(Month), Vec::with_capacity(capacity)),
+                (LookupData::new(Year), Vec::with_capacity(capacity)),
+            ],
+        }
+    }
+
+    fn lookup_mut(&'_ mut self, unit: TimeUnit) -> &'_ mut (LookupData, Vec<&'a str>) {
+        &mut self.time_units[unit as usize]
+    }
+
+    fn update_lengths(&mut self, min_length: usize, max_length: usize) {
+        if self.min_length > min_length {
+            self.min_length = min_length;
+        }
+        if self.max_length < max_length {
+            self.max_length = max_length;
         }
     }
 }
 
 impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
     fn new() -> Self {
-        let capacity = 5;
-        Self {
-            time_units: [
-                (NanoSecond, Vec::with_capacity(capacity)),
-                (MicroSecond, Vec::with_capacity(capacity)),
-                (MilliSecond, Vec::with_capacity(capacity)),
-                (Second, Vec::with_capacity(capacity)),
-                (Minute, Vec::with_capacity(capacity)),
-                (Hour, Vec::with_capacity(capacity)),
-                (Day, Vec::with_capacity(capacity)),
-                (Week, Vec::with_capacity(capacity)),
-                (Month, Vec::with_capacity(capacity)),
-                (Year, Vec::with_capacity(capacity)),
-            ],
-        }
+        Self::with_capacity(0)
     }
 
     fn with_time_units(units: &[IdentifiersSlice<'a>]) -> Self {
-        let mut time_units = Self::new();
+        let capacity = units.iter().fold(0, |a, (_, v)| a.max(v.len()));
+        let mut time_units = Self::with_capacity(capacity);
         time_units.add_time_units(units);
         time_units
     }
 
     fn add_time_unit(&mut self, unit: IdentifiersSlice<'a>) {
-        let (time_unit, ids) = unit;
-        self.time_units[Self::map_time_unit_to_index(time_unit)]
-            .1
-            .extend(ids.iter().filter(|s| !s.is_empty()))
+        let (time_unit, other) = unit;
+        if other.is_empty() {
+            return;
+        }
+        let (data, ids) = self.lookup_mut(time_unit);
+
+        let mut min_length = usize::MAX;
+        let mut max_length = 0usize;
+        for id in other.iter().filter(|id| !id.is_empty()) {
+            ids.push(id);
+            data.update(id);
+            let len = id.len();
+            if min_length > len {
+                min_length = len;
+            }
+            if max_length < len {
+                max_length = len;
+            }
+        }
+        self.update_lengths(min_length, max_length);
     }
 
     fn add_time_units(&mut self, units: &[IdentifiersSlice<'a>]) {
@@ -108,19 +166,29 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
     }
 
     fn get(&self, identifier: &str) -> Option<TimeUnit> {
-        // TODO: improve performance with pre-filtering by first character of `identifier`
-        for (t, v) in self.time_units.iter() {
-            if v.contains(&identifier) {
-                return Some(*t);
-            }
+        let len = identifier.len();
+        if self.min_length > len || self.max_length < len {
+            return None;
         }
-        None
+        self.time_units.iter().find_map(|(data, v)| {
+            if data.check(identifier) && v.contains(&identifier) {
+                Some(data.time_unit)
+            } else {
+                None
+            }
+        })
     }
 
     fn get_time_units(&self) -> Vec<TimeUnit> {
         self.time_units
             .iter()
-            .filter_map(|(t, v)| if !v.is_empty() { Some(*t) } else { None })
+            .filter_map(|(data, _)| {
+                if !data.is_empty() {
+                    Some(data.time_unit)
+                } else {
+                    None
+                }
+            })
             .collect()
     }
 }
@@ -373,7 +441,7 @@ mod tests {
             custom
                 .time_units
                 .iter()
-                .map(|p| p.0)
+                .map(|(data, _)| data.time_unit)
                 .collect::<Vec<TimeUnit>>(),
             vec![
                 NanoSecond,
@@ -393,41 +461,45 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, &["some"], 0)]
-    #[case::nano_second_with_multiple_ids(NanoSecond, &["some", "other", "деякі"], 0)]
-    #[case::micro_second(MicroSecond, &["some"], 1)]
-    #[case::micro_second_with_multiple_ids(MicroSecond, &["some", "other", "деякі"], 1)]
-    #[case::milli_second(MilliSecond, &["some"], 2)]
-    #[case::milli_second_with_multiple_ids(MilliSecond, &["some", "other", "деякі"], 2)]
-    #[case::second(Second, &["some"], 3)]
-    #[case::second_with_multiple_ids(Second, &["some", "other", "деякі"], 3)]
-    #[case::minute(Minute, &["some"], 4)]
-    #[case::minute_with_multiple_ids(Minute, &["some", "other", "деякі"], 4)]
-    #[case::hour(Hour, &["some"], 5)]
-    #[case::hour_with_multiple_ids(Hour, &["some", "other", "деякі"], 5)]
-    #[case::day(Day, &["some"], 6)]
-    #[case::day_with_multiple_ids(Day, &["some", "other", "деякі"], 6)]
-    #[case::week(Week, &["some"], 7)]
-    #[case::week_with_multiple_ids(Week, &["some", "other", "деякі"], 7)]
-    #[case::month(Month, &["some"], 8)]
-    #[case::month_with_multiple_ids(Month, &["some", "other", "деякі"], 8)]
-    #[case::year(Year, &["some"], 9)]
-    #[case::year_with_multiple_ids(Year, &["some", "other", "деякі"], 9)]
+    #[case::nano_second(NanoSecond, &["some"], 4, 4)]
+    #[case::nano_second_with_multiple_ids(NanoSecond, &["some", "other", "деякі"], 4, 10)]
+    #[case::micro_second(MicroSecond, &["some"], 4, 4)]
+    #[case::micro_second_with_multiple_ids(MicroSecond, &["some", "other", "деякі"], 4, 10)]
+    #[case::milli_second(MilliSecond, &["some"], 4, 4)]
+    #[case::milli_second_with_multiple_ids(MilliSecond, &["some", "other", "деякі"], 4, 10)]
+    #[case::second(Second, &["some"], 4, 4)]
+    #[case::second_with_multiple_ids(Second, &["some", "other", "деякі"], 4, 10)]
+    #[case::minute(Minute, &["some"], 4, 4)]
+    #[case::minute_with_multiple_ids(Minute, &["some", "other", "деякі"], 4, 10)]
+    #[case::hour(Hour, &["some"], 4, 4)]
+    #[case::hour_with_multiple_ids(Hour, &["some", "other", "деякі"], 4, 10)]
+    #[case::day(Day, &["some"], 4, 4)]
+    #[case::day_with_multiple_ids(Day, &["some", "other", "деякі"], 4, 10)]
+    #[case::week(Week, &["some"], 4, 4)]
+    #[case::week_with_multiple_ids(Week, &["some", "other", "деякі"], 4, 10)]
+    #[case::month(Month, &["some"], 4, 4)]
+    #[case::month_with_multiple_ids(Month, &["some", "other", "деякі"], 4, 10)]
+    #[case::year(Year, &["some"], 4, 4)]
+    #[case::year_with_multiple_ids(Year, &["some", "other", "деякі"], 4, 10)]
     fn test_custom_time_units_init_with_time_units(
         #[case] time_unit: TimeUnit,
         #[case] ids: &[&str],
-        #[case] expected_index: usize,
+        #[case] min_length: usize,
+        #[case] max_length: usize,
     ) {
-        let custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
+        let mut custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
 
         assert!(!custom.is_empty());
         assert_eq!(
-            custom.time_units.get(expected_index),
-            Some(&(time_unit, Vec::from(ids)))
-        );
-        assert_eq!(
-            CustomTimeUnits::map_time_unit_to_index(time_unit),
-            expected_index
+            custom.lookup_mut(time_unit),
+            &(
+                LookupData {
+                    min_length,
+                    max_length,
+                    time_unit
+                },
+                Vec::from(ids)
+            )
         );
         assert_eq!(custom.get_time_units(), vec![time_unit]);
     }
@@ -447,14 +519,9 @@ mod tests {
         assert!(custom
             .time_units
             .iter()
-            .filter(|p| p.0 != MicroSecond)
-            .all(|p| p.1.is_empty()));
-        assert_eq!(
-            custom
-                .time_units
-                .get(CustomTimeUnits::map_time_unit_to_index(MicroSecond)),
-            Some(&(MicroSecond, vec!["some", "ids"]))
-        );
+            .filter(|(data, _)| data.time_unit != MicroSecond)
+            .all(|(_, v)| v.is_empty()));
+        assert_eq!(custom.lookup_mut(MicroSecond).1, vec!["some", "ids"]);
         assert_eq!(custom.get("some"), Some(MicroSecond));
         assert_eq!(custom.get("ids"), Some(MicroSecond));
         assert_eq!(custom.get("does not exist"), None);
@@ -501,8 +568,15 @@ mod tests {
             Vec::from(parser.time_units.time_units.as_slice()),
             DEFAULT_TIME_UNITS
                 .iter()
-                .map(|(t, v)| (*t, Vec::from(*v)))
-                .collect::<Vec<(TimeUnit, Vec<&str>)>>()
+                .map(|(t, v)| (
+                    LookupData {
+                        min_length: v[0].len(),
+                        max_length: v[0].len(),
+                        time_unit: *t
+                    },
+                    Vec::from(*v)
+                ))
+                .collect::<Vec<(LookupData, Vec<&str>)>>()
         );
         assert_eq!(
             parser.get_current_time_units(),
@@ -527,14 +601,14 @@ mod tests {
         parser.time_unit(NanoSecond, &["nanos"]);
         assert!(!parser.time_units.is_empty());
         assert_eq!(
-            Vec::from_iter(
-                parser
-                    .time_units
-                    .time_units
-                    .iter()
-                    .filter(|(_, v)| !v.is_empty())
-            ),
-            vec![&(NanoSecond, vec!["nanos"])]
+            Vec::from_iter(parser.time_units.time_units.iter().filter_map(|(d, v)| {
+                if !v.is_empty() {
+                    Some((d.time_unit, v))
+                } else {
+                    None
+                }
+            })),
+            vec![(NanoSecond, &vec!["nanos"])]
         );
         assert_eq!(parser.get_current_time_units(), vec![NanoSecond]);
     }
@@ -544,16 +618,16 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.time_units(&[(NanoSecond, &["ns", "nanos"]), (MilliSecond, &["ms"])]);
         assert_eq!(
-            Vec::from_iter(
-                parser
-                    .time_units
-                    .time_units
-                    .iter()
-                    .filter(|(_, v)| !v.is_empty())
-            ),
+            Vec::from_iter(parser.time_units.time_units.iter().filter_map(|(d, v)| {
+                if !v.is_empty() {
+                    Some((d.time_unit, v))
+                } else {
+                    None
+                }
+            })),
             vec![
-                &(NanoSecond, vec!["ns", "nanos"]),
-                &(MilliSecond, vec!["ms"])
+                (NanoSecond, &vec!["ns", "nanos"]),
+                (MilliSecond, &vec!["ms"])
             ]
         );
         assert_eq!(
