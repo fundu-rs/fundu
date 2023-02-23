@@ -6,14 +6,14 @@
 use std::time::Duration;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS};
+use fundu::{CustomDurationParser, DEFAULT_ALL_TIME_UNITS, SYSTEMD_TIME_UNITS};
 
 fn duration_parser_initialization(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("custom duration parser initialization");
     group.bench_function("without time units", |b| b.iter(CustomDurationParser::new));
     group.bench_with_input(
         "default time units",
-        &DEFAULT_TIME_UNITS,
+        &DEFAULT_ALL_TIME_UNITS,
         |b, time_units| b.iter(|| CustomDurationParser::with_time_units(time_units)),
     );
     group.bench_with_input(
@@ -37,7 +37,7 @@ fn duration_parser_parsing_speed(criterion: &mut Criterion) {
     group.bench_with_input(
         BenchmarkId::new("default time units", input),
         &(
-            CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS),
+            CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS),
             input,
         ),
         |b, (parser, input)| b.iter(|| parser.parse(input)),
@@ -46,7 +46,7 @@ fn duration_parser_parsing_speed(criterion: &mut Criterion) {
     group.bench_with_input(
         BenchmarkId::new("default time units", input),
         &(
-            CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS),
+            CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS),
             input,
         ),
         |b, (parser, input)| b.iter(|| parser.parse(input)),

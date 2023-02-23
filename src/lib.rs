@@ -216,4 +216,6 @@ pub use time::{
 pub use builder::standard::{parse_duration, DurationParser};
 
 #[cfg(feature = "custom")]
-pub use builder::custom::{CustomDurationParser, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS};
+pub use builder::custom::{
+    CustomDurationParser, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
+};

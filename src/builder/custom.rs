@@ -12,7 +12,8 @@ use crate::{
 };
 use std::time::Duration;
 
-/// Part of the `custom` feature with [`TimeUnit`] ids as defined in [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
+/// Part of the `custom` feature with [`TimeUnit`] ids as defined in
+/// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
 pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (NanoSecond, &["ns", "nsec"]),
     (MicroSecond, &["us", "µs", "usec"]),
@@ -27,7 +28,20 @@ pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
 ];
 
 /// Part of the `custom` feature with all [`TimeUnit`] ids as defined in the `default` feature
-pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
+/// without `Month` and `Year`.
+pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 8] = [
+    (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
+    (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
+    (MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
+    (Second, &[DEFAULT_ID_SECOND]),
+    (Minute, &[DEFAULT_ID_MINUTE]),
+    (Hour, &[DEFAULT_ID_HOUR]),
+    (Day, &[DEFAULT_ID_DAY]),
+    (Week, &[DEFAULT_ID_WEEK]),
+];
+
+/// Part of the `custom` feature with all [`TimeUnit`] ids as defined in the `default` feature.
+pub const DEFAULT_ALL_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
     (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
     (MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
@@ -204,8 +218,8 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// Add time units as you like with [`CustomDurationParser::time_unit`] or multiple time units
     /// at once with [`CustomDurationParser::time_units`]. Note there's also
-    /// [`CustomDurationParser::with_time_units`] which initializes the parser with a set time units with
-    /// custom `ids`. The default time unit can be changed with
+    /// [`CustomDurationParser::with_time_units`] which initializes the parser with a set time units
+    /// with custom `ids`. The default time unit can be changed with
     /// [`CustomDurationParser::default_unit`].
     ///
     /// # Examples
@@ -562,11 +576,11 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_init_with_time_units() {
-        let parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+        let parser = CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS);
         assert_eq!(parser.default_unit, Second);
         assert_eq!(
             Vec::from(parser.time_units.time_units.as_slice()),
-            DEFAULT_TIME_UNITS
+            DEFAULT_ALL_TIME_UNITS
                 .iter()
                 .map(|(t, v)| (
                     LookupData {
@@ -580,7 +594,7 @@ mod tests {
         );
         assert_eq!(
             parser.get_current_time_units(),
-            DEFAULT_TIME_UNITS
+            DEFAULT_ALL_TIME_UNITS
                 .iter()
                 .map(|(t, _)| *t)
                 .collect::<Vec<TimeUnit>>()
@@ -660,7 +674,7 @@ mod tests {
         #[case] input: &str,
         #[case] expected: Duration,
     ) {
-        let parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+        let parser = CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS);
         assert_eq!(parser.parse(input), Ok(expected));
     }
 
