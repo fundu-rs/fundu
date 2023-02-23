@@ -10,7 +10,10 @@ use std::fmt::Display;
 
 /// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum ParseError {
+    /// Returned, if the input was empty.
+    Empty,
     /// A syntax error. Syntax errors report the position (column) where it was encountered and a
     /// reason.
     Syntax(usize, String),
@@ -50,6 +53,7 @@ impl Display for ParseError {
             }
             ParseError::NegativeNumber => "Number was negative".to_string(),
             ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
+            ParseError::Empty => "Empty input".to_string(),
         };
         f.write_str(&msg)
     }
@@ -83,6 +87,7 @@ mod tests {
         ParseError::InvalidInput("Unexpected".to_string()),
         "Invalid input: Unexpected"
     )]
+    #[case::empty(ParseError::Empty, "Empty input")]
     fn test_error_messages(#[case] error: ParseError, #[case] expected: &str) {
         assert_eq!(error.to_string(), expected);
     }

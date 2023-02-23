@@ -256,6 +256,10 @@ impl<'a, T> ReprParser<'a, T> {
 
     #[inline]
     pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
+        if self.current_byte.is_none() {
+            return Err(ParseError::Empty);
+        }
+
         let mut duration_repr = DurationRepr {
             unit: self.default_unit,
             ..Default::default()
