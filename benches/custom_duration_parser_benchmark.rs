@@ -51,6 +51,15 @@ fn duration_parser_parsing_speed(criterion: &mut Criterion) {
         ),
         |b, (parser, input)| b.iter(|| parser.parse(input)),
     );
+    let input = "1ns";
+    group.bench_with_input(
+        BenchmarkId::new("systemd time units", input),
+        &(
+            CustomDurationParser::with_time_units(&SYSTEMD_TIME_UNITS),
+            input,
+        ),
+        |b, (parser, input)| b.iter(|| parser.parse(input)),
+    );
     let input = "1years";
     group.bench_with_input(
         BenchmarkId::new("systemd time units", input),

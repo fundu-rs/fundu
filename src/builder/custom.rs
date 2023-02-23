@@ -153,19 +153,12 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
         }
         let (data, ids) = self.lookup_mut(time_unit);
 
-        let mut min_length = usize::MAX;
-        let mut max_length = 0usize;
-        for id in other.iter().filter(|id| !id.is_empty()) {
+        for &id in other.iter().filter(|&&id| !id.is_empty()) {
             ids.push(id);
             data.update(id);
-            let len = id.len();
-            if min_length > len {
-                min_length = len;
-            }
-            if max_length < len {
-                max_length = len;
-            }
         }
+        let min_length = data.min_length;
+        let max_length = data.max_length;
         self.update_lengths(min_length, max_length);
     }
 
