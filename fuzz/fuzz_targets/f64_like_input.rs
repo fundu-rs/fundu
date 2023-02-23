@@ -1,6 +1,6 @@
 #![no_main]
 
-use std::num::IntErrorKind;
+use std::{num::IntErrorKind, time::Duration};
 
 use fundu::{DurationParser, ParseError};
 use libfuzzer_sys::fuzz_target;
@@ -35,7 +35,7 @@ fn check_exponent_overflow(input: &str, error: ParseError) {
 }
 
 fuzz_target!(|data: &[u8]| {
-    let mut parser = DurationParser::without_time_units();
+    let parser = DurationParser::without_time_units();
     if let Ok(string) = std::str::from_utf8(data) {
         if let Ok(parsed) = string.parse::<f64>() {
             if !parsed.is_nan() && parsed.is_sign_negative() && parsed != 0f64 {
@@ -80,15 +80,31 @@ fuzz_target!(|data: &[u8]| {
                 }
             // Everything else should be parsable by fundu besides some special handling of the exponent
             // and the overflow errors
-            } else if let Err(error) = parser.parse(&format!("{parsed}")) {
-                match error {
-                    fundu::ParseError::NegativeExponentOverflow
-                    | fundu::ParseError::PositiveExponentOverflow => {
-                        check_exponent_overflow(string, error)
+            } else {
+                match parser.parse(string) {
+                    Ok(duration) => {
+                        let rust_duration = match Duration::try_from_secs_f64(parsed) {
+                            Ok(d) => d,
+                            Err(_) => Duration::MAX,
+                        };
+                        // This epsilon is backed by a lot of random runs and manual comparisons
+                        let epsilon_duration = Duration::from_secs(1024);
+                        let delta = duration
+                            .max(rust_duration)
+                            .saturating_sub(duration.min(rust_duration));
+                        if delta > epsilon_duration {
+                            panic!("The duration delta between rust and fundu was too high: input: {string}, fundu: {duration:?}, rust: {rust_duration:?}, epsilon: {epsilon_duration:?}, delta: {delta:?}")
+                        }
                     }
-                    _ => {
-                        panic!("Expected no error: input: {string}, error: {error:?}");
-                    }
+                    Err(error) => match error {
+                        fundu::ParseError::NegativeExponentOverflow
+                        | fundu::ParseError::PositiveExponentOverflow => {
+                            check_exponent_overflow(string, error)
+                        }
+                        _ => {
+                            panic!("Expected no error: input: {string}, error: {error:?}");
+                        }
+                    },
                 }
             }
         // What can't be parsed to a f64 can't be parsed by fundu
