@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
 use crate::error::ParseError;
-use crate::time::{TimeUnit, TimeUnits};
+use crate::time::{TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
@@ -114,7 +114,7 @@ impl DurationRepr {
     pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             if self.is_negative {
-                return Err(ParseError::NegativeInfinity);
+                return Err(ParseError::NegativeNumber);
             } else {
                 return Ok(Duration::MAX);
             }
@@ -211,22 +211,28 @@ impl DurationRepr {
     }
 }
 
-pub(crate) struct ReprParser<'a> {
+pub(crate) struct ReprParser<'a, T> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
-    time_units: &'a TimeUnits,
+    time_units: &'a dyn TimeUnitsLike<T>,
+    default_unit: TimeUnit,
     input: &'a [u8],
 }
 
 /// Parse a source string into a [`DurationRepr`].
-impl<'a> ReprParser<'a> {
+impl<'a, T> ReprParser<'a, T> {
     #[inline]
-    pub fn new(input: &'a str, time_units: &'a TimeUnits) -> Self {
+    pub fn new(
+        input: &'a str,
+        default_unit: TimeUnit,
+        time_units: &'a dyn TimeUnitsLike<T>,
+    ) -> Self {
         let input = input.as_bytes();
         Self {
             current_byte: input.first(),
             input,
             current_pos: 0,
+            default_unit,
             time_units,
         }
     }
@@ -250,8 +256,12 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     pub(crate) fn parse(&mut self) -> Result<DurationRepr, ParseError> {
+        if self.current_byte.is_none() {
+            return Err(ParseError::Empty);
+        }
+
         let mut duration_repr = DurationRepr {
-            unit: self.time_units.default,
+            unit: self.default_unit,
             ..Default::default()
         };
 
@@ -339,27 +349,24 @@ impl<'a> ReprParser<'a> {
 
         // check we've reached the end of input
         match self.current_byte {
-            Some(byte) => Err(ParseError::Syntax(
-                self.current_pos,
-                format!("Expected end of input but found: '{}'", *byte as char),
-            )),
+            Some(_) => unreachable!("Parsing time units consumes the rest of the input"), // cov:excl-line
             None => Ok(duration_repr),
         }
     }
 
     #[inline]
     fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
+        // cov:excl-start
         debug_assert!(
             self.current_byte.is_some(),
             "Don't call this function without being sure there's at least 1 byte remaining"
-        );
+        ); // cov:excl-end
 
         // Safety: The input of `parse` is &str and therefore valid utf-8
         let string = unsafe { std::str::from_utf8_unchecked(self.get_remainder()) };
-        let result = self.time_units.get(string).ok_or(ParseError::TimeUnit(
-            self.current_pos,
-            format!("Invalid time unit: '{string}'"),
-        ));
+        let result = self.time_units.get(string).ok_or_else(|| {
+            ParseError::TimeUnit(self.current_pos, format!("Invalid time unit: '{string}'"))
+        });
         self.finish();
         result
     }
@@ -476,7 +483,11 @@ impl<'a> ReprParser<'a> {
                 if (is_negative && exponent <= 1022) || (!is_negative && exponent <= 1023) {
                     self.advance();
                 } else {
-                    return Err(ParseError::Overflow);
+                    return if is_negative {
+                        Err(ParseError::NegativeExponentOverflow)
+                    } else {
+                        Err(ParseError::PositiveExponentOverflow)
+                    };
                 }
             } else {
                 break;

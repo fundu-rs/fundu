@@ -2,7 +2,7 @@ name: Build and Check
 
 on:
   push:
-    branches: ["main", "cicd", "release"]
+    branches: ["main", "cicd", "release", "develop"]
   pull_request:
     branches: ["main"]
 
@@ -32,7 +32,7 @@ jobs:
           - stable
           - nightly
         include:
-          - toolchain: 1.60.0
+          - toolchain: "1.60.0"
             components: rustfmt
           - toolchain: nightly
             components: rustfmt
@@ -66,15 +66,15 @@ jobs:
           rustup show
           rustup component list | grep installed
       - name: Build
-        run: cargo build
+        run: cargo build --all-features
       - name: Format
         run: cargo fmt --check
       - name: Lint
-        run: cargo +stable clippy --all-targets -- -D warnings
+        run: cargo +stable clippy --all-features --all-targets -- -D warnings
         env:
           CARGO_REGISTRIES_CRATES_IO_PROTOCOL: git # unstable on 1.66 + 1.67
       - name: Test
-        run: cargo test
+        run: cargo test --all-features
 
   docs:
     needs: [base]
@@ -85,9 +85,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Run doc tests
-        run: cargo test --doc
+        run: cargo test --all-features --doc
       - name: Check Documentation
-        run: cargo doc --no-deps --document-private-items
+        run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
     needs: [base]
@@ -127,9 +127,9 @@ jobs:
       - name: Clean
         run: cargo clean
       - name: Build
-        run: cargo build --profile coverage
+        run: cargo build --all-features --profile coverage
       - name: Test
-        run: cargo test --tests --profile coverage
+        run: cargo test --all-features --tests --profile coverage
       - name: Generate code coverage
         shell: bash
         run: |
@@ -200,7 +200,7 @@ jobs:
       - name: Run fuzzing for 5 minutes
         shell: bash
         run: |
-          cargo fuzz run f64_like_input -- \
+          cargo fuzz run --all-features f64_like_input -- \
             -max_total_time=300 \
             -print_final_stats=1 \
             -print_corpus_stats=1 \
@@ -233,13 +233,32 @@ jobs:
           check_artifacts: true
           path: target/iai
           if_no_artifact_found: warn
-      - name: Run benchmark ${{ matrix.benchmark }} and check for regression
-        id: run
+      - name: Run benchmark ${{ matrix.benchmark }}
+        shell: bash
+        run: cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
+      - name: Check for regression
         shell: bash
         run: |
-          cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
-          sed -En 's/Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' bench.out | \
-            while read p; do [[ $p -ge $BENCHMARK_REGRESSION_PERCENT_FAIL ]] && exit 1; done
+          echo 0 > fail
+          echo 0 > skip
+          while IFS= read -r line; do
+            skip=$(( $(< skip) > 0 ))
+            if grep -Eq '^\S*reference$' --color=never <<<"$line"; then
+              echo 5 > skip
+            else
+              echo $(( $(< skip) - 1 )) > skip
+            fi
+            if [[ $skip -eq 0 ]] && grep 'Estimated Cycles:' --color=never <<<"$line"; then
+              p=$(sed -En 's/\s*Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' <<<"$line")
+              if [[ $p -ge ${BENCHMARK_REGRESSION_PERCENT_FAIL} ]]; then
+                echo "::error::Regressed +${p}% >= BENCHMARK_REGRESSION_PERCENT_FAIL (=${BENCHMARK_REGRESSION_PERCENT_FAIL}%)"
+                echo 2 > fail
+              fi
+            else
+              echo "$line"
+            fi
+          done < bench.out
+          exit $(< fail)
       - uses: actions/upload-artifact@v3
         with:
           name: benchmarks-${{ matrix.benchmark }}

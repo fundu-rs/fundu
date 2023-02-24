@@ -46,8 +46,8 @@
 # Overview
 
 `fundu` provides a parser to convert strings into a [`std::time::Duration`]. It tries to improve on
-the standard methods [`Duration::from_secs_f64`] and [`Duration::try_from_secs_f64`] (which is stable since `1.66.0`) with intermediate parsing to a float via [`f64::from_str`]
-by
+the standard methods [`Duration::from_secs_f64`] and [`Duration::try_from_secs_f64`] (which is
+stable since `1.66.0`) with intermediate parsing to a float via [`f64::from_str`] by
 
 - Merging the separate steps of parsing float like strings to `f64` and parsing of `f64` to a [`Duration`]
 - Providing customizable [TimeUnit](#time-units)s which are accepted in the input string.
@@ -63,17 +63,28 @@ crate. `fundu` is purely built on top of the rust `stdlib`, and there are no add
 required. The accepted string format is almost the same like the scientific floating point format
 and compatible to the [`f64::from_str`] format. In other words, if the accepted input string could
 previously converted to an `f64` with `f64::from_str`, no change is needed to accept the same format
-with `fundu`. For a direct comparison of `fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
-[Comparison](#comparison-fundu-vs-durationtry_from_secs_f64). For further details see the
-[Documentation](https://docs.rs/crate/fundu)!
+with `fundu`. For a direct comparison of `fundu` vs the rust native methods
+`Duration::(try_)from_secs_f64` see [Comparison](#comparison-fundu-vs-durationtry_from_secs_f64).
+For further details see the [Documentation](https://docs.rs/crate/fundu)!
 
 # Installation
 
-Add this to `Cargo.toml`
+Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 
 ```toml
 [dependencies]
-fundu = "0.3.0"
+fundu = "0.4.0"
+```
+
+fundu is split into two features, `standard` (providing `DurationParser` and `parse_duration`) and
+`custom` (providing the `CustomDurationParser`). The first is described here in in detail, the
+latter adds fully customizable identifiers for [time units](#time-units). Most of the time only one
+of the parsers is needed. To include only the `CustomDurationParser` add the following to
+`Cargo.toml`:
+
+```toml
+[dependencies]
+fundu = { version = "0.4.0", default-features = false, features = ["custom"] }
 ```
 
 # Examples
@@ -121,7 +132,8 @@ assert_eq!(
 );
 ```
 
-Note the following will return an error because `y` (Years) is not in the default set of [TimeUnits](#time-units).
+Note the following will return an error because `y` (Years) is not in the default set of
+[TimeUnits](#time-units).
 
 ```rust
 use fundu::DurationParser;
@@ -194,6 +206,9 @@ included in the final configuration, the [Julian
 year](https://en.wikipedia.org/wiki/Julian_year_(astronomy)) based calculation is used. (See table
 above)
 
+With the `CustomDurationParser` in the `custom` feature, the identifiers for time units can be fully
+customized.
+
 # Benchmarks
 
 To run the benchmarks on your machine, clone the repository
@@ -219,7 +234,8 @@ Input | parser with time units | avg parsing time | ~ samples / s
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `3.7219 µs` | `268_679.975`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `3.7132 µs` | `269_309.490`
 
-For comparison, `fundu`'s precision and additional features only add a very low performance overhead (the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
+For comparison, `fundu`'s precision and additional features only add a very low performance overhead
+(the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
 
 Input | avg parsing time | ~ samples / s
 --- | --- | ---
@@ -240,9 +256,9 @@ Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
 `1e20` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
 `infinity` | `DURATION::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
 
-Having said that, `fundu` has a small impact on [performance](#benchmarks), so if you need to parse a massive amount of
-inputs and can do without the full precision or any of its features, you may be better off using the
-native methods from the rust `stdlib`.
+Nevertheless, `fundu` has a small impact on [performance](#benchmarks), so if you need to parse a
+massive amount of inputs and get along without the full precision or any of its features, you may be
+better off using the native methods from the rust `stdlib`.
 
 # Platform support
 
@@ -255,8 +271,6 @@ See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.ym
 # TODO
 
 - Improve performance for long inputs
-- Improve error messages and error types
-- Implement usage of more than one identifier for time units
 - Provide other year calculations:
     - mean Gregorian year
     - Sidereal year

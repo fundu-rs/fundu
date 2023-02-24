@@ -24,6 +24,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2023-02-24
+
+### Added
+
+- The `custom` feature adds fully customizable identifiers for time units in a new struct
+  `CustomDurationParser`
+- Add `cachegrind` based benchmarks in the github `CI`
+
+### Changed
+
+- Organize project into features: `standard` (default) and `custom`
+- Include more error types in `ParseError` and make `ParseError` non exhaustive
+- Improve performance of time unit parsing
+- Improve and add more benchmarks
+
+### Fixed
+
+- The `DurationParser::parse` method used `self` mutable although this was not necessary
+
 ## [0.3.0] - 2023-02-11
 
 ### Added

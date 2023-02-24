@@ -1,20 +1,56 @@
 #![no_main]
 
-use std::num::IntErrorKind;
+use std::{num::IntErrorKind, time::Duration};
 
-use fundu::DurationParser;
+use fundu::{DurationParser, ParseError};
 use libfuzzer_sys::fuzz_target;
 
+fn check_exponent_overflow(input: &str, error: ParseError) {
+    match input.find(|c: char| c.eq_ignore_ascii_case(&'e')) {
+        Some(index) => match input.get(index + 1..) {
+            Some(exponent) => {
+                match exponent.parse::<i16>() {
+                    Ok(e) if (-1022..=1023).contains(&e) => panic!(
+                        "Exponent overflow error: Exponent was in valid range: input: {input}, error: {error:?}"
+                    ),
+                    Ok(_) => {
+                        // The overflow error is correctly returned by the parser
+                    }
+                    Err(error) => match error.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
+                            // The overflow error is correctly returned by the parser
+                        }
+                        kind => panic!(
+                            "Exponent overflow error: Should not be an Overflow error: {input}, error: {error:?}, kind: {kind:?}"
+                        ),
+                    }
+                }
+            }
+            None => panic!("Exponent overflow error: No number: input: {input}, error: {error:?}"),
+        },
+        None => {
+            panic!("Exponent overflow error: No exponent: input: {input}, error: {error:?}");
+        }
+    }
+}
+
 fuzz_target!(|data: &[u8]| {
-    let mut parser = DurationParser::without_time_units();
+    let parser = DurationParser::without_time_units();
     if let Ok(string) = std::str::from_utf8(data) {
         if let Ok(parsed) = string.parse::<f64>() {
             if !parsed.is_nan() && parsed.is_sign_negative() && parsed != 0f64 {
                 match &parsed.abs().partial_cmp(&0.000000000000000001f64) {
-                    // Every negative number x with abs(x) < 1e-18 resolves to a zero duration
+                    // Every negative number x with abs(x) < 1e-18 resolves to a zero duration but
+                    // in case of an exponent overflow the error is returned.
                     Some(std::cmp::Ordering::Less) => {
                         if let Err(error) = parser.parse(string) {
-                            panic!("Expected no error: input: {string}, error: {error:?}");
+                            match error {
+                                ParseError::NegativeExponentOverflow
+                                | ParseError::PositiveExponentOverflow => {
+                                    check_exponent_overflow(string, error)
+                                }
+                                _ => panic!("Expected no error: input: {string}, error: {error:?}"),
+                            }
                         }
                     }
                     Some(std::cmp::Ordering::Equal) => {
@@ -25,7 +61,7 @@ fuzz_target!(|data: &[u8]| {
                         // suit for fuzzy testing here and has to be tested separately in a unit or
                         // integration test.
                     }
-                    // Every negative number x with abs(x) >= 1e-18 should be detected as negative
+                    // Negative numbers x with abs(x) >= 1e-18 should be detected as negative
                     // number and fundu returns an error
                     Some(std::cmp::Ordering::Greater) | None => {
                         if let Ok(duration) = parser.parse(string) {
@@ -43,44 +79,32 @@ fuzz_target!(|data: &[u8]| {
                     );
                 }
             // Everything else should be parsable by fundu besides some special handling of the exponent
-            // and the Overflow error
-            } else if let Err(error) = parser.parse(&format!("{parsed}")) {
-                match error {
-                    fundu::ParseError::Overflow => {
-                        match string.find(|c: char| c.eq_ignore_ascii_case(&'e')) {
-                            Some(index) => match string.get(index + 1..) {
-                                Some(exponent) => {
-                                    match exponent.parse::<i16>() {
-                                        Ok(e) if (-1022..=1023).contains(&e) => panic!(
-                                            "Overflow error: Exponent was in valid range: input: {string}, error: {error:?}"
-                                        ),
-                                        Ok(_) => {
-                                            // The overflow error is correctly returned by the parser
-                                        }
-                                        Err(error) => match error.kind() {
-                                            IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => {
-                                                // The overflow error is correctly returned by the parser
-                                            }
-                                            kind => panic!(
-                                                "Overflow error: Should not be an Overflow error: {string}, error: {error:?}, kind: {kind:?}"
-                                            ),
-                                        }
-                                    }
-                                }
-                                None => panic!(
-                                    "Overflow error: No number: input: {string}, error: {error:?}"
-                                ),
-                            },
-                            None => {
-                                panic!(
-                                    "Overflow error: No exponent: input: {string}, error: {error:?}"
-                                );
-                            }
+            // and the overflow errors
+            } else {
+                match parser.parse(string) {
+                    Ok(duration) => {
+                        let rust_duration = match Duration::try_from_secs_f64(parsed) {
+                            Ok(d) => d,
+                            Err(_) => Duration::MAX,
+                        };
+                        // This epsilon is backed by a lot of random runs and manual comparisons
+                        let epsilon_duration = Duration::from_secs(1024);
+                        let delta = duration
+                            .max(rust_duration)
+                            .saturating_sub(duration.min(rust_duration));
+                        if delta > epsilon_duration {
+                            panic!("The duration delta between rust and fundu was too high: input: {string}, fundu: {duration:?}, rust: {rust_duration:?}, epsilon: {epsilon_duration:?}, delta: {delta:?}")
                         }
                     }
-                    _ => {
-                        panic!("Expected no error: input: {string}, error: {error:?}");
-                    }
+                    Err(error) => match error {
+                        fundu::ParseError::NegativeExponentOverflow
+                        | fundu::ParseError::PositiveExponentOverflow => {
+                            check_exponent_overflow(string, error)
+                        }
+                        _ => {
+                            panic!("Expected no error: input: {string}, error: {error:?}");
+                        }
+                    },
                 }
             }
         // What can't be parsed to a f64 can't be parsed by fundu

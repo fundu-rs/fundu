@@ -1,6 +1,6 @@
 [package]
 name = "fundu"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Configurable, precise and fast string parser to a rust std::time::Duration"
@@ -14,6 +14,11 @@ rust-version = "1.60.0"
 
 [lib]
 bench = false
+
+[features]
+default = ["standard"]
+standard = []
+custom = []
 
 [dev-dependencies]
 rstest = "0.16.0"
@@ -31,8 +36,17 @@ pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 [target.'cfg(unix)'.dev-dependencies.inferno]
 version = "=0.11.14"
 
+[profile.flamegraph]
+inherits = "bench"
+opt-level = 1
+debug = true
+
 [[bench]]
-name = "parse_duration_benchmark"
+name = "benchmarks_custom"
+harness = false
+
+[[bench]]
+name = "benchmarks_standard"
 harness = false
 
 [[bench]]
@@ -44,7 +58,12 @@ name = "iai_bench_parsing"
 harness = false
 
 [[bench]]
-name = "flamegraph_small_input"
+name = "flamegraph_standard"
+harness = false
+bench = false
+
+[[bench]]
+name = "flamegraph_custom"
 harness = false
 bench = false
 

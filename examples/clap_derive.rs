@@ -22,7 +22,7 @@ struct Args {
 
 fn main() {
     let args = &Args::parse();
-    let mut parser = DurationParser::new();
+    let parser = DurationParser::new();
 
     match args.duration_2.as_deref() {
         Some(arg2) => {
