@@ -144,7 +144,7 @@
 //! use fundu::{DurationParser, TimeUnit::*};
 //! use std::time::Duration;
 //!
-//! let mut parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
+//! let parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
 //! for (input, expected) in &[
 //!     ("9e3ns", Duration::new(0, 9000)),
 //!     ("10m", Duration::new(600, 0)),
@@ -170,11 +170,33 @@
 //!     Duration::new(1, 0)
 //! );
 //! ```
+//! The identifiers for time units can be fully customized with any number of valid
+//! [utf-8](https://en.wikipedia.org/wiki/UTF-8) sequences if the `custom` feature is activated:
+//!
+//! ```rust
+//! use fundu::{CustomDurationParser, TimeUnit::*};
+//! use std::time::Duration;
+//!
+//! let parser = CustomDurationParser::with_time_units(
+//!     &[
+//!         (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
+//!         (Second, &["s", "secs", "..."]),
+//!         (Hour, &["⏳"])
+//!     ]
+//! );
+//! for (input, expected) in &[
+//!     (".3χιλιοστό του δευτερολέπτου", Duration::new(0, 300_000)),
+//!     ("1e3...", Duration::new(1000, 0)),
+//!     ("1.1⏳", Duration::new(3960, 0)),
+//! ] {
+//!     assert_eq!(parser.parse(input).unwrap(), *expected);
+//! }
+//! ```
 //!
 //! Also, `fundu` tries to give informative error messages
 //!
 //! ```rust
-//! use fundu::{DurationParser};
+//! use fundu::DurationParser;
 //! use std::time::Duration;
 //!
 //! assert_eq!(

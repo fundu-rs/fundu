@@ -107,7 +107,10 @@ use fundu::DurationParser;
 use std::time::Duration;
 
 let input = "3m";
-assert_eq!(DurationParser::with_all_time_units().parse(input).unwrap(), Duration::new(180, 0));
+assert_eq!(
+    DurationParser::with_all_time_units().parse(input).unwrap(),
+    Duration::new(180, 0)
+);
 ```
 
 When no time units are configured, seconds is assumed.
@@ -117,7 +120,10 @@ use fundu::DurationParser;
 use std::time::Duration;
 
 let input = "1.0e2";
-assert_eq!(DurationParser::without_time_units().parse(input).unwrap(), Duration::new(100, 0));
+assert_eq!(
+    DurationParser::without_time_units().parse(input).unwrap(),
+    Duration::new(100, 0)
+);
 ```
 
 However, setting the default time unit to something different than seconds can be achieved with
@@ -148,12 +154,35 @@ The parser is reusable and the set of time units is fully customizable
 use fundu::{DurationParser, TimeUnit::*};
 use std::time::Duration;
 
-let mut parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
+let parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
 for (input, expected) in &[
     ("9e3ns", Duration::new(0, 9000)),
     ("10m", Duration::new(600, 0)),
     ("1.1h", Duration::new(3960, 0)),
     ("7", Duration::new(7, 0)),
+] {
+    assert_eq!(parser.parse(input).unwrap(), *expected);
+}
+```
+
+The identifiers for time units can be fully customized with any number of valid
+[utf-8](https://en.wikipedia.org/wiki/UTF-8) sequences if the `custom` feature is activated:
+
+```rust
+use fundu::{CustomDurationParser, TimeUnit::*};
+use std::time::Duration;
+
+let parser = CustomDurationParser::with_time_units(
+    &[
+        (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
+        (Second, &["s", "secs", "..."]),
+        (Hour, &["⏳"])
+    ]
+);
+for (input, expected) in &[
+    (".3χιλιοστό του δευτερολέπτου", Duration::new(0, 300_000)),
+    ("1e3...", Duration::new(1000, 0)),
+    ("1.1⏳", Duration::new(3960, 0)),
 ] {
     assert_eq!(parser.parse(input).unwrap(), *expected);
 }
@@ -170,7 +199,7 @@ assert_eq!(
         .parse("1y")
         .unwrap_err()
         .to_string(),
-    "Syntax error: No time units allowed but found: y at column 1"
+    "Time unit error: No time units allowed but found: 'y' at column 1"
 );
 ```
 
@@ -189,16 +218,16 @@ units is required, `DurationParser::with_time_units` can be used.
 
 Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
 --- | --- | --- | --- | --- | ---
-Nanoseconds | ns | 1e-9s | &#9745; | &#9745; | &#9744;
-Microseconds | Ms | 1e-6s | &#9745; | &#9745; | &#9744;
-Milliseconds | ms | 1e-3s |&#9745; | &#9745; | &#9744;
-Seconds | s | SI definition | &#9745; | &#9745; | &#9744;
-Minutes | m | 60s | &#9745; | &#9745; | &#9744;
-Hours | h | 60m | &#9745; | &#9745; | &#9744;
-Days | d | 24h | &#9745; | &#9745; | &#9744;
-Weeks | w | 7d | &#9745; | &#9745; | &#9744;
-Months | M | Year / 12 | &#9744; | &#9745; | &#9744;
-Years | y | 365.25d | &#9744; | &#9745; | &#9744;
+`Nanoseconds` | ns | `1e-9s` | &#9745; | &#9745; | &#9744;
+`Microseconds` | Ms | `1e-6s` | &#9745; | &#9745; | &#9744;
+`Milliseconds` | ms | `1e-3s` |&#9745; | &#9745; | &#9744;
+`Seconds` | s | SI definition | &#9745; | &#9745; | &#9744;
+`Minutes` | m | `60s` | &#9745; | &#9745; | &#9744;
+`Hours` | h | `60m` | &#9745; | &#9745; | &#9744;
+`Days` | d | `24h` | &#9745; | &#9745; | &#9744;
+`Weeks` | w | `7d` | &#9745; | &#9745; | &#9744;
+`Months` | M | `Year / 12` | &#9744; | &#9745; | &#9744;
+`Years` | y | `365.25d` | &#9744; | &#9745; | &#9744;
 
 Note that `Months` and `Years` are not included in the default set of time units. The current
 implementation uses an approximate calculation of `Months` and `Years` in seconds and if they are
@@ -218,10 +247,25 @@ git clone https://github.com/Joining7943/fundu.git
 cd fundu
 ```
 
-and then run the benchmarks with
+and then run all benchmarks with
 
 ```shell
-cargo bench
+cargo bench --all-features
+```
+
+Benchmarks can be filtered for example with
+
+```shell
+cargo bench --bench benchmarks_standard
+cargo bench --bench benchmarks_standard -- 'parsing speed'
+cargo bench --features custom --no-default-features --bench benchmarks_custom
+```
+
+For more infos, see the help with
+
+```shell
+cargo bench --help # The cargo help for bench
+cargo bench --bench benchmarks_standard -- --help # The criterion help
 ```
 
 To get a rough idea about the parsing times, here the average parsing speed of two inputs on a
@@ -249,9 +293,9 @@ Here's a short incomplete overview of differences and advantages of `fundu` over
 
 Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
 --- | --- | ---
-`01271480964981728917.1` | `Duration::new(1271480964981728917, 1`) | `Duration::new(1271480964981729024, 0)`
-`1.11111111111e10` | `Duration::new(11111111111, 1)` | `Duration::new(11111111111, 100000381)`
-`1ns` | `Duration::new(0, 1)` | error parsing to `f64`: cannot parse time units
+`01271480964981728917.1` | `Duration::new(1_271_480_964_981_728_917, 100_000_000)` | `Duration::new(1_271_480_964_981_729_024, 0)`
+`1.11111111111e10` | `Duration::new(11_111_111_111, 100_000_000)` | `Duration::new(11_111_111_111, 100_000_381)`
+`1ns` | `Duration::new(0, 1)` | cannot parse time units
 `1000` | When changing the default unit to `MilliSecond` -> `Duration::new(1, 0)` | is always seconds based
 `1e20` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
 `infinity` | `DURATION::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
