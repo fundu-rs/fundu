@@ -42,11 +42,11 @@ opt-level = 1
 debug = true
 
 [[bench]]
-name = "parse_duration_benchmark"
+name = "benchmarks_custom"
 harness = false
 
 [[bench]]
-name = "custom_duration_parser_benchmark"
+name = "benchmarks_standard"
 harness = false
 
 [[bench]]
