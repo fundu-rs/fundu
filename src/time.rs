@@ -115,17 +115,8 @@ impl TimeUnit {
 }
 
 pub trait TimeUnitsLike<T> {
-    fn new() -> Self
-    where
-        Self: Sized;
-    fn with_time_units(units: &[T]) -> Self
-    where
-        Self: Sized;
-    fn add_time_unit(&mut self, unit: T);
-    fn add_time_units(&mut self, units: &[T]);
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<TimeUnit>;
-    fn get_time_units(&self) -> Vec<TimeUnit>;
 }
 
 #[cfg(test)]

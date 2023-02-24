@@ -46,6 +46,64 @@ impl Default for TimeUnits {
 }
 
 impl TimeUnitsLike<TimeUnit> for TimeUnits {
+    /// Return `true` if this set of time units is empty.
+    fn is_empty(&self) -> bool {
+        self.nanos.is_none()
+            && self.micros.is_none()
+            && self.millis.is_none()
+            && self.seconds.is_none()
+            && self.minutes.is_none()
+            && self.hours.is_none()
+            && self.days.is_none()
+            && self.weeks.is_none()
+            && self.months.is_none()
+            && self.years.is_none()
+    }
+
+    /// Return the [`TimeUnit`] associated with the provided `identifier`.
+    ///
+    /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
+    /// set of time units.
+    fn get(&self, identifier: &str) -> Option<TimeUnit> {
+        match identifier.len() {
+            1 => {
+                let id = Some(identifier);
+                if id == self.seconds {
+                    Some(Second)
+                } else if id == self.minutes {
+                    Some(Minute)
+                } else if id == self.hours {
+                    Some(Hour)
+                } else if id == self.days {
+                    Some(Day)
+                } else if id == self.weeks {
+                    Some(Week)
+                } else if id == self.months {
+                    Some(Month)
+                } else if id == self.years {
+                    Some(Year)
+                } else {
+                    None
+                }
+            }
+            2 => {
+                let id = Some(identifier);
+                if id == self.nanos {
+                    Some(NanoSecond)
+                } else if id == self.micros {
+                    Some(MicroSecond)
+                } else if id == self.millis {
+                    Some(MilliSecond)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+}
+
+impl TimeUnits {
     /// Create an empty set of [`TimeUnit`]s.
     fn new() -> Self {
         Self {
@@ -67,6 +125,27 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         let mut time_units = Self::new();
         time_units.add_time_units(units);
         time_units
+    }
+
+    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
+    fn with_default_time_units() -> Self {
+        Self::default()
+    }
+
+    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
+    fn with_all_time_units() -> Self {
+        Self {
+            nanos: Some(DEFAULT_ID_NANO_SECOND),
+            micros: Some(DEFAULT_ID_MICRO_SECOND),
+            millis: Some(DEFAULT_ID_MILLI_SECOND),
+            seconds: Some(DEFAULT_ID_SECOND),
+            minutes: Some(DEFAULT_ID_MINUTE),
+            hours: Some(DEFAULT_ID_HOUR),
+            days: Some(DEFAULT_ID_DAY),
+            weeks: Some(DEFAULT_ID_WEEK),
+            months: Some(DEFAULT_ID_MONTH),
+            years: Some(DEFAULT_ID_YEAR),
+        }
     }
 
     /// Add a [`TimeUnit`] to the set of already present time units.
@@ -112,51 +191,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         }
     }
 
-    /// Return `true` if this set of time units is empty.
-    fn is_empty(&self) -> bool {
-        self.nanos.is_none()
-            && self.micros.is_none()
-            && self.millis.is_none()
-            && self.seconds.is_none()
-            && self.minutes.is_none()
-            && self.hours.is_none()
-            && self.days.is_none()
-            && self.weeks.is_none()
-            && self.months.is_none()
-            && self.years.is_none()
-    }
-
-    /// Return the [`TimeUnit`] associated with the provided `identifier`.
-    ///
-    /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
-    /// set of time units.
-    fn get(&self, identifier: &str) -> Option<TimeUnit> {
-        let id = Some(identifier);
-        if id == self.nanos {
-            Some(NanoSecond)
-        } else if id == self.micros {
-            Some(MicroSecond)
-        } else if id == self.millis {
-            Some(MilliSecond)
-        } else if id == self.seconds {
-            Some(Second)
-        } else if id == self.minutes {
-            Some(Minute)
-        } else if id == self.hours {
-            Some(Hour)
-        } else if id == self.days {
-            Some(Day)
-        } else if id == self.weeks {
-            Some(Week)
-        } else if id == self.months {
-            Some(Month)
-        } else if id == self.years {
-            Some(Year)
-        } else {
-            None
-        }
-    }
-
     /// Return all [`TimeUnit`]s from the set of active time units ordered.
     fn get_time_units(&self) -> Vec<TimeUnit> {
         let mut time_units = Vec::with_capacity(10);
@@ -177,29 +211,6 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
             }
         }
         time_units
-    }
-}
-
-impl TimeUnits {
-    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
-    fn with_default_time_units() -> Self {
-        Self::default()
-    }
-
-    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
-    fn with_all_time_units() -> Self {
-        Self {
-            nanos: Some(DEFAULT_ID_NANO_SECOND),
-            micros: Some(DEFAULT_ID_MICRO_SECOND),
-            millis: Some(DEFAULT_ID_MILLI_SECOND),
-            seconds: Some(DEFAULT_ID_SECOND),
-            minutes: Some(DEFAULT_ID_MINUTE),
-            hours: Some(DEFAULT_ID_HOUR),
-            days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_WEEK),
-            months: Some(DEFAULT_ID_MONTH),
-            years: Some(DEFAULT_ID_YEAR),
-        }
     }
 }
 
