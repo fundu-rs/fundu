@@ -45,7 +45,7 @@ impl Default for TimeUnits {
     }
 }
 
-impl TimeUnitsLike<TimeUnit> for TimeUnits {
+impl TimeUnitsLike for TimeUnits {
     /// Return `true` if this set of time units is empty.
     fn is_empty(&self) -> bool {
         self.nanos.is_none()

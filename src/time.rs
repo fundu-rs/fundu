@@ -114,7 +114,7 @@ impl TimeUnit {
     }
 }
 
-pub trait TimeUnitsLike<T> {
+pub trait TimeUnitsLike {
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<TimeUnit>;
 }

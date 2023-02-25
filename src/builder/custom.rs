@@ -179,7 +179,7 @@ impl<'a> CustomTimeUnits<'a> {
     }
 }
 
-impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
+impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     fn is_empty(&self) -> bool {
         self.time_units.iter().all(|(_, v)| v.is_empty())
     }
