@@ -26,6 +26,8 @@ pub const DEFAULT_ID_MONTH: &str = "M";
 /// The default identifier of [`TimeUnit::Year`]
 pub const DEFAULT_ID_YEAR: &str = "y";
 
+pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
+
 /// The time units the parser can understand and needed to configure the [`DurationParser`].
 ///
 /// # Examples
@@ -67,7 +69,7 @@ pub enum TimeUnit {
 
 impl Default for TimeUnit {
     fn default() -> Self {
-        Second
+        DEFAULT_TIME_UNIT
     }
 }
 

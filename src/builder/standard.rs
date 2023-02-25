@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use crate::parse::ReprParser;
-use crate::time::TimeUnitsLike;
+use crate::time::{TimeUnitsLike, DEFAULT_TIME_UNIT};
 use crate::{
     ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
@@ -30,18 +30,7 @@ pub struct TimeUnits {
 
 impl Default for TimeUnits {
     fn default() -> Self {
-        Self {
-            nanos: Some(DEFAULT_ID_NANO_SECOND),
-            micros: Some(DEFAULT_ID_MICRO_SECOND),
-            millis: Some(DEFAULT_ID_MILLI_SECOND),
-            seconds: Some(DEFAULT_ID_SECOND),
-            minutes: Some(DEFAULT_ID_MINUTE),
-            hours: Some(DEFAULT_ID_HOUR),
-            days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_WEEK),
-            months: Default::default(),
-            years: Default::default(),
-        }
+        Self::with_default_time_units()
     }
 }
 
@@ -105,18 +94,18 @@ impl TimeUnitsLike for TimeUnits {
 
 impl TimeUnits {
     /// Create an empty set of [`TimeUnit`]s.
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
-            nanos: Default::default(),
-            micros: Default::default(),
-            millis: Default::default(),
-            seconds: Default::default(),
-            minutes: Default::default(),
-            hours: Default::default(),
-            days: Default::default(),
-            weeks: Default::default(),
-            months: Default::default(),
-            years: Default::default(),
+            nanos: None,
+            micros: None,
+            millis: None,
+            seconds: None,
+            minutes: None,
+            hours: None,
+            days: None,
+            weeks: None,
+            months: None,
+            years: None,
         }
     }
 
@@ -128,12 +117,23 @@ impl TimeUnits {
     }
 
     /// Create [`TimeUnits`] with default [`TimeUnit`]s.
-    fn with_default_time_units() -> Self {
-        Self::default()
+    const fn with_default_time_units() -> Self {
+        Self {
+            nanos: Some(DEFAULT_ID_NANO_SECOND),
+            micros: Some(DEFAULT_ID_MICRO_SECOND),
+            millis: Some(DEFAULT_ID_MILLI_SECOND),
+            seconds: Some(DEFAULT_ID_SECOND),
+            minutes: Some(DEFAULT_ID_MINUTE),
+            hours: Some(DEFAULT_ID_HOUR),
+            days: Some(DEFAULT_ID_DAY),
+            weeks: Some(DEFAULT_ID_WEEK),
+            months: None,
+            years: None,
+        }
     }
 
     /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
-    fn with_all_time_units() -> Self {
+    const fn with_all_time_units() -> Self {
         Self {
             nanos: Some(DEFAULT_ID_NANO_SECOND),
             micros: Some(DEFAULT_ID_MICRO_SECOND),
@@ -271,10 +271,10 @@ impl DurationParser {
     ///     vec![NanoSecond, MicroSecond, MilliSecond, Second, Minute, Hour, Day, Week]
     /// );
     /// ```
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             time_units: TimeUnits::with_default_time_units(),
-            default_unit: Default::default(),
+            default_unit: DEFAULT_TIME_UNIT,
         }
     }
 
@@ -318,10 +318,10 @@ impl DurationParser {
     ///     vec![]
     /// );
     /// ```
-    pub fn without_time_units() -> Self {
+    pub const fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
-            default_unit: Default::default(),
+            default_unit: DEFAULT_TIME_UNIT,
         }
     }
 
@@ -338,10 +338,10 @@ impl DurationParser {
     ///     vec![NanoSecond, MicroSecond, MilliSecond, Second, Minute, Hour, Day, Week, Month, Year]
     /// );
     /// ```
-    pub fn with_all_time_units() -> Self {
+    pub const fn with_all_time_units() -> Self {
         Self {
             time_units: TimeUnits::with_all_time_units(),
-            default_unit: Default::default(),
+            default_unit: DEFAULT_TIME_UNIT,
         }
     }
 
