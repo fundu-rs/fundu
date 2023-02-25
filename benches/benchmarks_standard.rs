@@ -71,13 +71,23 @@ fn benchmark_parsing(criterion: &mut Criterion) {
 }
 
 fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
-    let inputs = ["1ns", "1s", "1y"];
-    let parser = DurationParser::with_all_time_units();
+    let inputs = [(NanoSecond, "ns"), (Second, "s"), (Year, "y")];
+    let mut parser = DurationParser::with_all_time_units();
     let mut group = criterion.benchmark_group("parsing speed time units");
-    for input in inputs {
+    for (unit, input) in inputs {
+        parser.default_unit(unit);
         group.bench_with_input(
-            BenchmarkId::new("input with time units", input),
-            input,
+            BenchmarkId::new(format!("input without time unit (default = {unit:?})"), "1"),
+            &input,
+            |b, input| b.iter(|| black_box(&parser).parse(input)),
+        );
+        let input = format!("1{input}");
+        group.bench_with_input(
+            BenchmarkId::new(
+                format!("input with time units (default = {unit:?})"),
+                &input,
+            ),
+            &input,
             |b, input| b.iter(|| black_box(&parser).parse(input)),
         );
     }
