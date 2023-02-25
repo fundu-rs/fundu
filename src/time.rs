@@ -75,7 +75,7 @@ impl Default for TimeUnit {
 
 impl TimeUnit {
     /// Return the default identifier
-    pub fn default_identifier(&self) -> &'static str {
+    pub const fn default_identifier(&self) -> &'static str {
         match self {
             NanoSecond => DEFAULT_ID_NANO_SECOND,
             MicroSecond => DEFAULT_ID_MICRO_SECOND,
@@ -100,7 +100,7 @@ impl TimeUnit {
     /// t > s  => x(t) * m
     /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
-    pub(crate) fn multiplier(&self) -> u64 {
+    pub(crate) const fn multiplier(&self) -> u64 {
         match self {
             NanoSecond => 9,
             MicroSecond => 6,
