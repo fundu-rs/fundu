@@ -22,9 +22,9 @@ pub enum ParseError {
     /// An error concerning time units. Like [`ParseError::Syntax`]  the position where the error
     /// occurred is included.
     TimeUnit(usize, String),
-    /// The exponent exceeded the minimum negative exponent (`-1022`)
+    /// The exponent exceeded the minimum negative exponent (`-32768`)
     NegativeExponentOverflow,
-    /// The exponent exceeded the maximum positive exponent (`+1023`)
+    /// The exponent exceeded the maximum positive exponent (`+32767`)
     PositiveExponentOverflow,
     /// The input number was negative. Note that numbers close to `0` (`< 1e-18) are not negative
     /// but resolve to `0`
@@ -46,10 +46,10 @@ impl Display for ParseError {
                 format!("Time unit error: {reason} at column {pos}")
             }
             ParseError::NegativeExponentOverflow => {
-                "Negative exponent overflow: Minimum is -1022".to_string()
+                "Negative exponent overflow: Minimum is -32768".to_string()
             }
             ParseError::PositiveExponentOverflow => {
-                "Positive exponent overflow: Maximum is +1023".to_string()
+                "Positive exponent overflow: Maximum is +32767".to_string()
             }
             ParseError::NegativeNumber => "Number was negative".to_string(),
             ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
@@ -76,11 +76,11 @@ mod tests {
     )]
     #[case::negative_exponent_overflow_error(
         ParseError::NegativeExponentOverflow,
-        "Negative exponent overflow: Minimum is -1022"
+        "Negative exponent overflow: Minimum is -32768"
     )]
     #[case::positive_exponent_overflow_error(
         ParseError::PositiveExponentOverflow,
-        "Positive exponent overflow: Maximum is +1023"
+        "Positive exponent overflow: Maximum is +32767"
     )]
     #[case::negative_number_error(ParseError::NegativeNumber, "Number was negative")]
     #[case::invalid_input(

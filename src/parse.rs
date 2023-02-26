@@ -216,6 +216,8 @@ pub(crate) struct ReprParser<'a> {
     current_pos: usize,
     time_units: &'a dyn TimeUnitsLike,
     default_unit: TimeUnit,
+    max_exponent: i16,
+    min_exponent: i16,
     input: &'a [u8],
 }
 
@@ -230,6 +232,8 @@ impl<'a> ReprParser<'a> {
             current_pos: 0,
             default_unit,
             time_units,
+            max_exponent: i16::MAX,
+            min_exponent: i16::MIN,
         }
     }
 
@@ -276,7 +280,8 @@ impl<'a> ReprParser<'a> {
             Some(byte) if byte.is_ascii_digit() => {
                 // the maximum number of digits that need to be considered:
                 // max(-exponent) = 1022 + max_digits(u64::MAX) = 20 + 1
-                let whole = self.parse_digits(1043, true)?;
+                let whole =
+                    self.parse_digits(((self.min_exponent as isize).abs() + 21) as usize, true)?;
                 duration_repr.whole = Some(whole);
             }
             Some(byte) if *byte == b'.' => {}
@@ -301,7 +306,9 @@ impl<'a> ReprParser<'a> {
                 let fract = match self.current_byte {
                     // the maximum number of digits that need to be considered:
                     // max(+exponent) = 1023 + max_digits(nano seconds) = 9 + 1
-                    Some(byte) if byte.is_ascii_digit() => Some(self.parse_digits(1033, false)?),
+                    Some(byte) if byte.is_ascii_digit() => {
+                        Some(self.parse_digits((self.max_exponent as usize) + 10, false)?)
+                    }
                     Some(_) | None if duration_repr.whole.is_none() => {
                         return Err(ParseError::Syntax(
                             self.current_pos,
@@ -379,9 +386,8 @@ impl<'a> ReprParser<'a> {
             "Call this function only when there is at lease one digit present"
         ); // cov:excl-stop
 
-        // Using `size_hint()` is a rough (but always correct) estimation for an upper bound.
-        // However, using maybe more memory than needed spares the costly memory reallocations and
-        // maximum memory used is just around `1kB` per parsed number.
+        // Using `len()` is a rough (but always correct) estimation for an upper bound.
+        // However, using maybe more memory than needed spares the costly memory reallocations
         let capacity = max.min(self.input.len() - self.current_pos + 1);
         let mut digits = Vec::<u8>::with_capacity(capacity);
 
@@ -475,21 +481,29 @@ impl<'a> ReprParser<'a> {
         while let Some(byte) = self.current_byte {
             let digit = byte.wrapping_sub(b'0');
             if digit < 10 {
-                exponent = exponent * 10 + digit as i16;
-                if (is_negative && exponent <= 1022) || (!is_negative && exponent <= 1023) {
-                    self.advance();
+                exponent = if is_negative {
+                    match exponent
+                        .checked_mul(10)
+                        .and_then(|e| e.checked_sub(digit as i16))
+                    {
+                        Some(exponent) => exponent,
+                        None => return Err(ParseError::NegativeExponentOverflow),
+                    }
                 } else {
-                    return if is_negative {
-                        Err(ParseError::NegativeExponentOverflow)
-                    } else {
-                        Err(ParseError::PositiveExponentOverflow)
-                    };
-                }
+                    match exponent
+                        .checked_mul(10)
+                        .and_then(|e| e.checked_add(digit as i16))
+                    {
+                        Some(exponent) => exponent,
+                        None => return Err(ParseError::PositiveExponentOverflow),
+                    }
+                };
+                self.advance();
             } else {
                 break;
             }
         }
 
-        Ok(if is_negative { -exponent } else { exponent })
+        Ok(exponent)
     }
 }

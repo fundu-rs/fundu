@@ -92,8 +92,8 @@ fn test_parse_duration_when_arguments_contain_exponent(
 #[rstest]
 #[case::no_number("1e")]
 #[case::invalid_number("1e+F")]
-#[case::exponent_overflow_error_high("1e1024")]
-#[case::exponent_overflow_error_low("1e-1023")]
+#[case::exponent_overflow_error_high("1e32768")]
+#[case::exponent_overflow_error_low("1e-32769")]
 #[case::exponent_parse_i16_overflow_error(&format!("1e{}", i16::MIN as i32 - 1))]
 fn test_parse_duration_when_arguments_with_illegal_exponent_then_error(#[case] source: &str) {
     assert!(parse_duration(source).is_err());
@@ -221,15 +221,15 @@ fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] ti
 )]
 #[case::negative_exponent_overflow_error(
     DurationParser::new(),
-    "1e-1023",
+    "1e-32769",
     ParseError::NegativeExponentOverflow,
-    "Negative exponent overflow: Minimum is -1022"
+    "Negative exponent overflow: Minimum is -32768"
 )]
 #[case::positive_exponent_overflow_error(
     DurationParser::new(),
-    "1e+1024",
+    "1e+32768",
     ParseError::PositiveExponentOverflow,
-    "Positive exponent overflow: Maximum is +1023"
+    "Positive exponent overflow: Maximum is +32767"
 )]
 #[case::negative_number_error(
     DurationParser::new(),
