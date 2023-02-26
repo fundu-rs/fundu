@@ -3,7 +3,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{parse_duration, DurationParser, ParseError, TimeUnit, TimeUnit::*};
+use fundu::{
+    parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, TimeUnit::*,
+    SYSTEMD_TIME_UNITS,
+};
 use rstest::rstest;
 use std::time::Duration;
 
@@ -89,8 +92,8 @@ fn test_parse_duration_when_arguments_contain_exponent(
 #[rstest]
 #[case::no_number("1e")]
 #[case::invalid_number("1e+F")]
-#[case::exponent_overflow_error_high("1e1024")]
-#[case::exponent_overflow_error_low("1e-1023")]
+#[case::exponent_overflow_error_high("1e32768")]
+#[case::exponent_overflow_error_low("1e-32769")]
 #[case::exponent_parse_i16_overflow_error(&format!("1e{}", i16::MIN as i32 - 1))]
 fn test_parse_duration_when_arguments_with_illegal_exponent_then_error(#[case] source: &str) {
     assert!(parse_duration(source).is_err());
@@ -218,15 +221,15 @@ fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] ti
 )]
 #[case::negative_exponent_overflow_error(
     DurationParser::new(),
-    "1e-1023",
+    "1e-32769",
     ParseError::NegativeExponentOverflow,
-    "Negative exponent overflow: Minimum is -1022"
+    "Negative exponent overflow: Minimum is -32768"
 )]
 #[case::positive_exponent_overflow_error(
     DurationParser::new(),
-    "1e+1024",
+    "1e+32768",
     ParseError::PositiveExponentOverflow,
-    "Positive exponent overflow: Maximum is +1023"
+    "Positive exponent overflow: Maximum is +32767"
 )]
 #[case::negative_number_error(
     DurationParser::new(),
@@ -272,4 +275,25 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
             .unwrap(),
         expected
     );
+}
+
+#[rstest]
+#[case::nano_second(&["ns", "nsec"], Duration::new(0, 1))]
+#[case::micro_second(&["us", "µs", "usec"], Duration::new(0, 1000))]
+#[case::milli_second(&["ms", "msec"], Duration::new(0, 1_000_000))]
+#[case::second(&["s", "sec", "second", "seconds"], Duration::new(1, 0))]
+#[case::minute(&["m", "min", "minute", "minutes"], Duration::new(60, 0))]
+#[case::hour(&["h", "hr", "hour", "hours"], Duration::new(60 * 60, 0))]
+#[case::day(&["d", "day", "days"], Duration::new(60 * 60 * 24, 0))]
+#[case::week(&["w", "week", "weeks"], Duration::new(60 * 60 * 24 * 7, 0))]
+#[case::month(&["M", "month", "months"], Duration::new(MONTH, 0))]
+#[case::year(&["y", "year", "years"], Duration::new(YEAR, 0))]
+fn test_custom_duration_parser_parse_when_systemd_time_units(
+    #[case] inputs: &[&str],
+    #[case] expected: Duration,
+) {
+    let parser = CustomDurationParser::with_time_units(&SYSTEMD_TIME_UNITS);
+    for input in inputs {
+        assert_eq!(parser.parse(&format!("1{input}")), Ok(expected));
+    }
 }

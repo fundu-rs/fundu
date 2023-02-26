@@ -6,60 +6,71 @@
 use std::time::Duration;
 
 use crate::parse::ReprParser;
-use crate::time::TimeUnitsLike;
+use crate::time::{TimeUnitsLike, DEFAULT_TIME_UNIT};
 use crate::{
     ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
 
+const DEFAULT_TIME_UNITS: [&str; 10] = [
+    DEFAULT_ID_NANO_SECOND,
+    DEFAULT_ID_MICRO_SECOND,
+    DEFAULT_ID_MILLI_SECOND,
+    DEFAULT_ID_SECOND,
+    DEFAULT_ID_MINUTE,
+    DEFAULT_ID_HOUR,
+    DEFAULT_ID_DAY,
+    DEFAULT_ID_WEEK,
+    DEFAULT_ID_MONTH,
+    DEFAULT_ID_YEAR,
+];
+
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
 #[derive(Debug, PartialEq)]
 pub struct TimeUnits {
-    nanos: Option<&'static str>,
-    micros: Option<&'static str>,
-    millis: Option<&'static str>,
-    seconds: Option<&'static str>,
-    minutes: Option<&'static str>,
-    hours: Option<&'static str>,
-    days: Option<&'static str>,
-    weeks: Option<&'static str>,
-    months: Option<&'static str>,
-    years: Option<&'static str>,
+    data: [Option<TimeUnit>; 10],
 }
 
 impl Default for TimeUnits {
     fn default() -> Self {
-        Self {
-            nanos: Some(DEFAULT_ID_NANO_SECOND),
-            micros: Some(DEFAULT_ID_MICRO_SECOND),
-            millis: Some(DEFAULT_ID_MILLI_SECOND),
-            seconds: Some(DEFAULT_ID_SECOND),
-            minutes: Some(DEFAULT_ID_MINUTE),
-            hours: Some(DEFAULT_ID_HOUR),
-            days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_WEEK),
-            months: Default::default(),
-            years: Default::default(),
+        Self::with_default_time_units()
+    }
+}
+
+impl TimeUnitsLike for TimeUnits {
+    /// Return `true` if this set of time units is empty.
+    fn is_empty(&self) -> bool {
+        self.data.iter().all(|b| b.is_none())
+    }
+
+    /// Return the [`TimeUnit`] associated with the provided `identifier`.
+    ///
+    /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
+    /// set of time units.
+    fn get(&self, identifier: &str) -> Option<TimeUnit> {
+        match identifier.len() {
+            1 => self
+                .data
+                .iter()
+                .skip(3)
+                .filter_map(|t| *t)
+                .find(|t| DEFAULT_TIME_UNITS[*t as usize] == identifier),
+            2 => self
+                .data
+                .iter()
+                .take(3)
+                .filter_map(|t| *t)
+                .find(|t| DEFAULT_TIME_UNITS[*t as usize] == identifier),
+            _ => None,
         }
     }
 }
 
-impl TimeUnitsLike<TimeUnit> for TimeUnits {
+impl TimeUnits {
     /// Create an empty set of [`TimeUnit`]s.
-    fn new() -> Self {
-        Self {
-            nanos: Default::default(),
-            micros: Default::default(),
-            millis: Default::default(),
-            seconds: Default::default(),
-            minutes: Default::default(),
-            hours: Default::default(),
-            days: Default::default(),
-            weeks: Default::default(),
-            months: Default::default(),
-            years: Default::default(),
-        }
+    const fn new() -> Self {
+        Self { data: [None; 10] }
     }
 
     /// Create [`TimeUnits`] with a custom set of [`TimeUnit`]s.
@@ -69,40 +80,45 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         time_units
     }
 
+    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
+    const fn with_default_time_units() -> Self {
+        Self {
+            data: [
+                Some(NanoSecond),
+                Some(MicroSecond),
+                Some(MilliSecond),
+                Some(Second),
+                Some(Minute),
+                Some(Hour),
+                Some(Day),
+                Some(Week),
+                None,
+                None,
+            ],
+        }
+    }
+
+    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
+    const fn with_all_time_units() -> Self {
+        Self {
+            data: [
+                Some(NanoSecond),
+                Some(MicroSecond),
+                Some(MilliSecond),
+                Some(Second),
+                Some(Minute),
+                Some(Hour),
+                Some(Day),
+                Some(Week),
+                Some(Month),
+                Some(Year),
+            ],
+        }
+    }
+
     /// Add a [`TimeUnit`] to the set of already present time units.
     fn add_time_unit(&mut self, unit: TimeUnit) {
-        match unit {
-            NanoSecond => {
-                self.nanos = Some(DEFAULT_ID_NANO_SECOND);
-            }
-            MicroSecond => {
-                self.micros = Some(DEFAULT_ID_MICRO_SECOND);
-            }
-            MilliSecond => {
-                self.millis = Some(DEFAULT_ID_MILLI_SECOND);
-            }
-            Second => {
-                self.seconds = Some(DEFAULT_ID_SECOND);
-            }
-            Minute => {
-                self.minutes = Some(DEFAULT_ID_MINUTE);
-            }
-            Hour => {
-                self.hours = Some(DEFAULT_ID_HOUR);
-            }
-            Day => {
-                self.days = Some(DEFAULT_ID_DAY);
-            }
-            Week => {
-                self.weeks = Some(DEFAULT_ID_WEEK);
-            }
-            Month => {
-                self.months = Some(DEFAULT_ID_MONTH);
-            }
-            Year => {
-                self.years = Some(DEFAULT_ID_YEAR);
-            }
-        };
+        self.data[unit as usize] = Some(unit);
     }
 
     /// Add multiple [`TimeUnit`] to the set of already present time units.
@@ -112,94 +128,9 @@ impl TimeUnitsLike<TimeUnit> for TimeUnits {
         }
     }
 
-    /// Return `true` if this set of time units is empty.
-    fn is_empty(&self) -> bool {
-        self.nanos.is_none()
-            && self.micros.is_none()
-            && self.millis.is_none()
-            && self.seconds.is_none()
-            && self.minutes.is_none()
-            && self.hours.is_none()
-            && self.days.is_none()
-            && self.weeks.is_none()
-            && self.months.is_none()
-            && self.years.is_none()
-    }
-
-    /// Return the [`TimeUnit`] associated with the provided `identifier`.
-    ///
-    /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
-    /// set of time units.
-    fn get(&self, identifier: &str) -> Option<TimeUnit> {
-        let id = Some(identifier);
-        if id == self.nanos {
-            Some(NanoSecond)
-        } else if id == self.micros {
-            Some(MicroSecond)
-        } else if id == self.millis {
-            Some(MilliSecond)
-        } else if id == self.seconds {
-            Some(Second)
-        } else if id == self.minutes {
-            Some(Minute)
-        } else if id == self.hours {
-            Some(Hour)
-        } else if id == self.days {
-            Some(Day)
-        } else if id == self.weeks {
-            Some(Week)
-        } else if id == self.months {
-            Some(Month)
-        } else if id == self.years {
-            Some(Year)
-        } else {
-            None
-        }
-    }
-
     /// Return all [`TimeUnit`]s from the set of active time units ordered.
     fn get_time_units(&self) -> Vec<TimeUnit> {
-        let mut time_units = Vec::with_capacity(10);
-        for (unit, value) in &[
-            (NanoSecond, self.nanos),
-            (MicroSecond, self.micros),
-            (MilliSecond, self.millis),
-            (Second, self.seconds),
-            (Minute, self.minutes),
-            (Hour, self.hours),
-            (Day, self.days),
-            (Week, self.weeks),
-            (Month, self.months),
-            (Year, self.years),
-        ] {
-            if value.is_some() {
-                time_units.push(*unit);
-            }
-        }
-        time_units
-    }
-}
-
-impl TimeUnits {
-    /// Create [`TimeUnits`] with default [`TimeUnit`]s.
-    fn with_default_time_units() -> Self {
-        Self::default()
-    }
-
-    /// Create [`TimeUnits`] with a all available [`TimeUnit`]s.
-    fn with_all_time_units() -> Self {
-        Self {
-            nanos: Some(DEFAULT_ID_NANO_SECOND),
-            micros: Some(DEFAULT_ID_MICRO_SECOND),
-            millis: Some(DEFAULT_ID_MILLI_SECOND),
-            seconds: Some(DEFAULT_ID_SECOND),
-            minutes: Some(DEFAULT_ID_MINUTE),
-            hours: Some(DEFAULT_ID_HOUR),
-            days: Some(DEFAULT_ID_DAY),
-            weeks: Some(DEFAULT_ID_WEEK),
-            months: Some(DEFAULT_ID_MONTH),
-            years: Some(DEFAULT_ID_YEAR),
-        }
+        self.data.iter().filter_map(|&p| p).collect()
     }
 }
 
@@ -260,10 +191,10 @@ impl DurationParser {
     ///     vec![NanoSecond, MicroSecond, MilliSecond, Second, Minute, Hour, Day, Week]
     /// );
     /// ```
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             time_units: TimeUnits::with_default_time_units(),
-            default_unit: Default::default(),
+            default_unit: DEFAULT_TIME_UNIT,
         }
     }
 
@@ -307,10 +238,10 @@ impl DurationParser {
     ///     vec![]
     /// );
     /// ```
-    pub fn without_time_units() -> Self {
+    pub const fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
-            default_unit: Default::default(),
+            default_unit: DEFAULT_TIME_UNIT,
         }
     }
 
@@ -327,10 +258,10 @@ impl DurationParser {
     ///     vec![NanoSecond, MicroSecond, MilliSecond, Second, Minute, Hour, Day, Week, Month, Year]
     /// );
     /// ```
-    pub fn with_all_time_units() -> Self {
+    pub const fn with_all_time_units() -> Self {
         Self {
             time_units: TimeUnits::with_all_time_units(),
-            default_unit: Default::default(),
+            default_unit: DEFAULT_TIME_UNIT,
         }
     }
 
@@ -487,138 +418,81 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-    fn assert_time_unit(time_units: &TimeUnits, time_unit: TimeUnit, expected: Option<&str>) {
-        let id = match time_unit {
-            NanoSecond => time_units.nanos,
-            MicroSecond => time_units.micros,
-            MilliSecond => time_units.millis,
-            Second => time_units.seconds,
-            Minute => time_units.minutes,
-            Hour => time_units.hours,
-            Day => time_units.days,
-            Week => time_units.weeks,
-            Month => time_units.months,
-            Year => time_units.years,
-        };
-        assert_eq!(id, expected);
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn assert_time_units<'a>(
-        time_units: &TimeUnits,
-        nanos: Option<&'a str>,
-        micros: Option<&'a str>,
-        millis: Option<&'a str>,
-        seconds: Option<&'a str>,
-        minutes: Option<&'a str>,
-        hours: Option<&'a str>,
-        days: Option<&'a str>,
-        weeks: Option<&'a str>,
-        months: Option<&'a str>,
-        years: Option<&'a str>,
-    ) {
-        assert_eq!(time_units.nanos, nanos);
-        assert_eq!(time_units.micros, micros);
-        assert_eq!(time_units.millis, millis);
-        assert_eq!(time_units.seconds, seconds);
-        assert_eq!(time_units.minutes, minutes);
-        assert_eq!(time_units.hours, hours);
-        assert_eq!(time_units.days, days);
-        assert_eq!(time_units.weeks, weeks);
-        assert_eq!(time_units.months, months);
-        assert_eq!(time_units.years, years);
-    }
-
     #[test]
     fn test_time_units_new() {
         let time_units = TimeUnits::new();
-        assert_time_units(
-            &time_units,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        );
+        assert!(time_units.data.iter().all(|t| t.is_none()));
+        assert!(time_units.is_empty());
+        assert_eq!(time_units.get_time_units(), vec![]);
     }
 
     #[test]
     fn test_time_units_with_default_time_units() {
         let time_units = TimeUnits::with_default_time_units();
+        assert!(!time_units.is_empty());
         assert_eq!(time_units, TimeUnits::default());
-
-        assert_time_units(
-            &time_units,
-            Some("ns"),
-            Some("Ms"),
-            Some("ms"),
-            Some("s"),
-            Some("m"),
-            Some("h"),
-            Some("d"),
-            Some("w"),
-            None,
-            None,
+        assert_eq!(
+            time_units.get_time_units(),
+            vec![
+                NanoSecond,
+                MicroSecond,
+                MilliSecond,
+                Second,
+                Minute,
+                Hour,
+                Day,
+                Week
+            ]
         );
     }
 
     #[test]
     fn test_time_units_with_all_time_units() {
         let time_units = TimeUnits::with_all_time_units();
-        assert_time_units(
-            &time_units,
-            Some("ns"),
-            Some("Ms"),
-            Some("ms"),
-            Some("s"),
-            Some("m"),
-            Some("h"),
-            Some("d"),
-            Some("w"),
-            Some("M"),
-            Some("y"),
+        assert!(!time_units.is_empty());
+        assert_eq!(
+            time_units.get_time_units(),
+            vec![
+                NanoSecond,
+                MicroSecond,
+                MilliSecond,
+                Second,
+                Minute,
+                Hour,
+                Day,
+                Week,
+                Month,
+                Year
+            ]
         );
     }
 
     #[test]
     fn test_time_units_with_time_units() {
         let time_units = TimeUnits::with_time_units(&[NanoSecond]);
-        assert_time_units(
-            &time_units,
-            Some("ns"),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        );
+        assert!(!time_units.is_empty());
+        assert_eq!(time_units.get_time_units(), vec![NanoSecond,]);
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, Some("ns"))]
-    #[case::nano_second(MicroSecond, Some("Ms"))]
-    #[case::nano_second(MilliSecond, Some("ms"))]
-    #[case::nano_second(Second, Some("s"))]
-    #[case::nano_second(Minute, Some("m"))]
-    #[case::nano_second(Hour, Some("h"))]
-    #[case::nano_second(Day, Some("d"))]
-    #[case::nano_second(Week, Some("w"))]
-    #[case::nano_second(Month, Some("M"))]
-    #[case::nano_second(Year, Some("y"))]
-    fn test_time_units_add_time_unit(#[case] time_unit: TimeUnit, #[case] expected: Option<&str>) {
+    #[case::nano_second(NanoSecond, "ns")]
+    #[case::micro_second(MicroSecond, "Ms")]
+    #[case::milli_second(MilliSecond, "ms")]
+    #[case::second(Second, "s")]
+    #[case::minute(Minute, "m")]
+    #[case::hour(Hour, "h")]
+    #[case::day(Day, "d")]
+    #[case::week(Week, "w")]
+    #[case::month(Month, "M")]
+    #[case::year(Year, "y")]
+    fn test_time_units_add_time_unit_when_empty(
+        #[case] time_unit: TimeUnit,
+        #[case] identifier: &str,
+    ) {
         let mut time_units = TimeUnits::new();
         time_units.add_time_unit(time_unit);
-        assert_time_unit(&time_units, time_unit, expected);
         assert_eq!(time_units.get_time_units(), vec![time_unit]);
+        assert_eq!(time_units.get(identifier), Some(time_unit));
     }
 
     #[test]
@@ -629,7 +503,6 @@ mod tests {
         time_units.add_time_unit(time_unit);
         time_units.add_time_unit(time_unit);
 
-        assert!(time_units.micros.is_some());
         assert_eq!(time_units.get_time_units(), vec![time_unit]);
     }
 
@@ -714,7 +587,7 @@ mod tests {
     #[test]
     fn test_duration_parser_init_when_default() {
         let parser = DurationParser::default();
-        assert!(!parser.time_units.is_empty());
+        assert_eq!(parser.default_unit, Second);
         assert_eq!(
             parser.get_current_time_units(),
             vec![

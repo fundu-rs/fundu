@@ -3,5 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+#[cfg(feature = "custom")]
 pub(crate) mod custom;
+#[cfg(feature = "standard")]
 pub(crate) mod standard;

@@ -101,40 +101,6 @@ impl LookupData {
 }
 
 impl<'a> CustomTimeUnits<'a> {
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            min_length: usize::MAX,
-            max_length: 0,
-            time_units: [
-                (LookupData::new(NanoSecond), Vec::with_capacity(capacity)),
-                (LookupData::new(MicroSecond), Vec::with_capacity(capacity)),
-                (LookupData::new(MilliSecond), Vec::with_capacity(capacity)),
-                (LookupData::new(Second), Vec::with_capacity(capacity)),
-                (LookupData::new(Minute), Vec::with_capacity(capacity)),
-                (LookupData::new(Hour), Vec::with_capacity(capacity)),
-                (LookupData::new(Day), Vec::with_capacity(capacity)),
-                (LookupData::new(Week), Vec::with_capacity(capacity)),
-                (LookupData::new(Month), Vec::with_capacity(capacity)),
-                (LookupData::new(Year), Vec::with_capacity(capacity)),
-            ],
-        }
-    }
-
-    fn lookup_mut(&'_ mut self, unit: TimeUnit) -> &'_ mut (LookupData, Vec<&'a str>) {
-        &mut self.time_units[unit as usize]
-    }
-
-    fn update_lengths(&mut self, min_length: usize, max_length: usize) {
-        if self.min_length > min_length {
-            self.min_length = min_length;
-        }
-        if self.max_length < max_length {
-            self.max_length = max_length;
-        }
-    }
-}
-
-impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
     fn new() -> Self {
         Self::with_capacity(0)
     }
@@ -167,7 +133,53 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
             self.add_time_unit(*unit);
         }
     }
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            min_length: usize::MAX,
+            max_length: 0,
+            time_units: [
+                (LookupData::new(NanoSecond), Vec::with_capacity(capacity)),
+                (LookupData::new(MicroSecond), Vec::with_capacity(capacity)),
+                (LookupData::new(MilliSecond), Vec::with_capacity(capacity)),
+                (LookupData::new(Second), Vec::with_capacity(capacity)),
+                (LookupData::new(Minute), Vec::with_capacity(capacity)),
+                (LookupData::new(Hour), Vec::with_capacity(capacity)),
+                (LookupData::new(Day), Vec::with_capacity(capacity)),
+                (LookupData::new(Week), Vec::with_capacity(capacity)),
+                (LookupData::new(Month), Vec::with_capacity(capacity)),
+                (LookupData::new(Year), Vec::with_capacity(capacity)),
+            ],
+        }
+    }
 
+    fn lookup_mut(&'_ mut self, unit: TimeUnit) -> &'_ mut (LookupData, Vec<&'a str>) {
+        &mut self.time_units[unit as usize]
+    }
+
+    fn update_lengths(&mut self, min_length: usize, max_length: usize) {
+        if self.min_length > min_length {
+            self.min_length = min_length;
+        }
+        if self.max_length < max_length {
+            self.max_length = max_length;
+        }
+    }
+
+    fn get_time_units(&self) -> Vec<TimeUnit> {
+        self.time_units
+            .iter()
+            .filter_map(|(data, _)| {
+                if !data.is_empty() {
+                    Some(data.time_unit)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+}
+
+impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     fn is_empty(&self) -> bool {
         self.time_units.iter().all(|(_, v)| v.is_empty())
     }
@@ -184,19 +196,6 @@ impl<'a> TimeUnitsLike<IdentifiersSlice<'a>> for CustomTimeUnits<'a> {
                 None
             }
         })
-    }
-
-    fn get_time_units(&self) -> Vec<TimeUnit> {
-        self.time_units
-            .iter()
-            .filter_map(|(data, _)| {
-                if !data.is_empty() {
-                    Some(data.time_unit)
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 }
 

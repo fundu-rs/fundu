@@ -26,6 +26,8 @@ pub const DEFAULT_ID_MONTH: &str = "M";
 /// The default identifier of [`TimeUnit::Year`]
 pub const DEFAULT_ID_YEAR: &str = "y";
 
+pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
+
 /// The time units the parser can understand and needed to configure the [`DurationParser`].
 ///
 /// # Examples
@@ -67,13 +69,13 @@ pub enum TimeUnit {
 
 impl Default for TimeUnit {
     fn default() -> Self {
-        Second
+        DEFAULT_TIME_UNIT
     }
 }
 
 impl TimeUnit {
     /// Return the default identifier
-    pub fn default_identifier(&self) -> &'static str {
+    pub const fn default_identifier(&self) -> &'static str {
         match self {
             NanoSecond => DEFAULT_ID_NANO_SECOND,
             MicroSecond => DEFAULT_ID_MICRO_SECOND,
@@ -98,7 +100,7 @@ impl TimeUnit {
     /// t > s  => x(t) * m
     /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
-    pub(crate) fn multiplier(&self) -> u64 {
+    pub(crate) const fn multiplier(&self) -> u64 {
         match self {
             NanoSecond => 9,
             MicroSecond => 6,
@@ -114,18 +116,9 @@ impl TimeUnit {
     }
 }
 
-pub trait TimeUnitsLike<T> {
-    fn new() -> Self
-    where
-        Self: Sized;
-    fn with_time_units(units: &[T]) -> Self
-    where
-        Self: Sized;
-    fn add_time_unit(&mut self, unit: T);
-    fn add_time_units(&mut self, units: &[T]);
+pub trait TimeUnitsLike {
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<TimeUnit>;
-    fn get_time_units(&self) -> Vec<TimeUnit>;
 }
 
 #[cfg(test)]

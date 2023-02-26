@@ -88,7 +88,7 @@
 //!   point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
 //! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
-//! * The exponent must be in the range `-1022 <= Exp <= 1023`
+//! * The exponent must be in the range `-32768 <= Exp <= 32767`
 //!
 //! # Examples
 //!
