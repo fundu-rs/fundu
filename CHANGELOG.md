@@ -24,6 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2023-02-26
+
+### Changed
+
+- The exponent maximum/minium changed to i16 bounds.
+- Make most initialization methods of `DurationParser` applicable in `const` context
+- Some internal refactors improved the initialization and parsing speeds
+
+### Fixed
+
+- Apply cfg attributes in builder mod.rs. This fixes the warnings when not all features were given.
+
 ## [0.4.0] - 2023-02-24
 
 ### Added
