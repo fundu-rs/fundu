@@ -5,12 +5,15 @@ use std::{num::IntErrorKind, time::Duration};
 use fundu::{DurationParser, ParseError};
 use libfuzzer_sys::fuzz_target;
 
+const MIN_EXPONENT: i16 = i16::MIN;
+const MAX_EXPONENT: i16 = i16::MAX;
+
 fn check_exponent_overflow(input: &str, error: ParseError) {
     match input.find(|c: char| c.eq_ignore_ascii_case(&'e')) {
         Some(index) => match input.get(index + 1..) {
             Some(exponent) => {
                 match exponent.parse::<i16>() {
-                    Ok(e) if (-1022..=1023).contains(&e) => panic!(
+                    Ok(e) if (MIN_EXPONENT..=MAX_EXPONENT).contains(&e) => panic!(
                         "Exponent overflow error: Exponent was in valid range: input: {input}, error: {error:?}"
                     ),
                     Ok(_) => {
