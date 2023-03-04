@@ -15,16 +15,42 @@ use crate::time::{TimeUnit, TimeUnitsLike};
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
 
-/// An intermediate representation of seconds.
-///
-/// Optionally append `usize` amount of zeroes.
+const POW10: [u64; 20] = [
+    1,
+    10,
+    100,
+    1_000,
+    10_000,
+    100_000,
+    1_000_000,
+    10_000_000,
+    100_000_000,
+    1_000_000_000,
+    10_000_000_000,
+    100_000_000_000,
+    1_000_000_000_000,
+    10_000_000_000_000,
+    100_000_000_000_000,
+    1_000_000_000_000_000,
+    10_000_000_000_000_000,
+    100_000_000_000_000_000,
+    1_000_000_000_000_000_000,
+    10_000_000_000_000_000_000,
+];
+
 struct Seconds<'a>(Option<&'a [u8]>, Option<&'a [u8]>, Option<usize>);
 
 trait Parse8Digits {
-    // This method is base on the work of Johnny Lee and his blog post
+    // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
     #[inline]
     unsafe fn parse_8_digits(digits: &[u8]) -> u64 {
+        // cov:excl-start
+        debug_assert!(
+            digits.len() >= 8,
+            "Call this method only if digits has length >= 8"
+        ); // cov:excl-end
+
         let ptr = digits.as_ptr() as *const u64;
         let mut num = u64::from_le(ptr.read_unaligned());
         num = (num.wrapping_mul(2561)) >> 8;
@@ -86,12 +112,8 @@ impl<'a> Seconds<'a> {
             Ok(0)
         } else {
             let num_zeroes = self.2.unwrap_or(0);
-            match 10u64.checked_pow(
-                num_zeroes
-                    .try_into()
-                    .expect("Expected usize to have at least 32 bit width"),
-            ) {
-                Some(pow) => Ok(seconds.saturating_mul(pow)),
+            match POW10.get(num_zeroes) {
+                Some(pow) => Ok(seconds.saturating_mul(*pow)),
                 None => Err(ParseError::Overflow),
             }
         }
@@ -127,6 +149,7 @@ impl<'a> Attos<'a> {
                 .chunks_exact(8);
             for digits in iter.by_ref() {
                 multi /= 100_000_000;
+                // SAFETY: The length of digits is exactly 8
                 attos += unsafe { Self::parse_8_digits(digits) } * multi;
             }
             for num in iter.remainder() {
@@ -152,7 +175,7 @@ impl<'a> Attos<'a> {
         }
 
         let num_zeroes = self.0.unwrap_or_default();
-        let mut multi = ATTO_MULTIPLIER / 10u64.saturating_pow(num_zeroes as u32);
+        let mut multi = ATTO_MULTIPLIER / POW10.get(num_zeroes).unwrap_or(&u64::MAX);
         if multi == 0 {
             return 0;
         }
@@ -362,11 +385,10 @@ impl<'a> ReprParser<'a> {
         if !self.is_8_digits() {
             return None;
         }
-        // If there are 8 digits then it's also clear that there are 8 bytes left in the input
-        // string as bytes and therefore calling this method is safe
-        let digits = unsafe { self.advance_by(8) };
 
+        // SAFETY: We just ensured there are at least 8 bytes as digits
         unsafe {
+            let digits = self.advance_by(8);
             let ptr = digits.as_ptr() as *const u64;
             let val = u64::from_le(ptr.read_unaligned());
             Some(val - 0x3030303030303030)
@@ -478,7 +500,8 @@ impl<'a> ReprParser<'a> {
             "Don't call this function without being sure there's at least 1 byte remaining"
         ); // cov:excl-end
 
-        // Safety: The input of `parse` is &str and therefore valid utf-8
+        // SAFETY: The input of `parse` is &str and therefore valid utf-8 and we have read only
+        // ascii characters up to this point.
         let string = unsafe { std::str::from_utf8_unchecked(self.get_remainder()) };
         let result = self.time_units.get(string).ok_or_else(|| {
             ParseError::TimeUnit(self.current_pos, format!("Invalid time unit: '{string}'"))
@@ -511,7 +534,7 @@ impl<'a> ReprParser<'a> {
         let mut strip_leading_zeroes = true;
         while let Some(eight) = self.parse_8_digits() {
             if capacity >= 8 && (eight != 0 || !strip_leading_zeroes) {
-                // SAFETY: This is safe because there is enough capacity in the vector
+                // SAFETY: We just ensured there is enough capacity in the vector
                 unsafe { *ptr.add(counter) = eight }
                 counter += 1;
                 strip_leading_zeroes = false;
@@ -520,7 +543,8 @@ impl<'a> ReprParser<'a> {
         }
 
         if counter > 0 {
-            unsafe { digits.set_len(counter * 8) }
+            // SAFETY: counter * 8 results always within the reserved space for the vector.
+            unsafe { digits.set_len(counter << 3) }
         }
 
         while let Some(byte) = self.current_byte {
@@ -561,7 +585,7 @@ impl<'a> ReprParser<'a> {
         let mut counter = 0;
         while let Some(eight) = self.parse_8_digits() {
             if capacity >= 8 {
-                // SAFETY: capacity is greater 8
+                // SAFETY: We just ensured capacity >= 8
                 unsafe { *ptr.add(counter) = eight }
                 counter += 1;
                 capacity -= 8;
@@ -569,6 +593,7 @@ impl<'a> ReprParser<'a> {
         }
 
         if counter > 0 {
+            // SAFETY: counter * 8 results always within the reserved space for the vector.
             unsafe { digits.set_len(counter << 3) }
         }
 
