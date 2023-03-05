@@ -528,7 +528,7 @@ impl<'a> ReprParser<'a> {
         while let Some(eight) = self.parse_8_digits() {
             if capacity >= 8 && (eight != 0 || !strip_leading_zeroes) {
                 // SAFETY: We just ensured there is enough capacity in the vector
-                unsafe { *ptr.add(counter) = eight }
+                unsafe { *ptr.add(counter) = u64::from_le(eight) }
                 counter += 1;
                 strip_leading_zeroes = false;
                 capacity -= 8;
@@ -574,7 +574,7 @@ impl<'a> ReprParser<'a> {
         while let Some(eight) = self.parse_8_digits() {
             if capacity >= 8 {
                 // SAFETY: We just ensured capacity >= 8
-                unsafe { *ptr.add(counter) = eight }
+                unsafe { *ptr.add(counter) = u64::from_le(eight) }
                 counter += 1;
                 capacity -= 8;
             }
