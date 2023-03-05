@@ -58,7 +58,7 @@ the input string was positive `infinity`.
 - Supporting input strings of arbitrary length.
 - Providing better error messages.
 
-This library aims for low runtime costs (See [Benchmarks](#benchmarks)) and being a lightweight
+This library aims for good performance (See [Benchmarks](#benchmarks)) and being a lightweight
 crate. `fundu` is purely built on top of the rust `stdlib`, and there are no additional dependencies
 required. The accepted string format is almost the same like the scientific floating point format
 and compatible to the [`f64::from_str`] format. In other words, if the accepted input string could
@@ -273,13 +273,14 @@ comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
 Input | parser with time units | avg parsing time | ~ samples / s
 --- | --- | --- | ---
-`1` | no | `48.716 ns` | `20_527_136.874`
-`1` | yes | `52.548 ns` | `19_030_219.989`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `3.7219 µs` | `268_679.975`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `3.7132 µs` | `269_309.490`
+`1` | no | `41.539 ns` | `24_073_762.006`
+`1` | yes | `48.200 ns` | `20_746_887.966`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `589.50 ns` | `1_696_352.841`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `590.68 ns` | `1_692_964.041`
 
 For comparison, `fundu`'s precision and additional features only add a very low performance overhead
-(the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
+for small input and outperforms the reference function for larger input (the reference function is
+`Duration::from_secs_f64(input.parse().unwrap())`):
 
 Input | avg parsing time | ~ samples / s
 --- | --- | ---
@@ -300,9 +301,10 @@ Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
 `1e20` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
 `infinity` | `DURATION::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
 
-Nevertheless, `fundu` has a small impact on [performance](#benchmarks), so if you need to parse a
-massive amount of inputs and get along without the full precision or any of its features, you may be
-better off using the native methods from the rust `stdlib`.
+`fundu` has a small impact on performance when the input is small but performs better for large
+input (See [performance](#benchmarks)). Depending on the input data and if you need to parse a
+massive amount of inputs and don't need the full precision or any of `fundu`'s features, you may
+prefer using the native methods from the rust `stdlib`.
 
 # Platform support
 
@@ -314,7 +316,6 @@ See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.ym
 
 # TODO
 
-- Improve performance for long inputs
 - Provide other year calculations:
     - mean Gregorian year
     - Sidereal year
