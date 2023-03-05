@@ -218,6 +218,7 @@ jobs:
       matrix:
         benchmark:
           - iai_bench_parsing
+          - iai_bench_reference
           - iai_bench_time_unit_parsing
     steps:
       - uses: actions/checkout@v3
