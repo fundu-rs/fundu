@@ -58,6 +58,10 @@ name = "iai_bench_parsing"
 harness = false
 
 [[bench]]
+name = "iai_bench_reference"
+harness = false
+
+[[bench]]
 name = "flamegraph_standard"
 harness = false
 bench = false
