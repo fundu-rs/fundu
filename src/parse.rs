@@ -512,13 +512,6 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_whole(&mut self) -> Vec<u8> {
-        // cov:excl-start
-        debug_assert!(
-            // the maximum number of digits that need to be considered:
-            self.current_byte.is_some(),
-            "Call this function only when there is at least one digit present"
-        ); // cov:excl-stop
-
         // the maximum number of digits that need to be considered depending on the exponent:
         // max(-exponent) = abs(i16::MIN) + max_digits(u64::MAX) = 20 + 9 (nano seconds) + 1 + alignment at modulo 8
         let max = ((self.min_exponent as isize).abs() + 32) as usize;
@@ -553,6 +546,7 @@ impl<'a> ReprParser<'a> {
                 if capacity > 0 && (!strip_leading_zeroes || digit != 0) {
                     digits.push(digit);
                     strip_leading_zeroes = false;
+                    // no capacity decrement needed since `max` is aligned at modulo 8
                 }
                 self.advance();
             } else {
@@ -565,12 +559,6 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_fract(&mut self) -> Vec<u8> {
-        // cov:excl-start
-        debug_assert!(
-            self.current_byte.is_some(),
-            "Call this function only when there is at lease one digit present"
-        ); // cov:excl-stop
-
         // the maximum number of digits that need to be considered depending on the exponent:
         // max(exponent) = i16::MAX + max_digits(attos) = 18 + 1 + alignment at modulo 8
         let max = (self.max_exponent as usize) + 25;
