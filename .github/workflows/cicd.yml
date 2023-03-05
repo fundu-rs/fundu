@@ -76,8 +76,68 @@ jobs:
       - name: Test
         run: cargo test --all-features
 
+  cross:
+    name: Cross build and test
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          ##### big endian targets #####
+          - s390x-unknown-linux-gnu
+          # - sparc64-unknown-linux-gnu
+          # - powerpc-unknown-linux-gnu
+          - mips-unknown-linux-gnu
+          ##### little endian targets #####
+          - i686-unknown-linux-gnu
+          - i586-unknown-linux-gnu
+          - aarch64-unknown-linux-gnu
+          - arm-unknown-linux-gnueabihf
+          # - riscv64gc-unknown-linux-gnu
+          # dependency errors: quick-xml
+          # - wasm32-unknown-emscripten
+          # dependency errors: criterion
+          # - x86_64-linux-android
+          - x86_64-unknown-linux-musl
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.60.0"
+      - name: Install cross
+        run: |
+          set -e
+          mkdir -vp ~/.cargo/bin
+          mkdir -vp ~/Downloads
+          cd ~/Downloads
+          wget -O cross.tar.gz https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz
+          tar xvzf cross.tar.gz
+          mv -v cross cross-util ~/.cargo/bin
+      - name: Configure cross
+        run: |
+          cat <<EOF | tee Cross.toml
+          [build.env]
+          passthrough = ["CI", "RUST_BACKTRACE"]
+          EOF
+      - uses: Swatinem/rust-cache@v2.2.0
+        with:
+          key: "ubuntu-latest_1.60.0_${{ matrix.target }}"
+      - name: Info
+        run: |
+          set -x
+          pwd
+          rustup --version
+          rustup show
+          rustup component list --installed
+          cargo --list
+          cross --version
+      - name: Build
+        run: cross build --all-features --target ${{ matrix.target }}
+      - name: Test
+        run: cross test --all-features --target ${{ matrix.target }}
+
   docs:
-    needs: [base]
+    needs: [base, cross]
     name: Docs/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -90,7 +150,7 @@ jobs:
         run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
-    needs: [base]
+    needs: [base, cross]
     name: Coverage/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -176,7 +236,7 @@ jobs:
       RUST_BACKTRACE: "0"
 
   fuzzing:
-    needs: [base]
+    needs: [base, cross]
     name: Fuzzy testing/ubuntu-latest
     runs-on: ubuntu-latest
     defaults:
@@ -210,7 +270,7 @@ jobs:
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
 
   benchmarks:
-    needs: [base]
+    needs: [base, cross]
     name: Benchmarks/ubuntu-latest
     runs-on: ubuntu-latest
     strategy:
