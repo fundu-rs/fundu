@@ -5,6 +5,12 @@ on:
     branches: ["main", "cicd", "release", "develop"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      resetBenchmarks:
+        description: "Reset the benchmark data"
+        required: true
+        type: boolean
 
 env:
   CARGO_TERM_COLOR: always
@@ -287,6 +293,7 @@ jobs:
       - name: Prepare
         run: sudo apt-get -y update && sudo apt-get -y install valgrind
       - name: Download reference benchmarks
+        if: ${{ !inputs.resetBenchmark }}
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow_conclusion: success
