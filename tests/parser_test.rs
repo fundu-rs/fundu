@@ -43,6 +43,7 @@ fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
 }
 
 #[rstest]
+#[case::simple_number("1", Duration::new(1, 0))]
 #[case::trailing_zeros("10.010000000", Duration::new(10, 10_000_000))]
 #[case::simple_zero("0", Duration::ZERO)]
 #[case::many_zeroes(&"0".repeat(2000), Duration::ZERO)]
@@ -50,7 +51,6 @@ fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
 #[case::zero_point_zero("0.0", Duration::ZERO)]
 #[case::point_zero(".0", Duration::ZERO)]
 #[case::zero_point("0.", Duration::ZERO)]
-#[case::simple_number("1", Duration::new(1, 0))]
 #[case::one_with_fraction_number("1.1", Duration::new(1, 100_000_000))]
 #[case::leading_zero_max_nanos("0.999999999", Duration::new(0, 999_999_999))]
 #[case::leading_number_max_nanos("1.999999999", Duration::new(1, 999_999_999))]

@@ -78,7 +78,7 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
         parser.default_unit(unit);
         group.bench_with_input(
             BenchmarkId::new(format!("input without time unit (default = {unit:?})"), "1"),
-            &input,
+            "1",
             |b, input| b.iter(|| black_box(&parser).parse(input)),
         );
         let input = format!("1{input}");

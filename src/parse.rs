@@ -512,6 +512,10 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_whole(&mut self) -> Vec<u8> {
+        debug_assert!(self
+            .current_byte
+            .map_or(false, |byte| byte.is_ascii_digit()));
+
         // the maximum number of digits that need to be considered depending on the exponent:
         // max(-exponent) = abs(i16::MIN) + max_digits(u64::MAX) = 20 + 9 (nano seconds) + 1 + alignment at modulo 8
         let max = ((self.min_exponent as isize).abs() + 32) as usize;
@@ -519,25 +523,34 @@ impl<'a> ReprParser<'a> {
         // Using `len()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations
         let mut capacity = max.min(self.input.len() - self.current_pos);
-
         let mut digits = Vec::<u8>::with_capacity(capacity);
 
-        let ptr = digits.as_mut_ptr() as *mut u64;
-        let mut counter = 0;
         let mut strip_leading_zeroes = true;
-        while let Some(eight) = self.parse_8_digits() {
-            if capacity >= 8 && (eight != 0 || !strip_leading_zeroes) {
-                // SAFETY: We just ensured there is enough capacity in the vector
-                unsafe { *ptr.add(counter) = u64::from_le(eight) }
-                counter += 1;
-                strip_leading_zeroes = false;
-                capacity -= 8;
+        if capacity >= 8 && self.is_8_digits() {
+            let ptr = digits.as_ptr() as *mut u64;
+            let mut counter = 0;
+            while let Some(eight) = self.parse_8_digits() {
+                if capacity >= 8 && (!strip_leading_zeroes || eight != 0) {
+                    // SAFETY: We just ensured there is enough capacity in the vector
+                    unsafe { *ptr.add(counter) = u64::from_le(eight) }
+                    counter += 1;
+                    strip_leading_zeroes = false;
+                    capacity -= 8;
+                }
             }
-        }
 
-        if counter > 0 {
-            // SAFETY: counter * 8 results always within the reserved space for the vector.
-            unsafe { digits.set_len(counter << 3) }
+            if counter > 0 {
+                // SAFETY: counter * 8 results always within the reserved space for the vector.
+                unsafe { digits.set_len(counter << 3) }
+            }
+        // capacity is smaller than 8 or there are no 8 digits
+        } else {
+            let digit = self.current_byte.unwrap() - b'0';
+            if digit != 0 {
+                digits.push(digit);
+                strip_leading_zeroes = false;
+            }
+            self.advance();
         }
 
         while let Some(byte) = self.current_byte {
@@ -559,6 +572,10 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_fract(&mut self) -> Vec<u8> {
+        debug_assert!(self
+            .current_byte
+            .map_or(false, |byte| byte.is_ascii_digit()));
+
         // the maximum number of digits that need to be considered depending on the exponent:
         // max(exponent) = i16::MAX + max_digits(attos) = 18 + 1 + alignment at modulo 8
         let max = (self.max_exponent as usize) + 25;
@@ -566,23 +583,28 @@ impl<'a> ReprParser<'a> {
         // Using `len()` is a rough (but always correct) estimation for an upper bound.
         // However, using maybe more memory than needed spares the costly memory reallocations
         let mut capacity = max.min(self.input.len() - self.current_pos);
-
         let mut digits = Vec::<u8>::with_capacity(capacity);
 
-        let ptr = digits.as_mut_ptr() as *mut u64;
-        let mut counter = 0;
-        while let Some(eight) = self.parse_8_digits() {
-            if capacity >= 8 {
-                // SAFETY: We just ensured capacity >= 8
-                unsafe { *ptr.add(counter) = u64::from_le(eight) }
-                counter += 1;
-                capacity -= 8;
+        if capacity >= 8 && self.is_8_digits() {
+            let ptr = digits.as_ptr() as *mut u64;
+            let mut counter = 0;
+            while let Some(eight) = self.parse_8_digits() {
+                if capacity >= 8 {
+                    // SAFETY: We just ensured capacity >= 8
+                    unsafe { *ptr.add(counter) = u64::from_le(eight) }
+                    counter += 1;
+                    capacity -= 8;
+                }
             }
-        }
 
-        if counter > 0 {
-            // SAFETY: counter * 8 results always within the reserved space for the vector.
-            unsafe { digits.set_len(counter << 3) }
+            if counter > 0 {
+                // SAFETY: counter * 8 results always within the reserved space for the vector.
+                unsafe { digits.set_len(counter << 3) }
+            }
+        } else {
+            let digit = self.current_byte.unwrap() - b'0';
+            digits.push(digit);
+            self.advance();
         }
 
         while let Some(byte) = self.current_byte {
@@ -590,7 +612,7 @@ impl<'a> ReprParser<'a> {
             if digit < 10 {
                 if capacity > 0 {
                     digits.push(digit);
-                    capacity -= 1;
+                    // no capacity decrement needed
                 }
                 self.advance();
             } else {
