@@ -294,7 +294,7 @@ jobs:
       - name: Prepare
         run: sudo apt-get -y update && sudo apt-get -y install valgrind
       - name: Download reference benchmarks
-        if: ${{ !inputs.resetBenchmark }}
+        if: ${{ !inputs.resetBenchmarks }}
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow_conclusion: success
