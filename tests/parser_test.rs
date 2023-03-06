@@ -70,6 +70,7 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 }
 
 #[rstest]
+#[case::minus_sign_whole_to_fract("1.00000001e-1", Duration::new(0, 100_000_001))]
 #[case::zero("1.1e0", Duration::new(1, 100_000_000))]
 #[case::point_and_then_exponent("1.e0", Duration::new(1, 0))]
 #[case::negative_zero("1.1e-0", Duration::new(1, 100_000_000))]
@@ -79,7 +80,6 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 #[case::lower_than_nanos_min("0.0000000001e1", Duration::new(0, 1))]
 #[case::higher_than_seconds_max(&format!("{}9.999999999e-1", u64::MAX), Duration::MAX)]
 #[case::plus_sign("0.1000000001e+1", Duration::new(1, 1))]
-#[case::minus_sign_whole_to_fract("1.00000001e-1", Duration::new(0, 100_000_001))]
 #[case::minus_sign_zero_to_fract("10.00000001e-1", Duration::new(1, 1))]
 #[case::no_overflow_error_low("1.0e-1022", Duration::ZERO)]
 #[case::no_overflow_error_high("1.0e1023", Duration::MAX)]

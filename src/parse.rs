@@ -7,6 +7,7 @@
 //! the main library `lib.rs`.
 
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::slice::SliceIndex;
 use std::time::Duration;
 
 use crate::error::ParseError;
@@ -38,8 +39,6 @@ const POW10: [u64; 20] = [
     10_000_000_000_000_000_000,
 ];
 
-struct Seconds<'a>(Option<&'a [u8]>, Option<&'a [u8]>, Option<usize>);
-
 trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
@@ -60,14 +59,15 @@ trait Parse8Digits {
     }
 }
 
-impl<'a> Parse8Digits for Seconds<'a> {}
+#[derive(Debug, PartialEq, Eq, Default)]
+struct Whole(Vec<u8>);
 
-impl<'a> Seconds<'a> {
-    const ZERO: Self = Seconds(None, None, None);
+impl Parse8Digits for Whole {}
 
+impl Whole {
     #[inline]
-    fn parse_slice(start: u64, digits: &[u8]) -> Result<u64, ParseError> {
-        let mut seconds = start;
+    fn parse_slice(init: u64, digits: &[u8]) -> Result<u64, ParseError> {
+        let mut seconds = init;
         let mut iter = digits.chunks_exact(8);
         for digits in iter.by_ref() {
             match seconds
@@ -95,49 +95,56 @@ impl<'a> Seconds<'a> {
     }
 
     #[inline]
-    fn parse(&self) -> Result<u64, ParseError> {
-        if self.is_zero() {
+    fn parse(
+        &self,
+        range: impl SliceIndex<[u8], Output = [u8]>,
+        append: Option<&[u8]>,
+        zeroes: Option<usize>,
+    ) -> Result<u64, ParseError> {
+        let whole = &self.0[range];
+        if whole.is_empty() && append.map_or(true, |fract| fract.is_empty()) {
             return Ok(0);
         }
 
         let mut seconds: u64 = 0;
-        if let Some(digits) = self.0 {
-            seconds = Self::parse_slice(seconds, digits)?;
-        }
-        if let Some(digits) = self.1 {
+        seconds = Self::parse_slice(seconds, whole)?;
+        if let Some(digits) = append {
             seconds = Self::parse_slice(seconds, digits)?;
         }
 
         if seconds == 0 {
             Ok(0)
         } else {
-            let num_zeroes = self.2.unwrap_or(0);
-            match POW10.get(num_zeroes) {
-                Some(pow) => Ok(seconds.saturating_mul(*pow)),
-                None => Err(ParseError::Overflow),
+            match zeroes {
+                Some(num_zeroes) if num_zeroes > 0 => match POW10.get(num_zeroes) {
+                    Some(pow) => Ok(seconds.saturating_mul(*pow)),
+                    None => Err(ParseError::Overflow),
+                },
+                Some(_) | None => Ok(seconds),
             }
         }
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.0.map_or(true, |v| v.is_empty()) && self.1.map_or(true, |v| v.is_empty())
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline]
+    fn get(&self, range: impl SliceIndex<[u8], Output = [u8]>) -> &[u8] {
+        &self.0[range]
     }
 }
 
-/// An intermediate representation of atto seconds.
-///
-/// Optionally prepend `usize` amount of zeroes.
-struct Attos<'a>(Option<usize>, Option<&'a [u8]>, Option<&'a [u8]>);
+#[derive(Debug, PartialEq, Eq, Default)]
+struct Fract(Vec<u8>);
 
-impl<'a> Parse8Digits for Attos<'a> {}
+impl Parse8Digits for Fract {}
 
-impl<'a> Attos<'a> {
-    const ZERO: Self = Attos(None, None, None);
-
+impl Fract {
     #[inline]
-    fn parse_slice(start: u64, multi: u64, zeroes: usize, digits: &[u8]) -> (u64, u64) {
-        let mut attos = start;
+    fn parse_slice(init: u64, multi: u64, zeroes: usize, digits: &[u8]) -> (u64, u64) {
+        let mut attos = init;
         let mut multi = multi;
         let len = digits.len();
 
@@ -169,31 +176,41 @@ impl<'a> Attos<'a> {
     }
 
     #[inline]
-    fn parse(&self) -> u64 {
-        if self.is_zero() {
+    fn parse(
+        &self,
+        range: impl SliceIndex<[u8], Output = [u8]>,
+        prepend: Option<&[u8]>,
+        zeroes: Option<usize>,
+    ) -> u64 {
+        let fract = &self.0[range];
+        if fract.is_empty() && prepend.map_or(true, |whole| whole.is_empty()) {
             return 0;
         }
 
-        let num_zeroes = self.0.unwrap_or_default();
+        let num_zeroes = zeroes.unwrap_or_default();
         let mut multi = ATTO_MULTIPLIER / POW10.get(num_zeroes).unwrap_or(&u64::MAX);
         if multi == 0 {
             return 0;
         }
 
         let mut attos: u64 = 0;
-        if let Some(digits) = self.1 {
+
+        if let Some(digits) = prepend {
             (attos, multi) = Self::parse_slice(attos, multi, num_zeroes, digits);
         }
-        if let Some(digits) = self.2 {
-            (attos, _) = Self::parse_slice(attos, multi, num_zeroes, digits);
-        }
+        (attos, _) = Self::parse_slice(attos, multi, num_zeroes, fract);
 
         attos
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.1.map_or(true, |v| v.is_empty()) && self.2.map_or(true, |v| v.is_empty())
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline]
+    fn get(&self, range: impl SliceIndex<[u8], Output = [u8]>) -> &[u8] {
+        &self.0[range]
     }
 }
 
@@ -201,8 +218,8 @@ impl<'a> Attos<'a> {
 pub(crate) struct DurationRepr {
     is_negative: bool,
     is_infinite: bool,
-    whole: Option<Vec<u8>>,
-    fract: Option<Vec<u8>>,
+    whole: Option<Whole>,
+    fract: Option<Fract>,
     exponent: i16,
     unit: TimeUnit,
 }
@@ -218,12 +235,8 @@ impl DurationRepr {
             }
         }
 
-        let (whole, fract) = match (self.whole.take(), self.fract.take()) {
-            (None, None) => unreachable!("Must be handled when parsing from string."), // cov:excl-line
-            (None, Some(fract)) => (vec![], fract),
-            (Some(whole), None) => (whole, vec![]),
-            (Some(whole), Some(fract)) => (whole, fract),
-        };
+        let whole = self.whole.take().unwrap_or_default();
+        let fract = self.fract.take().unwrap_or_default();
 
         self.exponent -= match self.unit.cmp(&TimeUnit::Second) {
             Less | Equal => self.unit.multiplier().try_into().unwrap(), // unwrap is safe here because multiplier is max == 9
@@ -238,45 +251,56 @@ impl DurationRepr {
         // final integer domain.
         let (seconds, attos) = match self.exponent.cmp(&0) {
             Less if whole.len() > exponent_abs => {
-                let seconds = Seconds(Some(&whole[..whole.len() - exponent_abs]), None, None);
-                let attos = Attos(
-                    None,
-                    Some(&whole[whole.len() - exponent_abs..]),
-                    Some(&fract),
-                );
-                (seconds, attos)
+                let seconds = whole.parse(..whole.len() - exponent_abs, None, None);
+                let attos = if seconds.is_ok() {
+                    Some(fract.parse(.., Some(whole.get(whole.len() - exponent_abs..)), None))
+                } else {
+                    None
+                };
+                (Some(seconds), attos)
             }
             Less => {
-                let seconds = Seconds::ZERO;
-                let attos = Attos(Some(exponent_abs - whole.len()), Some(&whole), Some(&fract));
-                (seconds, attos)
+                let attos =
+                    Some(fract.parse(.., Some(whole.get(..)), Some(exponent_abs - whole.len())));
+                (None, attos)
             }
             Equal => {
-                let seconds = Seconds(Some(&whole), None, None);
-                let attos = Attos(None, Some(&fract), None);
-                (seconds, attos)
+                let seconds = whole.parse(.., None, None);
+                let attos = if seconds.is_ok() {
+                    Some(fract.parse(.., None, None))
+                } else {
+                    None
+                };
+                (Some(seconds), attos)
             }
             Greater if fract.len() > exponent_abs => {
-                let seconds = Seconds(Some(&whole), Some(&fract[..exponent_abs]), None);
-                let attos = Attos(None, Some(&fract[exponent_abs..]), None);
-                (seconds, attos)
+                let seconds = whole.parse(.., Some(fract.get(..exponent_abs)), None);
+                let attos = if seconds.is_ok() {
+                    Some(fract.parse(exponent_abs.., None, None))
+                } else {
+                    None
+                };
+                (Some(seconds), attos)
             }
             Greater => {
-                let seconds = Seconds(Some(&whole), Some(&fract), Some(exponent_abs - fract.len()));
-                let attos = Attos::ZERO;
-                (seconds, attos)
+                let seconds =
+                    whole.parse(.., Some(fract.get(..)), Some(exponent_abs - fract.len()));
+                (Some(seconds), None)
             }
         };
 
         // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
         // maximum `Duration`.
-        let (seconds, attos) = match seconds.parse() {
-            Ok(seconds) => (seconds, attos.parse()),
-            Err(ParseError::Overflow) if self.is_negative => {
-                return Err(ParseError::NegativeNumber)
-            }
-            Err(ParseError::Overflow) => return Ok(Duration::MAX),
-            Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
+        let (seconds, attos) = match seconds {
+            Some(result) => match result {
+                Ok(seconds) => (seconds, attos.unwrap_or_default()),
+                Err(ParseError::Overflow) if self.is_negative => {
+                    return Err(ParseError::NegativeNumber)
+                }
+                Err(ParseError::Overflow) => return Ok(Duration::MAX),
+                Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
+            },
+            None => (0, attos.unwrap_or_default()),
         };
 
         // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
@@ -511,7 +535,7 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline]
-    fn parse_whole(&mut self) -> Vec<u8> {
+    fn parse_whole(&mut self) -> Whole {
         debug_assert!(self
             .current_byte
             .map_or(false, |byte| byte.is_ascii_digit()));
@@ -565,11 +589,11 @@ impl<'a> ReprParser<'a> {
             }
         }
 
-        digits
+        Whole(digits)
     }
 
     #[inline]
-    fn parse_fract(&mut self) -> Vec<u8> {
+    fn parse_fract(&mut self) -> Fract {
         debug_assert!(self
             .current_byte
             .map_or(false, |byte| byte.is_ascii_digit()));
@@ -616,7 +640,7 @@ impl<'a> ReprParser<'a> {
             }
         }
 
-        digits
+        Fract(digits)
     }
 
     #[inline]
@@ -792,24 +816,24 @@ mod tests {
     }
 
     #[rstest]
-    #[case::zero("0", vec![])]
-    #[case::one("1", vec![1])]
-    #[case::nine("9", vec![9])]
-    #[case::ten("10", vec![1,0])]
-    #[case::eight_leading_zeroes("00000000", vec![])]
-    #[case::fifteen_leading_zeroes("000000000000000", vec![])]
-    #[case::ten_with_leading_zeros_when_eight_digits("00000010", vec![0,0,0,0,0,0,1,0])]
-    #[case::ten_with_leading_zeros_when_nine_digits("000000010", vec![0,0,0,0,0,0,0,1,0])]
-    #[case::mixed_number("12345", vec![1,2,3,4,5])]
-    #[case::max_8_digits("99999999", vec![9,9,9,9,9,9,9,9])]
-    #[case::max_8_digits_minus_one("99999998", vec![9,9,9,9,9,9,9,8])]
-    #[case::min_nine_digits("100000000", vec![1,0,0,0,0,0,0,0,0])]
-    #[case::min_nine_digits_plus_one("100000001", vec![1,0,0,0,0,0,0,0,1])]
-    #[case::eight_zero_digits_start("0000000011111111", vec![1,1,1,1,1,1,1,1])]
-    #[case::eight_zero_digits_end("1111111100000000", vec![1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0])]
-    #[case::eight_zero_digits_middle("11111111000000001", vec![1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1])]
-    #[case::max_16_digits("9999999999999999", vec![9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9])]
-    fn test_duration_repr_parser_parse_whole(#[case] input: &str, #[case] expected: Vec<u8>) {
+    #[case::zero("0", Whole(vec![]))]
+    #[case::one("1", Whole(vec![1]))]
+    #[case::nine("9", Whole(vec![9]))]
+    #[case::ten("10", Whole(vec![1,0]))]
+    #[case::eight_leading_zeroes("00000000", Whole(vec![]))]
+    #[case::fifteen_leading_zeroes("000000000000000", Whole(vec![]))]
+    #[case::ten_with_leading_zeros_when_eight_digits("00000010", Whole(vec![0,0,0,0,0,0,1,0]))]
+    #[case::ten_with_leading_zeros_when_nine_digits("000000010", Whole(vec![0,0,0,0,0,0,0,1,0]))]
+    #[case::mixed_number("12345", Whole(vec![1,2,3,4,5]))]
+    #[case::max_8_digits("99999999", Whole(vec![9,9,9,9,9,9,9,9]))]
+    #[case::max_8_digits_minus_one("99999998", Whole(vec![9,9,9,9,9,9,9,8]))]
+    #[case::min_nine_digits("100000000", Whole(vec![1,0,0,0,0,0,0,0,0]))]
+    #[case::min_nine_digits_plus_one("100000001", Whole(vec![1,0,0,0,0,0,0,0,1]))]
+    #[case::eight_zero_digits_start("0000000011111111", Whole(vec![1,1,1,1,1,1,1,1]))]
+    #[case::eight_zero_digits_end("1111111100000000", Whole(vec![1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0]))]
+    #[case::eight_zero_digits_middle("11111111000000001", Whole(vec![1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1]))]
+    #[case::max_16_digits("9999999999999999", Whole(vec![9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9]))]
+    fn test_duration_repr_parser_parse_whole(#[case] input: &str, #[case] expected: Whole) {
         let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
         assert_eq!(parser.parse_whole(), expected);
     }
@@ -823,18 +847,18 @@ mod tests {
     }
 
     #[rstest]
-    #[case::zero("0", vec![0])]
-    #[case::one("1", vec![1])]
-    #[case::nine("9", vec![9])]
-    #[case::ten("10", vec![1,0])]
-    #[case::leading_zero("01", vec![0,1])]
-    #[case::leading_zeroes("001", vec![0,0,1])]
-    #[case::eight_leading_zeros("000000001", vec![0,0,0,0,0,0,0,0,1])]
-    #[case::mixed_number("12345", vec![1,2,3,4,5])]
-    #[case::max_8_digits("99999999", vec![9,9,9,9,9,9,9,9])]
-    #[case::max_8_digits_minus_one("99999998", vec![9,9,9,9,9,9,9,8])]
-    #[case::nine_digits("123456789", vec![1,2,3,4,5,6,7,8,9])]
-    fn test_duration_repr_parser_parse_fract(#[case] input: &str, #[case] expected: Vec<u8>) {
+    #[case::zero("0", Fract(vec![0]))]
+    #[case::one("1", Fract(vec![1]))]
+    #[case::nine("9", Fract(vec![9]))]
+    #[case::ten("10", Fract(vec![1,0]))]
+    #[case::leading_zero("01", Fract(vec![0,1]))]
+    #[case::leading_zeroes("001", Fract(vec![0,0,1]))]
+    #[case::eight_leading_zeros("000000001", Fract(vec![0,0,0,0,0,0,0,0,1]))]
+    #[case::mixed_number("12345", Fract(vec![1,2,3,4,5]))]
+    #[case::max_8_digits("99999999", Fract(vec![9,9,9,9,9,9,9,9]))]
+    #[case::max_8_digits_minus_one("99999998", Fract(vec![9,9,9,9,9,9,9,8]))]
+    #[case::nine_digits("123456789", Fract(vec![1,2,3,4,5,6,7,8,9]))]
+    fn test_duration_repr_parser_parse_fract(#[case] input: &str, #[case] expected: Fract) {
         let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
         assert_eq!(parser.parse_fract(), expected);
     }
