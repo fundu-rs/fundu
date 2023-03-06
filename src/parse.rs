@@ -539,10 +539,8 @@ impl<'a> ReprParser<'a> {
                 }
             }
 
-            if counter > 0 {
-                // SAFETY: counter * 8 results always within the reserved space for the vector.
-                unsafe { digits.set_len(counter << 3) }
-            }
+            // SAFETY: counter * 8 results always within the reserved space for the vector.
+            unsafe { digits.set_len(counter << 3) }
         // capacity is smaller than 8 or there are no 8 digits
         } else {
             let digit = self.current_byte.unwrap() - b'0';
@@ -597,10 +595,8 @@ impl<'a> ReprParser<'a> {
                 }
             }
 
-            if counter > 0 {
-                // SAFETY: counter * 8 results always within the reserved space for the vector.
-                unsafe { digits.set_len(counter << 3) }
-            }
+            // SAFETY: counter * 8 results always within the reserved space for the vector.
+            unsafe { digits.set_len(counter << 3) }
         } else {
             let digit = self.current_byte.unwrap() - b'0';
             digits.push(digit);
