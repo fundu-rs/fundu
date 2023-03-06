@@ -61,16 +61,19 @@ jobs:
       - name: Info if unix
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
+          set -x
           uname -a
           pwd
           rustup --version
           rustup show
-          rustup component list | grep installed
+          rustup component list --installed
       - name: Info if windows
         if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
         run: |
+          set -x
           rustup show
-          rustup component list | grep installed
+          rustup component list --installed
       - name: Build
         run: cargo build --all-features
       - name: Format
@@ -123,7 +126,7 @@ jobs:
         run: |
           cat <<EOF | tee Cross.toml
           [build.env]
-          passthrough = ["CI", "RUST_BACKTRACE"]
+          passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
           EOF
       - uses: Swatinem/rust-cache@v2.2.0
         with:
@@ -170,16 +173,16 @@ jobs:
         run: sudo apt-get -y update && sudo apt-get -y install llvm
       - name: Info
         run: |
+          set -x
           uname -a
           printenv | grep -i -e cargo -e rust -e llvm
           cargo -V
           rustup -V
           rustup show
-          rustup component list | grep installed
+          rustup component list --installed
       - name: Create coverage profile
-        shell: bash
         run: |
-          cat <<EOF > ~/.cargo/config
+          cat <<EOF | tee ~/.cargo/config
           [profile.coverage]
           inherits = "dev"
           lto = false
@@ -197,7 +200,6 @@ jobs:
       - name: Test
         run: cargo test --all-features --tests --profile coverage
       - name: Generate code coverage
-        shell: bash
         run: |
           ~/.cargo/bin/grcov . \
             --llvm-path /usr/bin \
@@ -264,7 +266,6 @@ jobs:
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
       - name: Run fuzzing for 5 minutes
-        shell: bash
         run: |
           cargo fuzz run --all-features f64_like_input -- \
             -max_total_time=300 \
@@ -302,10 +303,8 @@ jobs:
           path: target/iai
           if_no_artifact_found: warn
       - name: Run benchmark ${{ matrix.benchmark }}
-        shell: bash
         run: cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
       - name: Check for regression
-        shell: bash
         run: |
           echo 0 > fail
           echo 0 > skip
