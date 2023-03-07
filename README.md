@@ -273,8 +273,8 @@ comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
 Input | parser with time units | avg parsing time | ~ samples / s
 --- | --- | --- | ---
-`1` | no | `41.539 ns` | `24_073_762.006`
-`1` | yes | `48.200 ns` | `20_746_887.966`
+`1` | no | `39.879 ns` | `25_075_854.459`
+`1` | yes | `41.199 ns` | `24_272_433.796`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `589.50 ns` | `1_696_352.841`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `590.68 ns` | `1_692_964.041`
 
