@@ -238,18 +238,17 @@ impl DurationRepr {
         let whole = self.whole.take().unwrap_or_default();
         let fract = self.fract.take().unwrap_or_default();
 
-        self.exponent -= match self.unit.cmp(&TimeUnit::Second) {
-            Less | Equal => self.unit.multiplier().try_into().unwrap(), // unwrap is safe here because multiplier is max == 9
-            Greater => 0,
-        };
+        let (multiplier, mut exponent) = self.unit.multiplier();
+        exponent += self.exponent as i32;
 
-        // The maximum absolute value of the exponent is `i16::MAX + 1`, so it is safe to cast to usize
-        let exponent_abs: usize = self.exponent.unsigned_abs().into();
+        // The maximum absolute value of the exponent is `abs(i16::MIN) + 9 (nano seconds)`, so it is
+        // safe to cast to usize
+        let exponent_abs: usize = exponent.unsigned_abs().try_into().unwrap();
 
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
         // to integers is necessary, since the exponent can move digits into the to be considered
         // final integer domain.
-        let (seconds, attos) = match self.exponent.cmp(&0) {
+        let (seconds, attos) = match exponent.cmp(&0) {
             Less if whole.len() > exponent_abs => {
                 let seconds = whole.parse(..whole.len() - exponent_abs, None, None);
                 let attos = if seconds.is_ok() {
@@ -309,26 +308,21 @@ impl DurationRepr {
             Ok(Duration::ZERO)
         } else if self.is_negative {
             Err(ParseError::NegativeNumber)
+        } else if multiplier == 1 {
+            Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32))
         } else {
-            match self.unit.cmp(&TimeUnit::Second) {
-                Less | Equal => Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32)),
-                Greater => {
-                    let multiplier = self.unit.multiplier();
-                    let attos = attos as u128 * (multiplier as u128);
-                    Ok(
-                        match seconds
-                            .checked_mul(multiplier)
-                            .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
-                        {
-                            Some(s) => Duration::new(
-                                s,
-                                ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32,
-                            ),
-                            None => Duration::MAX,
-                        },
-                    )
-                }
-            }
+            let attos = attos as u128 * (multiplier as u128);
+            Ok(
+                match seconds
+                    .checked_mul(multiplier)
+                    .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
+                {
+                    Some(s) => {
+                        Duration::new(s, ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32)
+                    }
+                    None => Duration::MAX,
+                },
+            )
         }
     }
 }
@@ -862,17 +856,4 @@ mod tests {
         let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
         assert_eq!(parser.parse_fract(), expected);
     }
-
-    // #[rstest]
-    // #[case::exponent_minus_1("1e-1")]
-    // fn test_duration_repr_parse_when_exponent_negative_and_whole_len_greater_than_exponent(
-    //     #[case] input: &str,
-    // ) {
-    //     let mut duration_repr = DurationRepr {
-    //         exponent: -1,
-    //         whole: Some(vec![0, 0, 0, 0, 0, 0, 0, 1]),
-    //         ..Default::default()
-    //     };
-    //     assert_eq!(duration_repr.parse(), Ok(Duration::new(0, 100_000_000)));
-    // }
 }

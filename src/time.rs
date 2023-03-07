@@ -100,18 +100,18 @@ impl TimeUnit {
     /// t > s  => x(t) * m
     /// where t = time unit, s = second, x = number in t time units, m = multiplier
     /// ```
-    pub(crate) const fn multiplier(&self) -> u64 {
+    pub(crate) const fn multiplier(&self) -> (u64, i32) {
         match self {
-            NanoSecond => 9,
-            MicroSecond => 6,
-            MilliSecond => 3,
-            Second => 0,
-            Minute => 60,
-            Hour => 3600,
-            Day => 86400,
-            Week => 604800,
-            Month => 2629800, // Year / 12
-            Year => 31557600, // 365.25 days
+            NanoSecond => (1, -9),
+            MicroSecond => (1, -6),
+            MilliSecond => (1, -3),
+            Second => (1, 0),
+            Minute => (60, 0),
+            Hour => (3600, 0),
+            Day => (86400, 0),
+            Week => (604800, 0),
+            Month => (2629800, 0), // Year / 12
+            Year => (31557600, 0), // 365.25 days
         }
     }
 }
@@ -142,17 +142,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, 9)]
-    #[case::micro_second(MicroSecond, 6)]
-    #[case::milli_second(MilliSecond, 3)]
-    #[case::second(Second, 0)]
-    #[case::minute(Minute, 60)]
-    #[case::hour(Hour, 60 * 60)]
-    #[case::day(Day, 60 * 60 * 24)]
-    #[case::week(Week, 60 * 60 * 24 * 7)]
-    #[case::month(Month, (60 * 60 * 24 * 365 + 60 * 60 * 24 / 4) / 12)] // (365 days + day/4) / 12
-    #[case::year(Year, 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4)] // 365 days + day/4
-    fn test_time_unit_multiplier(#[case] time_unit: TimeUnit, #[case] expected: u64) {
+    #[case::nano_second(NanoSecond, (1, -9))]
+    #[case::micro_second(MicroSecond, (1, -6))]
+    #[case::milli_second(MilliSecond, (1, -3))]
+    #[case::second(Second, (1, 0))]
+    #[case::minute(Minute, (60, 0))]
+    #[case::hour(Hour, (60 * 60, 0))]
+    #[case::day(Day, (60 * 60 * 24, 0))]
+    #[case::week(Week, (60 * 60 * 24 * 7, 0))]
+    #[case::month(Month, ((60 * 60 * 24 * 365 + 60 * 60 * 24 / 4) / 12, 0))] // (365 days + day/4) / 12
+    #[case::year(Year, (60 * 60 * 24 * 365 + 60 * 60 * 24 / 4, 0))] // 365 days + day/4
+    fn test_time_unit_multiplier(#[case] time_unit: TimeUnit, #[case] expected: (u64, i32)) {
         assert_eq!(time_unit.multiplier(), expected);
     }
 }

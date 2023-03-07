@@ -81,17 +81,21 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 #[case::higher_than_seconds_max(&format!("{}9.999999999e-1", u64::MAX), Duration::MAX)]
 #[case::plus_sign("0.1000000001e+1", Duration::new(1, 1))]
 #[case::minus_sign_zero_to_fract("10.00000001e-1", Duration::new(1, 1))]
-#[case::no_overflow_error_low("1.0e-1022", Duration::ZERO)]
-#[case::no_overflow_error_high("1.0e1023", Duration::MAX)]
-#[case::maximum_amount_of_seconds_digits_no_overflow(&format!("{}.0e-1022", "1".repeat(1042)), Duration::new(11_111_111_111_111_111_111, 111_111_111))]
-#[case::more_than_maximum_amount_of_seconds_digits_then_maximum_duration(&format!("{}.0e-1022", "1".repeat(1043)), Duration::MAX)]
-#[case::amount_of_nano_seconds_digits_then_capped(&format!("0.{}9e+1023", "0".repeat(1032)), Duration::ZERO)]
-#[case::maximum_amount_of_nano_seconds_digits_then_not_capped(&format!("0.{}9e+1023", "0".repeat(1031)), Duration::new(0, 9))]
+#[case::no_overflow_error_low("1.0e-32768", Duration::ZERO)]
+#[case::no_overflow_error_high("1.0e+32767", Duration::MAX)]
+#[case::maximum_exponent(&format!("0.{}9e+{}", "0".repeat(i16::MAX as usize), i16::MAX), Duration::new(0, 900_000_000))]
+#[case::maximum_exponent_barely_not_zero(&format!(".{}1e{}", "0".repeat((i16::MAX as usize) + 8), i16::MAX), Duration::new(0, 1))]
+#[case::maximum_exponent_barely_not_zero_with_time_unit(&format!(".{}1e{}y", "0".repeat((i16::MAX as usize) + 15), i16::MAX), Duration::new(0, 3))]
+#[case::maximum_exponent_with_maximum_time_unit(&format!("0.{}9e+{}y", "0".repeat(i16::MAX as usize), i16::MAX), Duration::new(28401840, 0))]
+#[case::minimum_exponent(&format!("1{}.0e{}", "0".repeat(i16::MIN.unsigned_abs() as usize), i16::MIN), Duration::new(1, 0))]
+#[case::minimum_exponent_barely_not_max_duration(&format!("1{}.0e{}", "0".repeat((i16::MIN.unsigned_abs() as usize) + 19), i16::MIN), Duration::new(10_000_000_000_000_000_000, 0))]
+#[case::minimum_exponent_barely_not_max_duration_with_time_unit(&format!("1{}.0e{}ns", "0".repeat((i16::MIN.unsigned_abs() as usize) + 28), i16::MIN), Duration::new(10_000_000_000_000_000_000, 0))]
+#[case::minimum_exponent_with_minimum_time_unit(&format!("1{}.0e{}ns", "0".repeat((i16::MAX as usize) + 1), i16::MIN), Duration::new(0, 1))]
 fn test_parse_duration_when_arguments_contain_exponent(
     #[case] source: &str,
     #[case] expected: Duration,
 ) {
-    let duration = parse_duration(source).unwrap();
+    let duration = DurationParser::with_all_time_units().parse(source).unwrap();
     assert_eq!(duration, expected);
 }
 
