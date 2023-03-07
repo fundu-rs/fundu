@@ -24,9 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2023-03-07
+
 ### Changed
 
-* Some internal changes to improve the overall performance but especially for large inputs
+* Internal changes to improve the overall performance but especially for large inputs.
+  Parsing large inputs is now faster than the reference function.
 
 ## [0.4.1] - 2023-02-26
 
