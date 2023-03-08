@@ -9,6 +9,7 @@
     "Attos",
     "binstall",
     "Cachegrind",
+    "callgrind",
     "chrono",
     "cicd",
     "clippy",

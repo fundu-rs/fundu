@@ -3,23 +3,30 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::DurationParser;
-use iai::black_box;
+use std::time::Duration;
+
+use fundu::{DurationParser, ParseError};
+use iai_callgrind::{black_box, main};
+
+type Result<T> = std::result::Result<T, ParseError>;
 
 const SMALL_INPUT: &str = "1";
 const SMALL_INPUT_SECONDS: &str = "1s";
 const SMALL_INPUT_MICRO_SECONDS: &str = "1Ms";
 
-fn no_time_unit() {
-    let _ = DurationParser::new().parse(black_box(SMALL_INPUT));
+#[inline(never)]
+fn no_time_unit() -> Result<Duration> {
+    DurationParser::new().parse(black_box(SMALL_INPUT))
 }
 
-fn time_unit_length_1() {
-    let _ = DurationParser::new().parse(black_box(SMALL_INPUT_SECONDS));
+#[inline(never)]
+fn time_unit_length_1() -> Result<Duration> {
+    DurationParser::new().parse(black_box(SMALL_INPUT_SECONDS))
 }
 
-fn time_unit_length_2() {
-    let _ = DurationParser::new().parse(black_box(SMALL_INPUT_MICRO_SECONDS));
+#[inline(never)]
+fn time_unit_length_2() -> Result<Duration> {
+    DurationParser::new().parse(black_box(SMALL_INPUT_MICRO_SECONDS))
 }
 
-iai::main!(no_time_unit, time_unit_length_1, time_unit_length_2);
+main!(no_time_unit, time_unit_length_1, time_unit_length_2);

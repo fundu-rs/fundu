@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use iai::black_box;
+use iai_callgrind::{black_box, main};
 use std::time::Duration;
 
 const LARGE_INPUT: &str =
@@ -45,4 +45,4 @@ fn large_reference() {
     let _ = Duration::from_secs_f64(black_box(LARGE_INPUT).parse().unwrap());
 }
 
-iai::main!(small_reference, large_reference);
+main!(small_reference, large_reference);

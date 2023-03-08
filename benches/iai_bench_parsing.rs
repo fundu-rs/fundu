@@ -3,8 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::DurationParser;
-use iai::black_box;
+use std::time::Duration;
+
+use fundu::{DurationParser, ParseError};
+use iai_callgrind::{black_box, main};
+
+type Result<T> = std::result::Result<T, ParseError>;
 
 const LARGE_INPUT: &str =
     "11111111111111111111111111111111111111111111111111111111111111111111111111111111\
@@ -36,26 +40,26 @@ const LARGE_INPUT: &str =
 const SMALL_INPUT: &str = "1";
 
 #[inline(never)]
-fn small_default_time_units() {
-    let _ = DurationParser::new().parse(black_box(SMALL_INPUT));
+fn small_default_time_units() -> Result<Duration> {
+    DurationParser::new().parse(black_box(SMALL_INPUT))
 }
 
 #[inline(never)]
-fn small_without_time_units() {
-    let _ = DurationParser::without_time_units().parse(black_box(SMALL_INPUT));
+fn small_without_time_units() -> Result<Duration> {
+    DurationParser::without_time_units().parse(black_box(SMALL_INPUT))
 }
 
 #[inline(never)]
-fn large_default_time_units() {
-    let _ = DurationParser::new().parse(black_box(LARGE_INPUT));
+fn large_default_time_units() -> Result<Duration> {
+    DurationParser::new().parse(black_box(LARGE_INPUT))
 }
 
 #[inline(never)]
-fn large_without_time_units() {
-    let _ = DurationParser::without_time_units().parse(black_box(LARGE_INPUT));
+fn large_without_time_units() -> Result<Duration> {
+    DurationParser::without_time_units().parse(black_box(LARGE_INPUT))
 }
 
-iai::main!(
+main!(
     small_default_time_units,
     small_without_time_units,
     large_default_time_units,
