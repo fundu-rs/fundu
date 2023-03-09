@@ -289,7 +289,9 @@ jobs:
           - iai_bench_time_unit_parsing
     steps:
       - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.60.0"
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Prepare
         run: sudo apt-get -y update && sudo apt-get -y install valgrind
