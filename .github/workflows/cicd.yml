@@ -292,6 +292,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.60.0"
+      - name: Install iai-callgrind-runner
+        run: cargo install iai-callgrind-runner
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Prepare
         run: sudo apt-get -y update && sudo apt-get -y install valgrind
