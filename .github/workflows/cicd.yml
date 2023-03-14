@@ -16,7 +16,6 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
-  IAI_CALLGRIND_VERSION: "0.3.1"
 
 jobs:
   deny:
@@ -281,21 +280,19 @@ jobs:
     needs: [base, cross]
     name: Benchmarks/ubuntu-latest
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        benchmark:
-          - iai_bench_parsing
-          - iai_bench_reference
-          - iai_bench_time_unit_parsing
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.60.0"
-      - name: Install iai-callgrind-runner
-        run: cargo install iai-callgrind-runner --version $IAI_CALLGRIND_VERSION
       - uses: Swatinem/rust-cache@v2.2.0
+      - name: Install iai-callgrind-runner
+        run: |
+          version=$(cargo metadata --format-version=1 |\
+            jq '.packages[] | select(.name == "iai-callgrind").version' |\
+            tr -d '"'
+          )
+          cargo install iai-callgrind-runner --version $version
       - name: Prepare
         run: sudo apt-get -y update && sudo apt-get -y install valgrind
       - name: Download reference benchmarks
@@ -303,12 +300,12 @@ jobs:
         uses: dawidd6/action-download-artifact@v2
         with:
           workflow_conclusion: success
-          name: benchmarks-${{ matrix.benchmark }}
+          name: iai-callgrind-benchmarks
           check_artifacts: true
           path: target/iai
           if_no_artifact_found: warn
-      - name: Run benchmark ${{ matrix.benchmark }}
-        run: cargo bench --bench ${{ matrix.benchmark }} | tee bench.out
+      - name: Run iai-callgrind benchmarks
+        run: cargo bench --all-features iai_bench | tee bench.out
       - name: Check for regression
         run: |
           echo 0 > fail
@@ -316,7 +313,7 @@ jobs:
           while IFS= read -r line; do
             skip=$(( $(< skip) > 0 ))
             if grep -Eq '^\S*reference$' --color=never <<<"$line"; then
-              echo 5 > skip
+              echo 6 > skip
             else
               echo $(( $(< skip) - 1 )) > skip
             fi
@@ -333,5 +330,5 @@ jobs:
           exit $(< fail)
       - uses: actions/upload-artifact@v3
         with:
-          name: benchmarks-${{ matrix.benchmark }}
+          name: iai-callgrind-benchmarks
           path: target/iai
