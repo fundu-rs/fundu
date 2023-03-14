@@ -40,28 +40,44 @@ const LARGE_INPUT: &str =
 const SMALL_INPUT: &str = "1";
 
 #[inline(never)]
+#[export_name = "iai_bench_parsing::setup_parser_without_time_units"]
+fn setup_parser_without_time_units() -> DurationParser {
+    DurationParser::without_time_units()
+}
+
+#[inline(never)]
+#[export_name = "iai_bench_parsing::setup_parser_with_default_units"]
+fn setup_parser_with_default_units() -> DurationParser {
+    DurationParser::new()
+}
+
+#[inline(never)]
 fn small_default_time_units() -> Result<Duration> {
-    DurationParser::new().parse(black_box(SMALL_INPUT))
+    black_box(setup_parser_with_default_units()).parse(black_box(SMALL_INPUT))
 }
 
 #[inline(never)]
 fn small_without_time_units() -> Result<Duration> {
-    DurationParser::without_time_units().parse(black_box(SMALL_INPUT))
+    black_box(setup_parser_without_time_units()).parse(black_box(SMALL_INPUT))
 }
 
 #[inline(never)]
 fn large_default_time_units() -> Result<Duration> {
-    DurationParser::new().parse(black_box(LARGE_INPUT))
+    black_box(setup_parser_with_default_units()).parse(black_box(LARGE_INPUT))
 }
 
 #[inline(never)]
 fn large_without_time_units() -> Result<Duration> {
-    DurationParser::without_time_units().parse(black_box(LARGE_INPUT))
+    black_box(setup_parser_without_time_units()).parse(black_box(LARGE_INPUT))
 }
 
 main!(
-    small_default_time_units,
-    small_without_time_units,
-    large_default_time_units,
-    large_without_time_units,
+    callgrind_args =
+        "toggle-collect=iai_bench_parsing::setup_parser_with_default_units",
+        "toggle-collect=iai_bench_parsing::setup_parser_without_time_units";
+    functions =
+        small_default_time_units,
+        small_without_time_units,
+        large_default_time_units,
+        large_without_time_units,
 );
