@@ -50,7 +50,7 @@ name = "benchmarks_standard"
 harness = false
 
 [[bench]]
-name = "iai_bench_time_unit_parsing"
+name = "iai_bench_parsing_time_units"
 harness = false
 
 [[bench]]
@@ -59,6 +59,14 @@ harness = false
 
 [[bench]]
 name = "iai_bench_reference"
+harness = false
+
+[[bench]]
+name = "iai_bench_standard"
+harness = false
+
+[[bench]]
+name = "iai_bench_custom"
 harness = false
 
 [[bench]]

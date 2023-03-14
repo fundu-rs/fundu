@@ -10,74 +10,51 @@ use iai_callgrind::{black_box, main};
 
 type Result<T> = std::result::Result<T, ParseError>;
 
-const LARGE_INPUT: &str =
-    "11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111.\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111111111111111111111\
-    11111111111111111111111111111111111111111111111111111111111111e-1022";
 const SMALL_INPUT: &str = "1";
+const MIXED_INPUT_7: &str = "1234567.1234567";
+const MIXED_INPUT_8: &str = "12345678.12345678";
 
 #[inline(never)]
-#[export_name = "iai_bench_parsing::setup_parser_without_time_units"]
-fn setup_parser_without_time_units() -> DurationParser {
+#[export_name = "__iai_setup::setup_parser"]
+fn setup_parser() -> DurationParser {
     DurationParser::without_time_units()
 }
 
 #[inline(never)]
-#[export_name = "iai_bench_parsing::setup_parser_with_default_units"]
-fn setup_parser_with_default_units() -> DurationParser {
-    DurationParser::new()
+#[export_name = "__iai_setup::generate_large_input"]
+fn generate_large_input() -> String {
+    let ones = "1".repeat(1022);
+    format!("{}.{}e-1022", &ones, &ones)
 }
 
 #[inline(never)]
-fn small_default_time_units() -> Result<Duration> {
-    black_box(setup_parser_with_default_units()).parse(black_box(SMALL_INPUT))
+fn small_input() -> Result<Duration> {
+    black_box(setup_parser()).parse(black_box(SMALL_INPUT))
 }
 
 #[inline(never)]
-fn small_without_time_units() -> Result<Duration> {
-    black_box(setup_parser_without_time_units()).parse(black_box(SMALL_INPUT))
+fn mixed_input_7() -> Result<Duration> {
+    black_box(setup_parser()).parse(black_box(MIXED_INPUT_7))
 }
 
 #[inline(never)]
-fn large_default_time_units() -> Result<Duration> {
-    black_box(setup_parser_with_default_units()).parse(black_box(LARGE_INPUT))
+fn mixed_input_8() -> Result<Duration> {
+    black_box(setup_parser()).parse(black_box(MIXED_INPUT_8))
 }
 
 #[inline(never)]
-fn large_without_time_units() -> Result<Duration> {
-    black_box(setup_parser_without_time_units()).parse(black_box(LARGE_INPUT))
+fn large_input() -> Result<Duration> {
+    let input = black_box(generate_large_input());
+    black_box(setup_parser()).parse(&input)
 }
 
 main!(
     callgrind_args =
-        "toggle-collect=iai_bench_parsing::setup_parser_with_default_units",
-        "toggle-collect=iai_bench_parsing::setup_parser_without_time_units";
+        "toggle-collect=__iai_setup::setup_parser",
+        "toggle-collect=__iai_setup::generate_large_input";
     functions =
-        small_default_time_units,
-        small_without_time_units,
-        large_default_time_units,
-        large_without_time_units,
+        small_input,
+        mixed_input_7,
+        mixed_input_8,
+        large_input,
 );
