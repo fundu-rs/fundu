@@ -237,8 +237,8 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: lcov.info
-          token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
-          fail_ci_if_error: true
+          # token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
+          fail_ci_if_error: false
     env:
       RUSTFLAGS: "-C instrument-coverage"
       LLVM_PROFILE_FILE: "fundu_coverage-%p-%m.profraw"
