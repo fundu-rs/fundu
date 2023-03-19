@@ -268,24 +268,29 @@ cargo bench --help # The cargo help for bench
 cargo bench --bench benchmarks_standard -- --help # The criterion help
 ```
 
-To get a rough idea about the parsing times, here the average parsing speed of two inputs on a
+To get a rough idea about the parsing times, here the average parsing speed of some inputs on a
 comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
-Input | parser with time units | avg parsing time | ~ samples / s
+Input | avg parsing time | ~ samples / s
 --- | --- | --- | ---
-`1` | no | `39.879 ns` | `25_075_854.459`
-`1` | yes | `41.199 ns` | `24_272_433.796`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | no | `589.50 ns` | `1_696_352.841`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | yes | `590.68 ns` | `1_692_964.041`
+`1` | `41.539 ns` | `24_073_762.006`
+`123456789.123456789e5` | `78.195 ns` | `12_788_541.466`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `530.64 ns` | `1_884_516.809`
 
 For comparison, `fundu`'s precision and additional features only add a very low performance overhead
-for small input and outperforms the reference function for larger input (the reference function is
-`Duration::from_secs_f64(input.parse().unwrap())`):
+for small and some mixed input and performs better than the reference function from the `stdlib` as
+the input gets larger (the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
 
 Input | avg parsing time | ~ samples / s
 --- | --- | ---
 `1` | `25.630 ns` | `39_016_777.214`
+`123456789.123456789e5` | `48.373 ns` | `20_672_689.310`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `1.7457 µs` | `572_836.111`
+
+The initialization for fixed size time unit sets with `DurationParser::new`,
+`DurationParser::with_all_time_units` etc. takes around `1-2 ns` and is negligibly small. The
+initialization time for custom sets with `DurationParser::with_time_units` has a maximum of around
+`10 ns`.
 
 # Comparison `fundu` vs `Duration::(try_)from_secs_f64`
 
