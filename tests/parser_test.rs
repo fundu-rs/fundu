@@ -208,6 +208,28 @@ fn test_parser_when_time_units_are_not_present_then_error(
 }
 
 #[rstest]
+#[case::empty("", ParseError::Empty)]
+#[case::only_space(" ", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
+#[case::space_before_number(" 123", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
+#[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
+#[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
+fn test_parser_when_allow_spaces_then_error(#[case] input: &str, #[case] expected: ParseError) {
+    let mut parser = DurationParser::with_all_time_units();
+    parser.allow_spaces();
+    assert_eq!(parser.parse(input).unwrap_err(), expected);
+}
+
+#[rstest]
+#[case::without_spaces("123ns", Duration::new(0, 123))]
+#[case::single_space("123 ns", Duration::new(0, 123))]
+#[case::multiple_spaces("123      ns", Duration::new(0, 123))]
+fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
+    let mut parser = DurationParser::with_all_time_units();
+    parser.allow_spaces();
+    assert_eq!(parser.parse(input).unwrap(), expected);
+}
+
+#[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
 fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
     assert!(DurationParser::without_time_units()

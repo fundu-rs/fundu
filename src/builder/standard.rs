@@ -6,12 +6,14 @@
 use std::time::Duration;
 
 use crate::parse::ReprParser;
-use crate::time::{TimeUnitsLike, DEFAULT_TIME_UNIT};
+use crate::time::TimeUnitsLike;
 use crate::{
     ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
+
+use super::config::Config;
 
 const DEFAULT_TIME_UNITS: [&str; 10] = [
     DEFAULT_ID_NANO_SECOND,
@@ -27,7 +29,7 @@ const DEFAULT_TIME_UNITS: [&str; 10] = [
 ];
 
 /// Interface for [`TimeUnit`]s providing common methods to manipulate the available time units.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TimeUnits {
     data: [Option<TimeUnit>; 10],
 }
@@ -170,7 +172,7 @@ impl TimeUnits {
 /// ```
 pub struct DurationParser {
     time_units: TimeUnits,
-    default_unit: TimeUnit,
+    config: Config,
 }
 
 impl DurationParser {
@@ -194,7 +196,7 @@ impl DurationParser {
     pub const fn new() -> Self {
         Self {
             time_units: TimeUnits::with_default_time_units(),
-            default_unit: DEFAULT_TIME_UNIT,
+            config: Config::new(),
         }
     }
 
@@ -214,7 +216,7 @@ impl DurationParser {
     pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
         Self {
             time_units: TimeUnits::with_time_units(time_units),
-            default_unit: Default::default(),
+            config: Config::new(),
         }
     }
 
@@ -241,7 +243,7 @@ impl DurationParser {
     pub const fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
-            default_unit: DEFAULT_TIME_UNIT,
+            config: Config::new(),
         }
     }
 
@@ -261,7 +263,7 @@ impl DurationParser {
     pub const fn with_all_time_units() -> Self {
         Self {
             time_units: TimeUnits::with_all_time_units(),
-            default_unit: DEFAULT_TIME_UNIT,
+            config: Config::new(),
         }
     }
 
@@ -281,8 +283,34 @@ impl DurationParser {
     ///     Duration::new(0, 42)
     /// );
     /// ```
-    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.default_unit = unit;
+    pub fn default_unit(&mut self, unit: TimeUnit) -> &Self {
+        self.config.default_unit = unit;
+        self
+    }
+
+    /// Allow spaces between the number and the [`TimeUnit`].
+    ///
+    /// Per default no spaces are allowed between the number and the [`TimeUnit`]. This setting
+    /// implicitly allows spaces at the end of the string if no time unit was present.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, ParseError};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// assert_eq!(
+    ///     parser.parse("123 ns"),
+    ///     Err(ParseError::Syntax(3, "No spaces allowed".to_string()))
+    /// );
+    ///
+    /// parser.allow_spaces();
+    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
+    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    /// ```
+    pub fn allow_spaces(&mut self) -> &mut Self {
+        self.config.allow_spaces = true;
         self
     }
 
@@ -371,7 +399,7 @@ impl DurationParser {
     /// ```
     #[inline(never)]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, self.default_unit, &self.time_units);
+        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }
@@ -586,8 +614,9 @@ mod tests {
 
     #[test]
     fn test_duration_parser_init_when_default() {
+        let config = Config::new();
         let parser = DurationParser::default();
-        assert_eq!(parser.default_unit, Second);
+        assert_eq!(parser.config, config);
         assert_eq!(
             parser.get_current_time_units(),
             vec![
@@ -601,5 +630,12 @@ mod tests {
                 Week
             ]
         )
+    }
+
+    #[test]
+    fn test_duration_parser_setting_allow_spaces() {
+        let mut parser = DurationParser::new();
+        parser.allow_spaces();
+        assert!(parser.config.allow_spaces);
     }
 }

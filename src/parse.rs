@@ -9,6 +9,7 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
+use crate::builder::config::Config;
 use crate::error::ParseError;
 use crate::time::{TimeUnit, TimeUnitsLike};
 
@@ -305,7 +306,7 @@ pub(crate) struct ReprParser<'a> {
     current_byte: Option<&'a u8>,
     current_pos: usize,
     time_units: &'a dyn TimeUnitsLike,
-    default_unit: TimeUnit,
+    config: &'a Config,
     max_exponent: i16,
     min_exponent: i16,
     input: &'a [u8],
@@ -314,14 +315,14 @@ pub(crate) struct ReprParser<'a> {
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
     #[inline]
-    pub fn new(input: &'a str, default_unit: TimeUnit, time_units: &'a dyn TimeUnitsLike) -> Self {
+    pub fn new(input: &'a str, config: &'a Config, time_units: &'a dyn TimeUnitsLike) -> Self {
         let input = input.as_bytes();
         Self {
             current_byte: input.first(),
             input,
             current_pos: 0,
-            default_unit,
             time_units,
+            config,
             max_exponent: i16::MAX,
             min_exponent: i16::MIN,
         }
@@ -391,7 +392,7 @@ impl<'a> ReprParser<'a> {
         }
 
         let mut duration_repr = DurationRepr {
-            unit: self.default_unit,
+            unit: self.config.default_unit,
             ..Default::default()
         };
 
@@ -488,10 +489,28 @@ impl<'a> ReprParser<'a> {
             None => return Ok(duration_repr),
         }
 
+        // If there are spaces between the number and the time unit, the spaces are consumed or an
+        // error is returned depending on the configuration value for `allow_spaces`
+        match self.current_byte {
+            Some(byte) if *byte == b' ' => {
+                if self.config.allow_spaces {
+                    self.advance();
+                    self.consume_spaces();
+                } else {
+                    return Err(ParseError::Syntax(
+                        self.current_pos,
+                        "No spaces allowed".to_string(),
+                    ));
+                }
+            }
+            Some(_) => {}
+            None => return Ok(duration_repr),
+        }
+
+        // parse the time unit if present
         match self.current_byte {
             Some(_) if !self.time_units.is_empty() => {
-                let unit = self.parse_time_unit()?;
-                duration_repr.unit = unit;
+                duration_repr.unit = self.parse_time_unit()?;
             }
             Some(byte) => {
                 return Err(ParseError::TimeUnit(
@@ -506,6 +525,17 @@ impl<'a> ReprParser<'a> {
         match self.current_byte {
             Some(_) => unreachable!("Parsing time units consumes the rest of the input"), // cov:excl-line
             None => Ok(duration_repr),
+        }
+    }
+
+    #[inline]
+    fn consume_spaces(&mut self) {
+        while let Some(byte) = self.current_byte {
+            if *byte == b' ' {
+                self.advance()
+            } else {
+                break;
+            }
         }
     }
 
@@ -722,7 +752,6 @@ impl<'a> ReprParser<'a> {
 mod tests {
     use super::*;
     use rstest::rstest;
-    use TimeUnit::*;
 
     struct TimeUnitsFixture;
 
@@ -743,7 +772,8 @@ mod tests {
     #[case::mixed("012345678")]
     #[case::more_than_8_digits("0123456789")]
     fn test_duration_repr_parse_is_8_digits_when_8_digits(#[case] input: &str) {
-        let parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         assert!(parser.is_8_digits());
     }
 
@@ -754,7 +784,8 @@ mod tests {
     #[case::all_double_point("::::::::")] // ':' = 0x3A one above '9'
     #[case::one_not_digit("a0000000")]
     fn test_duration_repr_parse_is_8_digits_when_not_8_digits(#[case] input: &str) {
-        let parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         assert!(!parser.is_8_digits());
     }
 
@@ -767,7 +798,8 @@ mod tests {
         #[case] input: &str,
         #[case] expected: Option<u64>,
     ) {
-        let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         assert_eq!(parser.parse_8_digits(), expected);
     }
 
@@ -779,7 +811,8 @@ mod tests {
         #[case] input: &str,
         #[case] expected: Option<u64>,
     ) {
-        let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         assert_eq!(parser.parse_8_digits(), expected);
         assert_eq!(parser.get_remainder(), input.as_bytes());
         assert_eq!(parser.current_byte, input.as_bytes().first());
@@ -788,7 +821,8 @@ mod tests {
 
     #[test]
     fn test_duration_repr_parser_parse_8_digits_when_more_than_8() {
-        let mut parser = ReprParser::new("00000000a", Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let mut parser = ReprParser::new("00000000a", &config, &TimeUnitsFixture);
         assert_eq!(parser.parse_8_digits(), Some(0));
         assert_eq!(parser.get_remainder(), &[b'a']);
         assert_eq!(parser.current_byte, Some(&b'a'));
@@ -817,7 +851,8 @@ mod tests {
         #[case] input: &str,
         #[case] expected_digits: Vec<u8>,
     ) {
-        let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         let mut digits = Vec::with_capacity(input.len());
         assert_eq!(parser.parse_whole(&mut digits), Whole(digits.len()));
         assert_eq!(digits, expected_digits);
@@ -825,9 +860,10 @@ mod tests {
 
     #[test]
     fn test_duration_repr_parser_parse_whole_when_more_than_max() {
+        let config = Config::new();
         let input = &"1".repeat(i16::MAX as usize + 100);
         let expected = vec![1u8; i16::MAX as usize + 33];
-        let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         assert_eq!(parser.parse().unwrap().digits.unwrap(), expected);
     }
 
@@ -835,7 +871,8 @@ mod tests {
     fn test_duration_repr_parser_parse_fract_when_more_than_max() {
         let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
         let expected = vec![1u8; i16::MAX as usize + 25];
-        let mut parser = ReprParser::new(&input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let mut parser = ReprParser::new(&input, &config, &TimeUnitsFixture);
         let result = parser.parse().unwrap();
         let digits = result.digits.unwrap();
         assert_eq!(digits.len(), expected.len());
@@ -855,7 +892,8 @@ mod tests {
     #[case::max_8_digits_minus_one("99999998", vec![9,9,9,9,9,9,9,8])]
     #[case::nine_digits("123456789", vec![1,2,3,4,5,6,7,8,9])]
     fn test_duration_repr_parser_parse_fract(#[case] input: &str, #[case] expected: Vec<u8>) {
-        let mut parser = ReprParser::new(input, Second, &TimeUnitsFixture);
+        let config = Config::new();
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
         let mut digits = Vec::with_capacity(input.len());
         assert_eq!(parser.parse_fract(&mut digits), Fract(0, input.len()));
         assert_eq!(digits, expected)

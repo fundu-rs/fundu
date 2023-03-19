@@ -12,6 +12,8 @@ use crate::{
 };
 use std::time::Duration;
 
+use super::config::Config;
+
 /// Part of the `custom` feature with [`TimeUnit`] ids as defined in
 /// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
 pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
@@ -202,7 +204,7 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
 pub struct CustomDurationParser<'a> {
     time_units: CustomTimeUnits<'a>,
-    default_unit: TimeUnit,
+    config: Config,
 }
 
 impl<'a> CustomDurationParser<'a> {
@@ -240,7 +242,7 @@ impl<'a> CustomDurationParser<'a> {
     pub fn new() -> Self {
         Self {
             time_units: CustomTimeUnits::new(),
-            default_unit: Default::default(),
+            config: Config::new(),
         }
     }
 
@@ -290,7 +292,7 @@ impl<'a> CustomDurationParser<'a> {
     pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
-            default_unit: Default::default(),
+            config: Config::new(),
         }
     }
 
@@ -311,7 +313,34 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.default_unit = unit;
+        self.config.default_unit = unit;
+        self
+    }
+
+    /// Allow spaces between the number and the [`TimeUnit`].
+    ///
+    /// See also [`crate::DurationParser`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, ParseError, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(
+    ///     &[(NanoSecond, &["ns"])]
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("123 ns"),
+    ///     Err(ParseError::Syntax(3, "No spaces allowed".to_string()))
+    /// );
+    ///
+    /// parser.allow_spaces();
+    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
+    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    /// ```
+    pub fn allow_spaces(&mut self) -> &mut Self {
+        self.config.allow_spaces = true;
         self
     }
 
@@ -420,7 +449,7 @@ impl<'a> CustomDurationParser<'a> {
     /// ```
     #[inline(never)]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, self.default_unit, &self.time_units);
+        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
         parser.parse().and_then(|mut repr| repr.parse())
     }
 }
@@ -553,7 +582,7 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_init_new() {
         let parser = CustomDurationParser::new();
-        assert_eq!(parser.default_unit, Second);
+        assert_eq!(parser.config.default_unit, Second);
         assert!(parser.time_units.is_empty());
         assert_eq!(parser.get_current_time_units(), vec![]);
         assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
@@ -569,7 +598,7 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_init_with_time_units() {
         let parser = CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS);
-        assert_eq!(parser.default_unit, Second);
+        assert_eq!(parser.config.default_unit, Second);
         assert_eq!(
             Vec::from(parser.time_units.time_units.as_slice()),
             DEFAULT_ALL_TIME_UNITS
@@ -647,7 +676,7 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.default_unit(NanoSecond);
 
-        assert_eq!(parser.default_unit, NanoSecond);
+        assert_eq!(parser.config.default_unit, NanoSecond);
         assert_eq!(parser.parse("1"), Ok(Duration::new(0, 1)));
     }
 
@@ -677,5 +706,12 @@ mod tests {
             parser.parse("1мілісекунда"),
             Ok(Duration::new(0, 1_000_000))
         );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_allow_spaces() {
+        let mut parser = CustomDurationParser::new();
+        parser.allow_spaces();
+        assert!(parser.config.allow_spaces);
     }
 }
