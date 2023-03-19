@@ -352,6 +352,7 @@ impl<'a> ReprParser<'a> {
             .get(self.current_pos..(self.current_pos + 8))
             .map_or(false, |digits| {
                 let ptr = digits.as_ptr() as *const u64;
+                // SAFETY: We just ensured there are 8 bytes
                 let num = u64::from_le(unsafe { ptr.read_unaligned() });
                 (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
                     == 0x3030303030303030
@@ -359,32 +360,28 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline]
-    unsafe fn advance_by(&mut self, num: usize) -> &[u8] {
-        // cov:excl-start
-        debug_assert!(
-            self.input.len() - self.current_pos >= num,
-            "Call this method only when sure there are enough bytes"
-        ); // cov:excl-end
-
-        let input = &self.input[self.current_pos..(self.current_pos + num)];
+    unsafe fn advance_by(&mut self, num: usize) {
         self.current_pos += num;
         self.current_byte = self.input.get(self.current_pos);
-        input
     }
 
     #[inline]
     fn parse_8_digits(&mut self) -> Option<u64> {
-        if !self.is_8_digits() {
-            return None;
-        }
-
-        // SAFETY: We just ensured there are at least 8 bytes as digits
-        unsafe {
-            let digits = self.advance_by(8);
-            let ptr = digits.as_ptr() as *const u64;
-            let val = u64::from_le(ptr.read_unaligned());
-            Some(val - 0x3030303030303030)
-        }
+        self.input
+            .get(self.current_pos..(self.current_pos + 8))
+            .and_then(|digits| {
+                let ptr = digits.as_ptr() as *const u64;
+                // SAFETY: We just ensured there are 8 bytes
+                let num = u64::from_le(unsafe { ptr.read_unaligned() });
+                if (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
+                    == 0x3030303030303030
+                {
+                    unsafe { self.advance_by(8) }
+                    Some(num - 0x3030303030303030)
+                } else {
+                    None
+                }
+            })
     }
 
     #[inline]
@@ -683,7 +680,7 @@ impl<'a> ReprParser<'a> {
     #[inline]
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?;
-        self.current_byte.ok_or({
+        self.current_byte.ok_or_else(|| {
             ParseError::Syntax(
                 self.current_pos,
                 "Expected exponent but reached end of input".to_string(),
