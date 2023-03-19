@@ -39,7 +39,15 @@ fn flamegraph_initialization(criterion: &mut Criterion) {
 
 fn flamegraph_parsing(criterion: &mut Criterion) {
     let mut group = criterion.benchmark_group("standard duration parser parsing");
-    for &input in &["1", "1s", "1ns", "1y"] {
+    for &input in &[
+        "1",
+        "1s",
+        "1ns",
+        "1y",
+        "1234567.1234567",
+        "12345678.12345678",
+        &format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022)),
+    ] {
         group.bench_with_input(
             BenchmarkId::new("all default time units", input),
             &(DurationParser::with_all_time_units(), input),

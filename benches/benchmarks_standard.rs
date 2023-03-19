@@ -19,8 +19,16 @@ fn get_parsing_speed_inputs() -> Vec<(String, String)> {
     vec![
         ("single digit".to_string(), "1".to_string()),
         (
-            "mixed digits".to_string(),
-            "123456789.123456789e+5".to_string(),
+            "mixed digits 7".to_string(),
+            "1234567.1234567e5".to_string(),
+        ),
+        (
+            "mixed digits 8".to_string(),
+            "12345678.12345678e6".to_string(),
+        ),
+        (
+            "mixed digits 9".to_string(),
+            "123456789.123456789e7".to_string(),
         ),
         (
             "large input".to_string(),
