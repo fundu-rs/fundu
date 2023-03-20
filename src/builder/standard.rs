@@ -222,8 +222,6 @@ impl DurationParser {
 
     /// Return a parser without [`TimeUnit`]s.
     ///
-    /// Note this is the fastest parser because no time unit setup is required.
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -279,7 +277,10 @@ impl DurationParser {
     /// use std::time::Duration;
     ///
     /// assert_eq!(
-    ///     DurationParser::with_all_time_units().default_unit(NanoSecond).parse("42").unwrap(),
+    ///     DurationParser::with_all_time_units()
+    ///         .default_unit(NanoSecond)
+    ///         .parse("42")
+    ///         .unwrap(),
     ///     Duration::new(0, 42)
     /// );
     /// ```
@@ -347,8 +348,12 @@ impl DurationParser {
     /// use std::time::Duration;
     ///
     /// assert_eq!(
-    ///     DurationParser::new().time_unit(Month).time_unit(Year).get_current_time_units(),
-    ///     DurationParser::with_all_time_units().get_current_time_units(),
+    ///     DurationParser::new()
+    ///         .time_unit(Month)
+    ///         .time_unit(Year)
+    ///         .get_current_time_units(),
+    ///     DurationParser::with_all_time_units()
+    ///         .get_current_time_units(),
     /// );
     ///
     /// assert_eq!(
@@ -372,7 +377,9 @@ impl DurationParser {
     /// use std::time::Duration;
     ///
     /// assert_eq!(
-    ///     DurationParser::without_time_units().time_units(&[MicroSecond, MilliSecond]).get_current_time_units(),
+    ///     DurationParser::without_time_units()
+    ///         .time_units(&[MicroSecond, MilliSecond])
+    ///         .get_current_time_units(),
     ///     vec![MicroSecond, MilliSecond],
     /// );
     /// ```

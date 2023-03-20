@@ -319,7 +319,7 @@ impl<'a> CustomDurationParser<'a> {
 
     /// Allow spaces between the number and the [`TimeUnit`].
     ///
-    /// See also [`crate::DurationParser`].
+    /// See also [`DurationParser::allow_spaces`].
     ///
     /// # Examples
     ///
@@ -339,6 +339,8 @@ impl<'a> CustomDurationParser<'a> {
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
     /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
     /// ```
+    ///
+    /// [`DurationParser::allow_spaces`]: crate::DurationParser::allow_spaces
     pub fn allow_spaces(&mut self) -> &mut Self {
         self.config.allow_spaces = true;
         self

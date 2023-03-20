@@ -38,10 +38,9 @@
 //! * `3.` or likewise `3.0`
 //! * `inf`, `+inf`, `infinity`, `+infinity`
 //!
-//! All alphabetic characters are matched case-insensitive, so `InFINity` or `2E8` are absolute
-//! valid input strings. Additionally, depending on the chosen set of time units one of the
-//! following time units (the first column) are accepted (directly following the number without spaces
-//! between them):
+//! All alphabetic characters are matched case-insensitive, so `InFINity` or `2E8` are valid input
+//! strings. Additionally, depending on the chosen set of time units one of the following time units
+//! (the first column) are accepted.
 //!
 //! | [`TimeUnit`]    | default id | is default time unit
 //! | --------------- | ----------:|:--------------------:
@@ -64,6 +63,9 @@
 //! * `3.14e8w`
 //! * ...
 //!
+//! Per default there are no spaces allowed between the number and the [`TimeUnit`], but this
+//! behavior can be changed with setting [`DurationParser::allow_spaces`].
+//!
 //! # Format specification
 //!
 //! The time units are case-sensitive, all other alphabetic characters are case-insensitive
@@ -82,17 +84,20 @@
 //!
 //! Special cases which are not displayed in the specification:
 //!
-//! * The `TimeUnit` rule is based on the default identifiers as defined in table above. They can
-//!   also be completely customized with the [`CustomDurationParser`].
+//! * The `TimeUnit` rule is based on the default identifiers as defined in the table above. They
+//!   can also be completely customized with the [`CustomDurationParser`].
 //! * Negative values, including negative infinity are not allowed. For exceptions see the next
 //!   point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
 //! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`
+//! * If `allow_spaces` is set then `Number Spaces? TimeUnit?` is allowed with `Spaces ::= ' '*`
+//!   This setting also allows the input string to end with spaces if no time unit was present and
+//!   the parser then assumes the default time unit.
 //!
 //! # Examples
 //!
-//! If only the default configuration is required, the [`parse_duration`] method can be used.
+//! If only the default configuration is required once, the [`parse_duration`] method can be used.
 //!
 //! ```rust
 //! use fundu::parse_duration;

@@ -45,26 +45,37 @@
   
 # Overview
 
-`fundu` provides a parser to convert strings into a [`std::time::Duration`]. It tries to improve on
-the standard methods [`Duration::from_secs_f64`] and [`Duration::try_from_secs_f64`] (which is
-stable since `1.66.0`) with intermediate parsing to a float via [`f64::from_str`] by
+`fundu` provides a parser to convert strings into a [`std::time::Duration`]. Some examples for valid input strings:
 
-- Merging the separate steps of parsing float like strings to `f64` and parsing of `f64` to a [`Duration`]
-- Providing customizable [TimeUnit](#time-units)s which are accepted in the input string.
-- Using no floating point calculations and precisely parse the input as it is. So, what you put
-in you is what you get out within the range of a `std::time::Duration`.
-- Evaluating to [`Duration::MAX`] if the input number was larger than that maximum or
-the input string was positive `infinity`.
-- Supporting input strings of arbitrary length.
-- Providing better error messages.
+- `"1.41"`
+- `"42"`
+- `"2e-8"`, `"2e+8"` (or likewise `"2.0e8"`)
+- `".5"` or likewise `"0.5"`
+- `"3."` or likewise `"3.0"`
+- `"inf"`, `"+inf"`, `"infinity"`, `"+infinity"`
+- `"1w"` (1 week) or likewise `"7d"`, `"168h"`, `"10080m"`, `"604800s"`, ...
 
-This library aims for good performance (See [Benchmarks](#benchmarks)) and being a lightweight
-crate. `fundu` is purely built on top of the rust `stdlib`, and there are no additional dependencies
-required. The accepted string format is almost the same like the scientific floating point format
-and compatible to the [`f64::from_str`] format. In other words, if the accepted input string could
-previously converted to an `f64` with `f64::from_str`, no change is needed to accept the same format
-with `fundu`. For a direct comparison of `fundu` vs the rust native methods
-`Duration::(try_)from_secs_f64` see [Comparison](#comparison-fundu-vs-durationtry_from_secs_f64).
+This crate tries to improve on the standard methods [`Duration::from_secs_f64`] and
+[`Duration::try_from_secs_f64`] (which is stable since `1.66.0`) with intermediate parsing to a
+float via [`f64::from_str`]. Some advantages and features this crate provides:
+
+- __Precision__: There are no floating point calculations and the input is precisely parsed as it
+is. So, what you put in you is what you get out within the range of a `std::time::Duration`.
+- __Performance__: The parser is very fast (See [Benchmarks](#benchmarks))
+- __Customization__: [`TimeUnits`](#time-units), but also other aspects are configurable
+- __Sound limits__: The duration evaluates to [`Duration::MAX`] if the input number was larger than that maximum
+or if the input string was positive `infinity`.
+- __Single Interface__: `fundu` merges the separate steps of parsing float like strings to `f64` and parsing of `f64` to a [`Duration`]
+- __Error handling__: The error messages try to be more informative on their own but can also be easily adjusted
+
+`fundu` aims for good performance and being a lightweight crate. It is purely built on top of the
+rust `stdlib`, and there are no additional dependencies required. The accepted string format is
+almost the same like the scientific floating point format and compatible to the [`f64::from_str`]
+format. In other words, if the accepted input string could previously converted to an `f64` with
+`f64::from_str`, no change is needed to accept the same format with `fundu`. For a direct comparison
+of `fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
+[Comparison](#comparison-fundu-vs-durationtry_from_secs_f64).
+
 For further details see the [Documentation](https://docs.rs/crate/fundu)!
 
 # Installation
@@ -304,7 +315,7 @@ Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
 `1ns` | `Duration::new(0, 1)` | cannot parse time units
 `1000` | When changing the default unit to `MilliSecond` -> `Duration::new(1, 0)` | is always seconds based
 `1e20` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
-`infinity` | `DURATION::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
+`infinity` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
 
 `fundu` has a small impact on performance when the input is small but performs better for large
 input (See [performance](#benchmarks)). Depending on the input data and if you need to parse a
