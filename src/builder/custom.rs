@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use crate::parse::ReprParser;
-use crate::time::TimeUnitsLike;
+use crate::time::{Multiplier, TimeUnitsLike};
 use crate::{
     ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
@@ -59,26 +59,25 @@ pub const DEFAULT_ALL_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
 type Identifiers<'a> = (LookupData, Vec<&'a str>);
 type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
 
-#[derive(Debug)]
-struct CustomTimeUnits<'a> {
-    min_length: usize,
-    max_length: usize,
-    time_units: [Identifiers<'a>; 10],
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct LookupData {
     min_length: usize,
     max_length: usize,
     time_unit: TimeUnit,
+    multiplier: Multiplier,
 }
 
 impl LookupData {
     fn new(time_unit: TimeUnit) -> Self {
+        Self::with_multiplier(time_unit, Multiplier::default())
+    }
+
+    fn with_multiplier(time_unit: TimeUnit, multiplier: Multiplier) -> Self {
         Self {
             min_length: usize::MAX,
             max_length: 0,
             time_unit,
+            multiplier,
         }
     }
 
@@ -100,6 +99,14 @@ impl LookupData {
     fn is_empty(&self) -> bool {
         self.min_length == usize::MAX && self.max_length == 0
     }
+}
+
+#[derive(Debug)]
+struct CustomTimeUnits<'a> {
+    min_length: usize,
+    max_length: usize,
+    time_units: [Identifiers<'a>; 10],
+    custom_time_units: Vec<Identifiers<'a>>,
 }
 
 impl<'a> CustomTimeUnits<'a> {
@@ -135,6 +142,39 @@ impl<'a> CustomTimeUnits<'a> {
             self.add_time_unit(*unit);
         }
     }
+
+    fn add_custom_time_unit(
+        &mut self,
+        base_unit: TimeUnit,
+        multiplier: Multiplier,
+        identifiers: &[&'a str],
+    ) {
+        if identifiers.is_empty() {
+            return;
+        }
+        let (min_length, max_length) = match self.lookup_custom_mut(base_unit, multiplier) {
+            Some((data, ids)) => {
+                for &id in identifiers.iter().filter(|&&id| !id.is_empty()) {
+                    ids.push(id);
+                    data.update(id);
+                }
+                (data.min_length, data.max_length)
+            }
+            None => {
+                let mut data = LookupData::with_multiplier(base_unit, multiplier);
+                let mut ids = Vec::with_capacity(identifiers.len());
+                for &id in identifiers.iter().filter(|&&id| !id.is_empty()) {
+                    ids.push(id);
+                    data.update(id);
+                }
+                let lengths = (data.min_length, data.max_length);
+                self.custom_time_units.push((data, ids));
+                lengths
+            }
+        };
+        self.update_lengths(min_length, max_length);
+    }
+
     fn with_capacity(capacity: usize) -> Self {
         Self {
             min_length: usize::MAX,
@@ -151,11 +191,22 @@ impl<'a> CustomTimeUnits<'a> {
                 (LookupData::new(Month), Vec::with_capacity(capacity)),
                 (LookupData::new(Year), Vec::with_capacity(capacity)),
             ],
+            custom_time_units: Vec::with_capacity(capacity),
         }
     }
 
     fn lookup_mut(&'_ mut self, unit: TimeUnit) -> &'_ mut (LookupData, Vec<&'a str>) {
         &mut self.time_units[unit as usize]
+    }
+
+    fn lookup_custom_mut(
+        &'_ mut self,
+        unit: TimeUnit,
+        multiplier: Multiplier,
+    ) -> Option<&'_ mut (LookupData, Vec<&'a str>)> {
+        self.custom_time_units
+            .iter_mut()
+            .find(|(data, _)| data.time_unit == unit && data.multiplier == multiplier)
     }
 
     fn update_lengths(&mut self, min_length: usize, max_length: usize) {
@@ -170,6 +221,7 @@ impl<'a> CustomTimeUnits<'a> {
     fn get_time_units(&self) -> Vec<TimeUnit> {
         self.time_units
             .iter()
+            .chain(self.custom_time_units.iter())
             .filter_map(|(data, _)| {
                 if !data.is_empty() {
                     Some(data.time_unit)
@@ -183,21 +235,27 @@ impl<'a> CustomTimeUnits<'a> {
 
 impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     fn is_empty(&self) -> bool {
-        self.time_units.iter().all(|(_, v)| v.is_empty())
+        self.time_units
+            .iter()
+            .chain(self.custom_time_units.iter())
+            .all(|(_, v)| v.is_empty())
     }
 
-    fn get(&self, identifier: &str) -> Option<TimeUnit> {
+    fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         let len = identifier.len();
         if self.min_length > len || self.max_length < len {
             return None;
         }
-        self.time_units.iter().find_map(|(data, v)| {
-            if data.check(identifier) && v.contains(&identifier) {
-                Some(data.time_unit)
-            } else {
-                None
-            }
-        })
+        self.time_units
+            .iter()
+            .chain(self.custom_time_units.iter())
+            .find_map(|(data, v)| {
+                if data.check(identifier) && v.contains(&identifier) {
+                    Some((data.time_unit, data.multiplier))
+                } else {
+                    None
+                }
+            })
     }
 }
 
@@ -433,6 +491,64 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// Add a custom time unit to the current set of [`TimeUnit`]s.
+    ///
+    /// Custom time units have a base [`TimeUnit`] and a [`Multiplier`] in addition to their
+    /// identifiers.
+    ///
+    /// # Problems
+    ///
+    /// Don't use a [`Multiplier`] to get lower than [`TimeUnit::NanoSecond`] (=Multiplier(1, -9))
+    /// or higher than [`u64::MAX`]. Such multipliers may lead to unexpected results or even panics
+    /// in other parts of the program.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, TimeUnit::*, Multiplier};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::new();
+    /// parser
+    ///     .custom_time_unit(Week, Multiplier(2, 0), &["fortnight", "fortnights"])
+    ///     .custom_time_unit(Second, Multiplier(1000, 0), &["kilosecond", "kiloseconds", "kilos"])
+    ///     .custom_time_unit(Second, Multiplier(1, -8), &["shakes"]);
+    /// assert_eq!(
+    ///     parser
+    ///         .parse("1fortnights")
+    ///         .unwrap(),
+    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
+    /// );
+    /// ```
+    ///
+    /// The `base_unit` is only used to calculate the final time span and does not need to be unique
+    /// in the set of time units. It's even possible to define an own time unit for example for a
+    /// definition of a [`TimeUnit::Year`] either in addition or as a replacement of the year
+    /// definition of this crate (=`365.25` days).
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, TimeUnit::*, DEFAULT_TIME_UNITS, Multiplier};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// // The common year is usually defined as 365 days
+    /// parser.custom_time_unit(Day, Multiplier(356, 0), &["y", "year", "years"]);
+    /// assert_eq!(
+    ///     parser.parse("1year").unwrap(),
+    ///     Duration::new(356 * 24 * 60 * 60, 0),
+    /// );
+    /// ```
+    pub fn custom_time_unit(
+        &mut self,
+        base_unit: TimeUnit,
+        multiplier: Multiplier,
+        identifiers: &[&'a str],
+    ) -> &mut Self {
+        self.time_units
+            .add_custom_time_unit(base_unit, multiplier, identifiers);
+        self
+    }
+
     /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
     /// configured [`TimeUnit`]s.
     ///
@@ -533,7 +649,8 @@ mod tests {
                 LookupData {
                     min_length,
                     max_length,
-                    time_unit
+                    time_unit,
+                    multiplier: Multiplier::default()
                 },
                 Vec::from(ids)
             )
@@ -546,7 +663,10 @@ mod tests {
         let custom = CustomTimeUnits::with_time_units(&[(NanoSecond, &["same", "same"])]);
         assert!(!custom.is_empty());
         assert_eq!(custom.get_time_units(), vec![NanoSecond]);
-        assert_eq!(custom.get("same"), Some(NanoSecond));
+        assert_eq!(
+            custom.get("same"),
+            Some((NanoSecond, Multiplier::default()))
+        );
     }
 
     #[test]
@@ -559,8 +679,14 @@ mod tests {
             .filter(|(data, _)| data.time_unit != MicroSecond)
             .all(|(_, v)| v.is_empty()));
         assert_eq!(custom.lookup_mut(MicroSecond).1, vec!["some", "ids"]);
-        assert_eq!(custom.get("some"), Some(MicroSecond));
-        assert_eq!(custom.get("ids"), Some(MicroSecond));
+        assert_eq!(
+            custom.get("some"),
+            Some((MicroSecond, Multiplier::default()))
+        );
+        assert_eq!(
+            custom.get("ids"),
+            Some((MicroSecond, Multiplier::default()))
+        );
         assert_eq!(custom.get("does not exist"), None);
         assert!(!custom.is_empty());
     }
@@ -579,6 +705,65 @@ mod tests {
         custom.add_time_unit((MicroSecond, &[""]));
         assert!(custom.is_empty());
         assert_eq!(custom.get_time_units(), vec![]);
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_with_empty_id_then_not_added() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &[""]);
+        assert!(custom.is_empty());
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &["sec"]);
+        assert!(!custom.is_empty());
+        assert_eq!(custom.get_time_units(), vec![Second]);
+        assert_eq!(custom.get("sec"), Some((Second, Multiplier(2, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_multiple_custom_time_unit() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(Second, Multiplier(1, 0), &["sec"]);
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &["secs"]);
+        assert_eq!(custom.get_time_units(), vec![Second, Second]);
+        assert_eq!(custom.get("sec"), Some((Second, Multiplier(1, 0))));
+        assert_eq!(custom.get("secs"), Some((Second, Multiplier(2, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_already_exists() {
+        let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &["ss"]);
+        assert_eq!(custom.get_time_units(), vec![Second, Second]);
+        assert_eq!(custom.get("s"), Some((Second, Multiplier(1, 0))));
+        assert_eq!(custom.get("ss"), Some((Second, Multiplier(2, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_with_same_id_already_exists(
+    ) {
+        let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &["s"]);
+        assert_eq!(custom.get_time_units(), vec![Second, Second]);
+        assert_eq!(custom.get("s"), Some((Second, Multiplier(1, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_identifiers_is_empty() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &[]);
+        assert_eq!(custom.get_time_units(), vec![]);
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_adding_same_unit_twice() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &["s"]);
+        custom.add_custom_time_unit(Second, Multiplier(2, 0), &["s"]);
+        assert_eq!(custom.get_time_units(), vec![Second]);
     }
 
     #[test]
@@ -609,7 +794,8 @@ mod tests {
                     LookupData {
                         min_length: v[0].len(),
                         max_length: v[0].len(),
-                        time_unit: *t
+                        time_unit: *t,
+                        multiplier: Multiplier::default()
                     },
                     Vec::from(*v)
                 ))
@@ -671,6 +857,13 @@ mod tests {
             parser.get_current_time_units(),
             vec![NanoSecond, MilliSecond]
         );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_add_custom_time_units() {
+        let mut parser = CustomDurationParser::new();
+        parser.custom_time_unit(Year, Multiplier(100, 0), &["century", "centuries"]);
+        assert_eq!(parser.get_current_time_units(), vec![Year]);
     }
 
     #[test]

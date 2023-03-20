@@ -232,7 +232,7 @@ mod parse;
 mod time;
 
 pub use error::ParseError;
-pub use time::TimeUnit;
+pub use time::{Multiplier, TimeUnit};
 pub use time::{
     DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
     DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,

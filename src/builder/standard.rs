@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use crate::parse::ReprParser;
-use crate::time::TimeUnitsLike;
+use crate::time::{Multiplier, TimeUnitsLike};
 use crate::{
     ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
@@ -50,20 +50,24 @@ impl TimeUnitsLike for TimeUnits {
     ///
     /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
     /// set of time units.
-    fn get(&self, identifier: &str) -> Option<TimeUnit> {
+    fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         match identifier.len() {
-            1 => self
-                .data
-                .iter()
-                .skip(3)
-                .filter_map(|t| *t)
-                .find(|t| DEFAULT_TIME_UNITS[*t as usize] == identifier),
-            2 => self
-                .data
-                .iter()
-                .take(3)
-                .filter_map(|t| *t)
-                .find(|t| DEFAULT_TIME_UNITS[*t as usize] == identifier),
+            1 => self.data.iter().skip(3).filter_map(|t| *t).find_map(|t| {
+                let unit = DEFAULT_TIME_UNITS[t as usize];
+                if unit == identifier {
+                    Some((t, Multiplier::default()))
+                } else {
+                    None
+                }
+            }),
+            2 => self.data.iter().take(3).filter_map(|t| *t).find_map(|t| {
+                let unit = DEFAULT_TIME_UNITS[t as usize];
+                if unit == identifier {
+                    Some((t, Multiplier::default()))
+                } else {
+                    None
+                }
+            }),
             _ => None,
         }
     }
@@ -391,7 +395,7 @@ impl DurationParser {
     /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
     /// configured [`TimeUnit`]s.
     ///
-    /// See the [module level documentation](crate) for more information on the format.
+    /// See the [module-level documentation](crate) for more information on the format.
     ///
     /// # Examples
     ///
@@ -527,7 +531,10 @@ mod tests {
         let mut time_units = TimeUnits::new();
         time_units.add_time_unit(time_unit);
         assert_eq!(time_units.get_time_units(), vec![time_unit]);
-        assert_eq!(time_units.get(identifier), Some(time_unit));
+        assert_eq!(
+            time_units.get(identifier),
+            Some((time_unit, Multiplier(1, 0)))
+        );
     }
 
     #[test]
@@ -584,17 +591,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second("ns", Some(NanoSecond))]
-    #[case::micro_second("Ms", Some(MicroSecond))]
-    #[case::milli_second("ms", Some(MilliSecond))]
-    #[case::second("s", Some(Second))]
-    #[case::minute("m", Some(Minute))]
-    #[case::hour("h", Some(Hour))]
-    #[case::day("d", Some(Day))]
-    #[case::week("w", Some(Week))]
-    #[case::month("M", Some(Month))]
-    #[case::year("y", Some(Year))]
-    fn test_time_units_get(#[case] id: &str, #[case] expected: Option<TimeUnit>) {
+    #[case::nano_second("ns", Some((NanoSecond, Multiplier(1,0))))]
+    #[case::micro_second("Ms", Some((MicroSecond, Multiplier(1,0))))]
+    #[case::milli_second("ms", Some((MilliSecond, Multiplier(1,0))))]
+    #[case::second("s", Some((Second, Multiplier(1,0))))]
+    #[case::minute("m", Some((Minute, Multiplier(1,0))))]
+    #[case::hour("h", Some((Hour, Multiplier(1,0))))]
+    #[case::day("d", Some((Day, Multiplier(1,0))))]
+    #[case::week("w", Some((Week, Multiplier(1,0))))]
+    #[case::month("M", Some((Month, Multiplier(1,0))))]
+    #[case::year("y", Some((Year, Multiplier(1,0))))]
+    fn test_time_units_get(#[case] id: &str, #[case] expected: Option<(TimeUnit, Multiplier)>) {
         assert_eq!(TimeUnits::with_all_time_units().get(id), expected);
         assert_eq!(TimeUnits::new().get(id), None);
     }

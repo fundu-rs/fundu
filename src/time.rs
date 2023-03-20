@@ -90,35 +90,60 @@ impl TimeUnit {
         }
     }
 
-    /// Return the multiplier to convert the number with [`TimeUnit`] to seconds.
-    ///
-    /// The multipliers change their application depending on whether the [`TimeUnit`] is less than,
-    /// equal or greater than `seconds`:
+    /// Return the multiplier `(m, e)` to convert a number `x` with [`TimeUnit`] to seconds.
     ///
     /// ```text
-    /// t <= s => x(t) * 10^-m
-    /// t > s  => x(t) * m
-    /// where t = time unit, s = second, x = number in t time units, m = multiplier
+    /// x * m * 10 ^ e
+    /// where  m = multiplier
     /// ```
-    pub(crate) const fn multiplier(&self) -> (u64, i32) {
+    pub(crate) const fn multiplier(&self) -> Multiplier {
         match self {
-            NanoSecond => (1, -9),
-            MicroSecond => (1, -6),
-            MilliSecond => (1, -3),
-            Second => (1, 0),
-            Minute => (60, 0),
-            Hour => (3600, 0),
-            Day => (86400, 0),
-            Week => (604800, 0),
-            Month => (2629800, 0), // Year / 12
-            Year => (31557600, 0), // 365.25 days
+            NanoSecond => Multiplier(1, -9),
+            MicroSecond => Multiplier(1, -6),
+            MilliSecond => Multiplier(1, -3),
+            Second => Multiplier(1, 0),
+            Minute => Multiplier(60, 0),
+            Hour => Multiplier(3600, 0),
+            Day => Multiplier(86400, 0),
+            Week => Multiplier(604800, 0),
+            Month => Multiplier(2629800, 0), // Year / 12
+            Year => Multiplier(31557600, 0), // 365.25 days
         }
     }
 }
 
 pub trait TimeUnitsLike {
     fn is_empty(&self) -> bool;
-    fn get(&self, identifier: &str) -> Option<TimeUnit>;
+    fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
+}
+
+/// The multiplier of a TimeUnit to calculate the final [`Duration`]
+///
+/// This multiplier consists of two numbers `(m, exp)` which are applied to a number `x` as follows:
+/// `x * m * 10 ^ e`
+///
+/// Examples:
+///
+/// ```text
+/// NanoSecond: (1, -9)
+/// Second: (1, 0)
+/// Hour: (3600, 0)
+/// ```
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Multiplier(pub u64, pub i32);
+
+impl Default for Multiplier {
+    fn default() -> Self {
+        Self(1, 0)
+    }
+}
+
+impl std::ops::Mul for Multiplier {
+    type Output = Self;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        Multiplier(self.0 * rhs.0, self.1 + rhs.1)
+    }
 }
 
 #[cfg(test)]
@@ -142,17 +167,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, (1, -9))]
-    #[case::micro_second(MicroSecond, (1, -6))]
-    #[case::milli_second(MilliSecond, (1, -3))]
-    #[case::second(Second, (1, 0))]
-    #[case::minute(Minute, (60, 0))]
-    #[case::hour(Hour, (60 * 60, 0))]
-    #[case::day(Day, (60 * 60 * 24, 0))]
-    #[case::week(Week, (60 * 60 * 24 * 7, 0))]
-    #[case::month(Month, ((60 * 60 * 24 * 365 + 60 * 60 * 24 / 4) / 12, 0))] // (365 days + day/4) / 12
-    #[case::year(Year, (60 * 60 * 24 * 365 + 60 * 60 * 24 / 4, 0))] // 365 days + day/4
-    fn test_time_unit_multiplier(#[case] time_unit: TimeUnit, #[case] expected: (u64, i32)) {
+    #[case::nano_second(NanoSecond, Multiplier(1, -9))]
+    #[case::micro_second(MicroSecond, Multiplier(1, -6))]
+    #[case::milli_second(MilliSecond, Multiplier(1, -3))]
+    #[case::second(Second, Multiplier(1, 0))]
+    #[case::minute(Minute, Multiplier(60, 0))]
+    #[case::hour(Hour, Multiplier(60 * 60, 0))]
+    #[case::day(Day, Multiplier(60 * 60 * 24, 0))]
+    #[case::week(Week, Multiplier(60 * 60 * 24 * 7, 0))]
+    #[case::month(Month, Multiplier((60 * 60 * 24 * 365 + 60 * 60 * 24 / 4) / 12, 0))] // (365 days + day/4) / 12
+    #[case::year(Year, Multiplier(60 * 60 * 24 * 365 + 60 * 60 * 24 / 4, 0))] // 365 days + day/4
+    fn test_time_unit_multiplier(#[case] time_unit: TimeUnit, #[case] expected: Multiplier) {
         assert_eq!(time_unit.multiplier(), expected);
     }
 }

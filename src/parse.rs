@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use crate::builder::config::Config;
 use crate::error::ParseError;
-use crate::time::{TimeUnit, TimeUnitsLike};
+use crate::time::{Multiplier, TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
@@ -182,13 +182,14 @@ impl Fract {
 
 #[derive(Debug, Default)]
 pub(crate) struct DurationRepr {
+    unit: TimeUnit,
     is_negative: bool,
     is_infinite: bool,
     whole: Option<Whole>,
     fract: Option<Fract>,
-    exponent: i16,
-    unit: TimeUnit,
     digits: Option<Vec<u8>>,
+    exponent: i16,
+    multiplier: Multiplier,
 }
 
 impl DurationRepr {
@@ -212,15 +213,15 @@ impl DurationRepr {
             (Some(whole), Some(fract)) => (whole, fract),
         };
 
-        let (multiplier, mut exponent) = self.unit.multiplier();
+        // This unwrap is safe because there is at least whole or fract
+        let digits = self.digits.take().unwrap();
+
+        let Multiplier(multiplier, mut exponent) = self.unit.multiplier() * self.multiplier;
         exponent += self.exponent as i32;
 
         // The maximum absolute value of the exponent is `abs(i16::MIN) + 9 (nano seconds)`, so it is
         // safe to cast to usize
         let exponent_abs: usize = exponent.unsigned_abs().try_into().unwrap();
-
-        // This unwrap is safe because there is at least whole or fract
-        let digits = self.digits.take().unwrap();
 
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
         // to integers is necessary, since the exponent can move digits into the to be considered
@@ -510,7 +511,9 @@ impl<'a> ReprParser<'a> {
         // parse the time unit if present
         match self.current_byte {
             Some(_) if !self.time_units.is_empty() => {
-                duration_repr.unit = self.parse_time_unit()?;
+                let (unit, multi) = self.parse_time_unit()?;
+                duration_repr.unit = unit;
+                duration_repr.multiplier = multi;
             }
             Some(byte) => {
                 return Err(ParseError::TimeUnit(
@@ -540,7 +543,7 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline]
-    fn parse_time_unit(&mut self) -> Result<TimeUnit, ParseError> {
+    fn parse_time_unit(&mut self) -> Result<(TimeUnit, Multiplier), ParseError> {
         // cov:excl-start
         debug_assert!(
             self.current_byte.is_some(),
@@ -761,7 +764,7 @@ mod tests {
             true
         }
 
-        fn get(&self, _: &str) -> Option<TimeUnit> {
+        fn get(&self, _: &str) -> Option<(TimeUnit, Multiplier)> {
             None
         }
     } // cov:excl-end
