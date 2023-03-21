@@ -183,6 +183,7 @@ impl Fract {
 #[derive(Debug, Default)]
 pub(crate) struct DurationRepr {
     unit: TimeUnit,
+    number_is_optional: bool,
     is_negative: bool,
     is_infinite: bool,
     whole: Option<Whole>,
@@ -204,17 +205,21 @@ impl DurationRepr {
         }
 
         let (whole, fract) = match (self.whole.take(), self.fract.take()) {
+            (None, None) if self.number_is_optional => {
+                self.digits = Some(vec![1]);
+                (Whole(1), Fract(1, 1))
+            }
             (None, None) => unreachable!(),
             (None, Some(fract)) => (Whole(0), fract),
             (Some(whole), None) => {
-                let (start, end) = (whole.len(), whole.len());
-                (whole, Fract(start, end))
+                let fract_start_and_end = whole.len();
+                (whole, Fract(fract_start_and_end, fract_start_and_end))
             }
             (Some(whole), Some(fract)) => (whole, fract),
         };
 
         // This unwrap is safe because there is at least whole or fract
-        let digits = self.digits.take().unwrap();
+        let digits = self.digits.as_ref().unwrap();
 
         let Multiplier(multiplier, mut exponent) = self.unit.multiplier() * self.multiplier;
         exponent += self.exponent as i32;
@@ -238,7 +243,7 @@ impl DurationRepr {
                 (Some(seconds), attos)
             }
             Less => {
-                let attos = Some(fract.parse(&digits, Some(exponent_abs - whole.len())));
+                let attos = Some(fract.parse(digits, Some(exponent_abs - whole.len())));
                 (None, attos)
             }
             Equal => {
@@ -262,7 +267,7 @@ impl DurationRepr {
                 (Some(seconds), attos)
             }
             Greater => {
-                let seconds = whole.parse(&digits, Some(exponent_abs - fract.len()));
+                let seconds = whole.parse(digits, Some(exponent_abs - fract.len()));
                 (Some(seconds), None)
             }
         };
@@ -399,10 +404,12 @@ impl<'a> ReprParser<'a> {
             disable_fraction,
             max_exponent,
             min_exponent,
+            number_is_optional,
         } = *self.config;
 
         let mut duration_repr = DurationRepr {
             unit: default_unit,
+            number_is_optional,
             ..Default::default()
         };
 
@@ -433,7 +440,7 @@ impl<'a> ReprParser<'a> {
                     .as_mut()
                     .map(|digits| self.parse_whole(digits));
             }
-            Some(byte) if *byte == b'.' => {}
+            Some(byte) if *byte == b'.' || number_is_optional => {}
             Some(byte) => {
                 return Err(ParseError::Syntax(
                     self.current_pos,

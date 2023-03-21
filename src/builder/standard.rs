@@ -269,6 +269,79 @@ impl DurationParser {
         }
     }
 
+    /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
+    /// configured [`TimeUnit`]s.
+    ///
+    /// See the [module-level documentation](crate) for more information on the format.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
+    ///     Duration::new(0, 120_000_000),
+    /// );
+    /// ```
+    #[inline(never)]
+    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
+        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
+        parser.parse().and_then(|mut repr| repr.parse())
+    }
+
+    /// Add a time unit to the current set of [`TimeUnit`]s.
+    ///
+    /// Adding an already existing [`TimeUnit`] has no effect.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::new()
+    ///         .time_unit(Month)
+    ///         .time_unit(Year)
+    ///         .get_current_time_units(),
+    ///     DurationParser::with_all_time_units()
+    ///         .get_current_time_units(),
+    /// );
+    ///
+    /// assert_eq!(
+    ///     DurationParser::without_time_units().time_unit(Second).get_current_time_units(),
+    ///     vec![Second],
+    /// );
+    /// ```
+    pub fn time_unit(&mut self, unit: TimeUnit) -> &mut Self {
+        self.time_units.add_time_unit(unit);
+        self
+    }
+
+    /// Add multiple [`TimeUnit`]s to the current set of time units.
+    ///
+    /// Adding a [`TimeUnit`] which is already present has no effect.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::without_time_units()
+    ///         .time_units(&[MicroSecond, MilliSecond])
+    ///         .get_current_time_units(),
+    ///     vec![MicroSecond, MilliSecond],
+    /// );
+    /// ```
+    pub fn time_units(&mut self, units: &[TimeUnit]) -> &mut Self {
+        self.time_units.add_time_units(units);
+        self
+    }
+
     /// Set the default [`TimeUnit`] to `unit`.
     ///
     /// The default time unit is applied when no time unit was given in the input string. If the
@@ -376,6 +449,33 @@ impl DurationParser {
         self
     }
 
+    /// This setting makes a number in the source string optional.
+    ///
+    /// If no number is present, then `1` is assumed. If a number is present then it must still
+    /// consist of either a whole part or fraction part, if not disabled with
+    /// [`DurationParser::disable_fraction`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, ParseError, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.number_is_optional();
+    ///
+    /// for input in &["ns", "e-9", "e-3Ms"] {
+    ///     assert_eq!(
+    ///         parser.parse(input),
+    ///         Ok(Duration::new(0, 1))
+    ///     );
+    /// }
+    /// ```
+    pub fn number_is_optional(&mut self) -> &mut Self {
+        self.config.number_is_optional = true;
+        self
+    }
+
     /// Return the currently defined set of [`TimeUnit`].
     ///
     /// # Examples
@@ -396,79 +496,6 @@ impl DurationParser {
     /// );
     pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
         self.time_units.get_time_units()
-    }
-
-    /// Add a time unit to the current set of [`TimeUnit`]s.
-    ///
-    /// Adding an already existing [`TimeUnit`] has no effect.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
-    /// use std::time::Duration;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::new()
-    ///         .time_unit(Month)
-    ///         .time_unit(Year)
-    ///         .get_current_time_units(),
-    ///     DurationParser::with_all_time_units()
-    ///         .get_current_time_units(),
-    /// );
-    ///
-    /// assert_eq!(
-    ///     DurationParser::without_time_units().time_unit(Second).get_current_time_units(),
-    ///     vec![Second],
-    /// );
-    /// ```
-    pub fn time_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.time_units.add_time_unit(unit);
-        self
-    }
-
-    /// Add multiple [`TimeUnit`]s to the current set of time units.
-    ///
-    /// Adding a [`TimeUnit`] which is already present has no effect.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
-    /// use std::time::Duration;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::without_time_units()
-    ///         .time_units(&[MicroSecond, MilliSecond])
-    ///         .get_current_time_units(),
-    ///     vec![MicroSecond, MilliSecond],
-    /// );
-    /// ```
-    pub fn time_units(&mut self, units: &[TimeUnit]) -> &mut Self {
-        self.time_units.add_time_units(units);
-        self
-    }
-
-    /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
-    /// configured [`TimeUnit`]s.
-    ///
-    /// See the [module-level documentation](crate) for more information on the format.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
-    /// use std::time::Duration;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
-    ///     Duration::new(0, 120_000_000),
-    /// );
-    /// ```
-    #[inline(never)]
-    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
-        parser.parse().and_then(|mut repr| repr.parse())
     }
 }
 

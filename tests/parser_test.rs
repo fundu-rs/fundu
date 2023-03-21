@@ -230,6 +230,47 @@ fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration
 }
 
 #[rstest]
+#[case::nano_seconds("ns", Ok(Duration::new(0, 1)))]
+#[case::just_exponent("e1", Ok(Duration::new(10, 0)))]
+#[case::sign_and_exponent("+e1", Ok(Duration::new(10, 0)))]
+#[case::exponent_with_time_unit("e9ns", Ok(Duration::new(1, 0)))]
+#[case::just_point(".", Err(ParseError::Syntax(1, "Either the whole number part or the fraction must be present".to_string())))]
+fn test_parser_when_number_is_optional(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    let mut parser = DurationParser::with_all_time_units();
+    parser.number_is_optional();
+    assert_eq!(parser.parse(input), expected);
+}
+
+#[rstest]
+#[case::whole_with_just_point("1.", Err(ParseError::Syntax(1, "No fraction allowed".to_string())))]
+#[case::fract_with_just_point(".1", Err(ParseError::Syntax(0, "No fraction allowed".to_string())))]
+#[case::just_point(".", Err(ParseError::Syntax(0, "No fraction allowed".to_string())))]
+fn test_parser_when_disable_fraction(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    let mut parser = DurationParser::with_all_time_units();
+    parser.disable_fraction();
+    assert_eq!(parser.parse(input), expected);
+}
+
+#[rstest]
+#[case::whole_with_exponent("1e0", Err(ParseError::Syntax(1, "No exponent allowed".to_string())))]
+#[case::fract_with_exponent("0.1e0", Err(ParseError::Syntax(3, "No exponent allowed".to_string())))]
+#[case::exponent_without_number("1e", Err(ParseError::Syntax(1, "No exponent allowed".to_string())))]
+fn test_parser_when_disable_exponent(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    let mut parser = DurationParser::with_all_time_units();
+    parser.disable_exponent();
+    assert_eq!(parser.parse(input), expected);
+}
+
+#[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
 fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
     assert!(DurationParser::without_time_units()

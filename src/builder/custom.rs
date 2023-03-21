@@ -320,11 +320,22 @@ impl<'a> CustomDurationParser<'a> {
     /// * [`DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default ids as
     ///   used the standard crate by [`crate::DurationParser`]
     ///
+    /// # Problems
+    ///
+    /// It's possible to choose identifiers very freely in the `utf-8` range but some identifiers
+    /// interact badly with the parser and may lead to unexpected results, if they start with:
+    ///
+    /// * `e` or `E` which is also indicating an exponent. If
+    /// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
+    /// * ascii digits from `0` to `9`
+    /// * decimal point `.` which is also indicating a fraction. If
+    /// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur
+    /// * `+`, `-` which is used for signs.
+    ///
     /// # Security
     ///
-    /// If there is the intention to expose the defining of [`TimeUnit`]s to an untrusted source,
-    /// you may be good advised to limit the possible characters to something safer like
-    /// [`char::is_alphabetic`].
+    /// If there is the intention to expose defining of [`TimeUnit`]s to an untrusted source, it's
+    /// maybe better to limit the possible characters to something like [`char::is_alphabetic`].
     ///
     /// # Examples
     ///
@@ -460,6 +471,33 @@ impl<'a> CustomDurationParser<'a> {
     /// [`DurationParser::disable_fraction`]: [`crate::DurationParser::disable_fraction`]
     pub fn disable_fraction(&mut self) -> &mut Self {
         self.config.disable_fraction = true;
+        self
+    }
+
+    /// This setting makes a number in the source string optional.
+    ///
+    /// See also [`DurationParser::number_is_optional`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, ParseError, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.number_is_optional();
+    ///
+    /// for input in &["ns", "e-9", "e-3Ms"] {
+    ///     assert_eq!(
+    ///         parser.parse(input),
+    ///         Ok(Duration::new(0, 1))
+    ///     );
+    /// }
+    /// ```
+    ///
+    /// [`DurationParser::number_is_optional`]: [`crate::DurationParser::number_is_optional`]
+    pub fn number_is_optional(&mut self) -> &mut Self {
+        self.config.number_is_optional = true;
         self
     }
 
@@ -967,5 +1005,26 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.allow_spaces();
         assert!(parser.config.allow_spaces);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_disable_fraction() {
+        let mut parser = CustomDurationParser::new();
+        parser.disable_fraction();
+        assert!(parser.config.disable_fraction);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_disable_exponent() {
+        let mut parser = CustomDurationParser::new();
+        parser.disable_exponent();
+        assert!(parser.config.disable_exponent);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_number_is_optional() {
+        let mut parser = CustomDurationParser::new();
+        parser.number_is_optional();
+        assert!(parser.config.number_is_optional);
     }
 }

@@ -15,6 +15,7 @@ pub struct Config {
     pub default_multiplier: Multiplier,
     pub disable_exponent: bool,
     pub disable_fraction: bool,
+    pub number_is_optional: bool,
     pub max_exponent: i16,
     pub min_exponent: i16,
 }
@@ -27,6 +28,7 @@ impl Config {
             default_multiplier: Multiplier(1, 0),
             disable_exponent: false,
             disable_fraction: false,
+            number_is_optional: false,
             max_exponent: i16::MAX,
             min_exponent: i16::MIN,
         }
