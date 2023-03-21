@@ -1,6 +1,6 @@
 [package]
 name = "fundu"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Configurable, precise and fast string parser to a rust std::time::Duration"
@@ -12,6 +12,9 @@ homepage = "https://github.com/Joining7943/fundu"
 repository = "https://github.com/Joining7943/fundu"
 rust-version = "1.60.0"
 
+[package.metadata.docs.rs]
+all-features = true
+
 [lib]
 bench = false
 
@@ -21,10 +24,10 @@ standard = []
 custom = []
 
 [dev-dependencies]
-rstest = "0.16.0"
+rstest = "0.17.0"
 criterion = "0.4.0"
 chrono = { version = "0.4.23", default-features = false }
-iai = "0.1.1"
+iai-callgrind = "0.3.1"
 
 [dev-dependencies.clap]
 version = "3.2.23"
@@ -50,7 +53,7 @@ name = "benchmarks_standard"
 harness = false
 
 [[bench]]
-name = "iai_bench_time_unit_parsing"
+name = "iai_bench_parsing_time_units"
 harness = false
 
 [[bench]]
@@ -59,6 +62,14 @@ harness = false
 
 [[bench]]
 name = "iai_bench_reference"
+harness = false
+
+[[bench]]
+name = "iai_bench_standard"
+harness = false
+
+[[bench]]
+name = "iai_bench_custom"
 harness = false
 
 [[bench]]

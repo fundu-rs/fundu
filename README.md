@@ -73,7 +73,7 @@ Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 
 ```toml
 [dependencies]
-fundu = "0.4.2"
+fundu = "0.4.3"
 ```
 
 fundu is split into two features, `standard` (providing `DurationParser` and `parse_duration`) and
@@ -84,7 +84,7 @@ of the parsers is needed. To include only the `CustomDurationParser` add the fol
 
 ```toml
 [dependencies]
-fundu = { version = "0.4.2", default-features = false, features = ["custom"] }
+fundu = { version = "0.4.3", default-features = false, features = ["custom"] }
 ```
 
 # Examples
