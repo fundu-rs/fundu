@@ -404,6 +404,30 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// Disable parsing the exponent.
+    ///
+    /// See also [`DurationParser::disable_exponent`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, ParseError, TimeUnit::*, DEFAULT_TIME_UNITS};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// parser.disable_exponent();
+    /// assert_eq!(
+    ///     parser.parse("123e+1"),
+    ///     Err(ParseError::Syntax(3, "No exponent allowed".to_string()))
+    /// );
+    /// ```
+    ///
+    /// [`DurationParser::disable_exponent`]: crate::DurationParser::disable_exponent
+    pub fn disable_exponent(&mut self) -> &mut Self {
+        self.config.disable_exponent = true;
+        self
+    }
+
     /// Return the currently defined set of [`TimeUnit`].
     ///
     /// # Examples

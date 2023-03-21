@@ -228,9 +228,10 @@ impl DurationRepr {
         // final integer domain.
         let (seconds, attos) = match exponent.cmp(&0) {
             Less if whole.len() > exponent_abs => {
-                let seconds = whole.parse(&digits[..whole.len() - exponent_abs], None);
+                let (whole_part, fract_part) = digits.split_at(whole.len() - exponent_abs);
+                let seconds = whole.parse(whole_part, None);
                 let attos = if seconds.is_ok() {
-                    Some(fract.parse(&digits[whole.len() - exponent_abs..], None))
+                    Some(fract.parse(fract_part, None))
                 } else {
                     None
                 };
@@ -241,18 +242,20 @@ impl DurationRepr {
                 (None, attos)
             }
             Equal => {
-                let seconds = whole.parse(&digits[..whole.len()], None);
+                let (whole_part, fract_part) = digits.split_at(whole.len());
+                let seconds = whole.parse(whole_part, None);
                 let attos = if seconds.is_ok() {
-                    Some(fract.parse(&digits[fract.0..fract.1], None))
+                    Some(fract.parse(fract_part, None))
                 } else {
                     None
                 };
                 (Some(seconds), attos)
             }
             Greater if fract.len() > exponent_abs => {
-                let seconds = whole.parse(&digits[..fract.0 + exponent_abs], None);
+                let (whole_part, fract_part) = digits.split_at(fract.0 + exponent_abs);
+                let seconds = whole.parse(whole_part, None);
                 let attos = if seconds.is_ok() {
-                    Some(fract.parse(&digits[fract.0 + exponent_abs..], None))
+                    Some(fract.parse(fract_part, None))
                 } else {
                     None
                 };
@@ -481,10 +484,15 @@ impl<'a> ReprParser<'a> {
 
         // parse the exponent of the input if present
         match self.current_byte {
-            Some(byte) if byte.eq_ignore_ascii_case(&b'e') => {
+            Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !self.config.disable_exponent => {
                 self.advance();
-                let exponent = self.parse_exponent()?;
-                duration_repr.exponent = exponent;
+                duration_repr.exponent = self.parse_exponent()?;
+            }
+            Some(byte) if byte.eq_ignore_ascii_case(&b'e') => {
+                return Err(ParseError::Syntax(
+                    self.current_pos,
+                    "No exponent allowed".to_string(),
+                ));
             }
             Some(_) => {}
             None => return Ok(duration_repr),

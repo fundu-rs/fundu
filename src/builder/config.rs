@@ -13,6 +13,7 @@ pub struct Config {
     pub allow_spaces: bool,
     pub default_unit: TimeUnit,
     pub default_multiplier: Multiplier,
+    pub disable_exponent: bool,
 }
 
 impl Config {
@@ -21,6 +22,7 @@ impl Config {
             allow_spaces: false,
             default_unit: DEFAULT_TIME_UNIT,
             default_multiplier: Multiplier(1, 0),
+            disable_exponent: false,
         }
     }
 }
