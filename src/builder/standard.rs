@@ -342,6 +342,40 @@ impl DurationParser {
         self
     }
 
+    /// Disable parsing a fraction in the source string.
+    ///
+    /// This setting will disable parsing a fraction and a point delimiter will cause an error
+    /// [`ParseError::Syntax`]. This does not prevent [`Duration`]s from being smaller than seconds.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, ParseError, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.disable_fraction();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123.456"),
+    ///     Err(ParseError::Syntax(3, "No fraction allowed".to_string()))
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123e-2"),
+    ///     Ok(Duration::new(1, 230_000_000))
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123ns"),
+    ///     Ok(Duration::new(0, 123))
+    /// );
+    /// ```
+    pub fn disable_fraction(&mut self) -> &mut Self {
+        self.config.disable_fraction = true;
+        self
+    }
+
     /// Return the currently defined set of [`TimeUnit`].
     ///
     /// # Examples

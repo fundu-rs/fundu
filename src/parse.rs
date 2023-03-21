@@ -307,12 +307,10 @@ impl DurationRepr {
 }
 
 pub(crate) struct ReprParser<'a> {
-    current_byte: Option<&'a u8>,
     current_pos: usize,
+    current_byte: Option<&'a u8>,
     time_units: &'a dyn TimeUnitsLike,
     config: &'a Config,
-    max_exponent: i16,
-    min_exponent: i16,
     input: &'a [u8],
 }
 
@@ -327,8 +325,6 @@ impl<'a> ReprParser<'a> {
             current_pos: 0,
             time_units,
             config,
-            max_exponent: i16::MAX,
-            min_exponent: i16::MIN,
         }
     }
 
@@ -350,7 +346,7 @@ impl<'a> ReprParser<'a> {
     }
 
     /// This method is based on the work of Daniel Lemire and his blog post
-    /// https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/
+    /// <https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/>
     #[inline]
     fn is_8_digits(&self) -> bool {
         self.input
@@ -395,8 +391,18 @@ impl<'a> ReprParser<'a> {
             return Err(ParseError::Empty);
         }
 
+        let Config {
+            allow_spaces,
+            default_unit,
+            default_multiplier: _,
+            disable_exponent,
+            disable_fraction,
+            max_exponent,
+            min_exponent,
+        } = *self.config;
+
         let mut duration_repr = DurationRepr {
-            unit: self.config.default_unit,
+            unit: default_unit,
             ..Default::default()
         };
 
@@ -415,7 +421,7 @@ impl<'a> ReprParser<'a> {
             Some(byte) if byte.is_ascii_digit() => {
                 // the maximum number of digits that need to be considered depending on the exponent:
                 // max(-exponent) = abs(i16::MIN) + max_digits(u64::MAX) = 20 + 9 (nano seconds) + 1 + alignment at modulo 8
-                let max = ((self.min_exponent as isize).abs() + 32) as usize;
+                let max = ((min_exponent as isize).abs() + 32) as usize;
 
                 // // Using `len()` is a rough (but always correct) estimation for an upper bound.
                 // // However, using maybe more memory than needed spares the costly memory reallocations
@@ -444,7 +450,7 @@ impl<'a> ReprParser<'a> {
 
         // parse the fraction number part of the input
         match self.current_byte {
-            Some(byte) if *byte == b'.' => {
+            Some(byte) if *byte == b'.' && !disable_fraction => {
                 self.advance();
                 let fract = match self.current_byte {
                     Some(byte) if byte.is_ascii_digit() => {
@@ -452,14 +458,14 @@ impl<'a> ReprParser<'a> {
                         let digits = match duration_repr.digits.as_mut() {
                             Some(digits) if digits.capacity() - digits.len() >= needed => digits,
                             Some(digits) => {
-                                let max = (self.max_exponent as usize) + 25;
+                                let max = (max_exponent as usize) + 25;
                                 digits
                                     .try_reserve_exact(max.min(needed))
                                     .expect("Failed to allocate memory");
                                 digits
                             }
                             None => {
-                                let max = (self.max_exponent as usize) + 25;
+                                let max = (max_exponent as usize) + 25;
                                 duration_repr.digits = Some(Vec::with_capacity(max.min(needed)));
                                 duration_repr.digits.as_mut().unwrap()
                             }
@@ -478,13 +484,20 @@ impl<'a> ReprParser<'a> {
                 };
                 duration_repr.fract = fract;
             }
+            Some(byte) if *byte == b'.' => {
+                return Err(ParseError::Syntax(
+                    self.current_pos,
+                    "No fraction allowed".to_string(),
+                ))
+            }
             Some(_) => {}
             None => return Ok(duration_repr),
         }
 
+        // TODO: what about time units starting with an 'e'??
         // parse the exponent of the input if present
         match self.current_byte {
-            Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !self.config.disable_exponent => {
+            Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !disable_exponent => {
                 self.advance();
                 duration_repr.exponent = self.parse_exponent()?;
             }
@@ -502,7 +515,7 @@ impl<'a> ReprParser<'a> {
         // error is returned depending on the configuration value for `allow_spaces`
         match self.current_byte {
             Some(byte) if *byte == b' ' => {
-                if self.config.allow_spaces {
+                if allow_spaces {
                     self.advance();
                     self.consume_spaces();
                 } else {

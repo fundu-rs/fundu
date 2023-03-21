@@ -428,6 +428,41 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// Disable parsing a fraction in the source string.
+    ///
+    /// See also [`DurationParser::disable_fraction`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, ParseError, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.disable_fraction();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123.456"),
+    ///     Err(ParseError::Syntax(3, "No fraction allowed".to_string()))
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123e-2"),
+    ///     Ok(Duration::new(1, 230_000_000))
+    /// );
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123ns"),
+    ///     Ok(Duration::new(0, 123))
+    /// );
+    /// ```
+    ///
+    /// [`DurationParser::disable_fraction`]: [`crate::DurationParser::disable_fraction`]
+    pub fn disable_fraction(&mut self) -> &mut Self {
+        self.config.disable_fraction = true;
+        self
+    }
+
     /// Return the currently defined set of [`TimeUnit`].
     ///
     /// # Examples

@@ -14,6 +14,9 @@ pub struct Config {
     pub default_unit: TimeUnit,
     pub default_multiplier: Multiplier,
     pub disable_exponent: bool,
+    pub disable_fraction: bool,
+    pub max_exponent: i16,
+    pub min_exponent: i16,
 }
 
 impl Config {
@@ -23,6 +26,9 @@ impl Config {
             default_unit: DEFAULT_TIME_UNIT,
             default_multiplier: Multiplier(1, 0),
             disable_exponent: false,
+            disable_fraction: false,
+            max_exponent: i16::MAX,
+            min_exponent: i16::MIN,
         }
     }
 }

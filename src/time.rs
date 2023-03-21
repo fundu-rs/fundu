@@ -117,7 +117,7 @@ pub trait TimeUnitsLike {
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
 }
 
-/// The multiplier of a TimeUnit to calculate the final [`Duration`]
+/// The multiplier of a TimeUnit to calculate the final [`std::time::Duration`]
 ///
 /// This multiplier consists of two numbers `(m, exp)` which are applied to a number `x` as follows:
 /// `x * m * 10 ^ e`
