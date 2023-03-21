@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2023-03-21
+
+### Changed
+
+* Change from `iai` to `iai-callgrind` and use the new features to improve the iai benchmarks
+
+### Fixed
+
+* Building the docs on docs.rs should use all features
+
 ## [0.4.2] - 2023-03-07
 
 ### Changed
