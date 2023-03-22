@@ -29,27 +29,32 @@ fn generate_large_input() -> String {
 
 #[inline(never)]
 fn small_input() -> Result<Duration> {
-    black_box(setup_parser()).parse(black_box(SMALL_INPUT))
+    let parser = setup_parser();
+    black_box(parser).parse(black_box(SMALL_INPUT))
 }
 
 #[inline(never)]
 fn mixed_input_7() -> Result<Duration> {
-    black_box(setup_parser()).parse(black_box(MIXED_INPUT_7))
+    let parser = setup_parser();
+    black_box(parser).parse(black_box(MIXED_INPUT_7))
 }
 
 #[inline(never)]
 fn mixed_input_8() -> Result<Duration> {
-    black_box(setup_parser()).parse(black_box(MIXED_INPUT_8))
+    let parser = setup_parser();
+    black_box(parser).parse(black_box(MIXED_INPUT_8))
 }
 
 #[inline(never)]
 fn large_input() -> Result<Duration> {
-    let input = black_box(generate_large_input());
-    black_box(setup_parser()).parse(&input)
+    let parser = setup_parser();
+    let input = generate_large_input();
+    black_box(parser).parse(black_box(&input))
 }
 
 main!(
     callgrind_args =
+        "toggle-collect=iai_callgrind::black_box",
         "toggle-collect=__iai_setup::setup_parser",
         "toggle-collect=__iai_setup::generate_large_input";
     functions =

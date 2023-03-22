@@ -21,7 +21,10 @@ fn initialization_with_systemd_time_units<'a>() -> CustomDurationParser<'a> {
 }
 
 main!(
-    initialization_without_time_units,
-    initialization_with_default_time_units,
-    initialization_with_systemd_time_units
+    callgrind_args =
+        "toggle-collect=iai_callgrind::black_box";
+    functions =
+        initialization_without_time_units,
+        initialization_with_default_time_units,
+        initialization_with_systemd_time_units
 );

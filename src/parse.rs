@@ -127,9 +127,8 @@ impl Parse8Digits for Fract {}
 
 impl Fract {
     #[inline]
-    fn parse_slice(multi: u64, zeroes: usize, digits: &[u8]) -> u64 {
+    fn parse_slice(mut multi: u64, zeroes: usize, digits: &[u8]) -> u64 {
         let mut attos = 0;
-        let mut multi = multi;
         let len = digits.len();
 
         if multi >= 100_000_000 && len >= 8 {

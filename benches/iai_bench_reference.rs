@@ -26,6 +26,8 @@ fn large_reference() -> Duration {
 }
 
 main!(
-    callgrind_args = "toggle-collect=__iai_setup::generate_large_input";
+    callgrind_args =
+        "toggle-collect=iai_callgrind::black_box",
+        "toggle-collect=__iai_setup::generate_large_input";
     functions = small_reference, large_reference
 );
