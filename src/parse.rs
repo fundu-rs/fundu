@@ -311,10 +311,10 @@ impl DurationRepr {
 }
 
 pub(crate) struct ReprParser<'a> {
-    current_pos: usize,
+    current_pos: usize, // keep first. Has better performance.
     current_byte: Option<&'a u8>,
-    time_units: &'a dyn TimeUnitsLike,
     config: &'a Config,
+    time_units: &'a dyn TimeUnitsLike,
     input: &'a [u8],
 }
 
