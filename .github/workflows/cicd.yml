@@ -27,6 +27,17 @@ jobs:
         with:
           rust-version: "1.60.0"
 
+  format:
+    name: Check format with nightly rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2.2.0
+      - run: cargo fmt --check
+
   base:
     name: Build, check and test
     strategy:
@@ -38,12 +49,8 @@ jobs:
           - stable
           - nightly
         include:
-          - toolchain: "1.60.0"
-            components: rustfmt
-          - toolchain: nightly
-            components: rustfmt
           - toolchain: stable
-            components: rustfmt, clippy
+            components: clippy
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -76,8 +83,6 @@ jobs:
           rustup component list --installed
       - name: Build
         run: cargo build --all-features
-      - name: Format
-        run: cargo fmt --check
       - name: Lint
         run: cargo +stable clippy --all-features --all-targets -- -D warnings
         env:
@@ -146,7 +151,7 @@ jobs:
         run: cross test --all-features --target ${{ matrix.target }}
 
   docs:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Docs/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -159,7 +164,7 @@ jobs:
         run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Coverage/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -244,7 +249,7 @@ jobs:
       RUST_BACKTRACE: "0"
 
   fuzzing:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Fuzzy testing/ubuntu-latest
     runs-on: ubuntu-latest
     defaults:
@@ -277,7 +282,7 @@ jobs:
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
 
   benchmarks:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Benchmarks/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
