@@ -48,7 +48,7 @@ trait Parse8Digits {
         debug_assert!(
             digits.len() >= 8,
             "Call this method only if digits has length >= 8"
-        ); // cov:excl-end
+        ); // cov:excl-stop
 
         let ptr = digits.as_ptr() as *const u64;
         let mut num = u64::from_le(ptr.read_unaligned());
@@ -154,7 +154,9 @@ impl Fract {
                 }
                 attos += *num as u64 * multi;
             }
-        }
+            // else would be reached if multi or len are zero but these states are already handled
+            // in parse
+        } // cov:excl-line
         attos
     }
 
@@ -204,7 +206,7 @@ impl DurationRepr {
                 self.digits = Some(vec![1]);
                 (Whole(1), Fract(1, 1))
             }
-            (None, None) => unreachable!(),
+            (None, None) => unreachable!(), // cov:excl-line
             (None, Some(fract)) => (Whole(0), fract),
             (Some(whole), None) => {
                 let fract_start_and_end = whole.len();
@@ -275,8 +277,8 @@ impl DurationRepr {
                 Err(ParseError::Overflow) => {
                     return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
                 }
-                Err(_) => unreachable!(), /* cov:excl-line only ParseError::Overflow is returned
-                                           * by `Seconds::parse` */
+                // only ParseError::Overflow is returned by `Seconds::parse`
+                Err(_) => unreachable!(), // cov:excl-line
             },
             None => (0, attos.unwrap_or_default()),
         };
@@ -575,7 +577,7 @@ impl<'a> ReprParser<'a> {
         debug_assert!(
             self.current_byte.is_some(),
             "Don't call this function without being sure there's at least 1 byte remaining"
-        ); // cov:excl-end
+        ); // cov:excl-stop
 
         // SAFETY: The input of `parse` is &str and therefore valid utf-8 and we have read only
         // ascii characters up to this point.
@@ -797,7 +799,7 @@ mod tests {
         fn get(&self, _: &str) -> Option<(TimeUnit, Multiplier)> {
             None
         }
-    } // cov:excl-end
+    } // cov:excl-stop
 
     #[rstest]
     #[case::zeroes("00000000")]

@@ -3,8 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-#![cfg(not(feature = "negative"))]
-
 use std::time::Duration;
 
 use fundu::TimeUnit::*;
@@ -73,6 +71,8 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 }
 
 #[rstest]
+#[case::seconds_overflow_when_negative_exponent(&format!("{}e-1", u64::MAX as u128 * 100), Duration::MAX)]
+#[case::seconds_overflow_when_positive_exponent(&format!("{}.11e1", u64::MAX), Duration::MAX)]
 #[case::minus_sign_whole_to_fract("1.00000001e-1", Duration::new(0, 100_000_001))]
 #[case::zero("1.1e0", Duration::new(1, 100_000_000))]
 #[case::point_and_then_exponent("1.e0", Duration::new(1, 0))]
@@ -228,6 +228,7 @@ fn test_parser_when_allow_spaces_then_error(#[case] input: &str, #[case] expecte
 #[case::without_spaces("123ns", Duration::new(0, 123))]
 #[case::single_space("123 ns", Duration::new(0, 123))]
 #[case::multiple_spaces("123      ns", Duration::new(0, 123))]
+#[case::space_at_end_when_no_time_unit("123 ", Duration::new(123, 0))]
 fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
     let mut parser = DurationParser::with_all_time_units();
     parser.allow_spaces();
