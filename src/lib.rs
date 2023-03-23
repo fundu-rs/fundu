@@ -100,8 +100,9 @@
 //! If only the default configuration is required once, the [`parse_duration`] method can be used.
 //!
 //! ```rust
-//! use fundu::parse_duration;
 //! use std::time::Duration;
+//!
+//! use fundu::parse_duration;
 //!
 //! let input = "1.0e2s";
 //! assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
@@ -111,8 +112,9 @@
 //! [`DurationParser`] can be used.
 //!
 //! ```rust
-//! use fundu::{DurationParser};
 //! use std::time::Duration;
+//!
+//! use fundu::DurationParser;
 //!
 //! let input = "3m";
 //! assert_eq!(
@@ -124,8 +126,9 @@
 //! When no time units are configured, seconds is assumed.
 //!
 //! ```rust
-//! use fundu::{DurationParser};
 //! use std::time::Duration;
+//!
+//! use fundu::DurationParser;
 //!
 //! let input = "1.0e2";
 //! assert_eq!(
@@ -137,7 +140,7 @@
 //! However, the following will return an error because `y` (Years) is not a default time unit:
 //!
 //! ```rust
-//! use fundu::{DurationParser};
+//! use fundu::DurationParser;
 //!
 //! let input = "3y";
 //! assert!(DurationParser::new().parse(input).is_err());
@@ -146,8 +149,10 @@
 //! The parser is reusable and the set of time units is fully customizable
 //!
 //! ```rust
-//! use fundu::{DurationParser, TimeUnit::*};
 //! use std::time::Duration;
+//!
+//! use fundu::DurationParser;
+//! use fundu::TimeUnit::*;
 //!
 //! let parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
 //! for (input, expected) in &[
@@ -160,12 +165,14 @@
 //! }
 //! ```
 //!
-//! Setting the default time unit (if no time unit is given in the input string) to something different
-//! than seconds is also easily possible
+//! Setting the default time unit (if no time unit is given in the input string) to something
+//! different than seconds is also easily possible
 //!
 //! ```rust
-//! use fundu::{DurationParser, TimeUnit::*};
 //! use std::time::Duration;
+//!
+//! use fundu::DurationParser;
+//! use fundu::TimeUnit::*;
 //!
 //! assert_eq!(
 //!     DurationParser::without_time_units()
@@ -179,16 +186,16 @@
 //! [utf-8](https://en.wikipedia.org/wiki/UTF-8) sequences if the `custom` feature is activated:
 //!
 //! ```rust
-//! use fundu::{CustomDurationParser, TimeUnit::*};
 //! use std::time::Duration;
 //!
-//! let parser = CustomDurationParser::with_time_units(
-//!     &[
-//!         (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
-//!         (Second, &["s", "secs", "..."]),
-//!         (Hour, &["⏳"])
-//!     ]
-//! );
+//! use fundu::CustomDurationParser;
+//! use fundu::TimeUnit::*;
+//!
+//! let parser = CustomDurationParser::with_time_units(&[
+//!     (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
+//!     (Second, &["s", "secs", "..."]),
+//!     (Hour, &["⏳"]),
+//! ]);
 //! for (input, expected) in &[
 //!     (".3χιλιοστό του δευτερολέπτου", Duration::new(0, 300_000)),
 //!     ("1e3...", Duration::new(1000, 0)),
@@ -201,8 +208,9 @@
 //! Also, `fundu` tries to give informative error messages
 //!
 //! ```rust
-//! use fundu::DurationParser;
 //! use std::time::Duration;
+//!
+//! use fundu::DurationParser;
 //!
 //! assert_eq!(
 //!     DurationParser::without_time_units()
@@ -231,18 +239,16 @@ mod error;
 mod parse;
 mod time;
 
-pub use crate::time::{Multiplier, TimeUnit};
-pub use crate::time::{
-    DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
-    DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,
-    DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
-};
-pub use error::ParseError;
-
-#[cfg(feature = "standard")]
-pub use builder::standard::{parse_duration, DurationParser};
-
 #[cfg(feature = "custom")]
 pub use builder::custom::{
     CustomDurationParser, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
+};
+#[cfg(feature = "standard")]
+pub use builder::standard::{parse_duration, DurationParser};
+pub use error::ParseError;
+
+pub use crate::time::{
+    Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
+    DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
+    DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };

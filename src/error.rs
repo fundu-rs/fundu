@@ -79,8 +79,9 @@ impl From<TryFromDurationError> for ParseError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
+
+    use super::*;
 
     #[rstest]
     #[case::syntax_error(

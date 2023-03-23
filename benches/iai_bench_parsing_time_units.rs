@@ -5,10 +5,8 @@
 
 use std::time::Duration;
 
-use fundu::{
-    DurationParser, ParseError,
-    TimeUnit::{self, *},
-};
+use fundu::TimeUnit::{self, *};
+use fundu::{DurationParser, ParseError};
 use iai_callgrind::{black_box, main};
 
 type Result<T> = std::result::Result<T, ParseError>;

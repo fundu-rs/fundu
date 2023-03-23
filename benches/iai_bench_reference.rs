@@ -3,8 +3,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use iai_callgrind::{black_box, main};
 use std::time::Duration;
+
+use iai_callgrind::{black_box, main};
 
 const SMALL_INPUT: &str = "1";
 

@@ -3,10 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{
-    DurationParser,
-    TimeUnit::{self, *},
-};
+use fundu::DurationParser;
+use fundu::TimeUnit::{self, *};
 use iai_callgrind::{black_box, main};
 
 #[inline(never)]

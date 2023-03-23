@@ -3,18 +3,18 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use crate::error::TryFromDurationError;
-use crate::parse::ReprParser;
-use crate::time::{Multiplier, TimeUnitsLike};
-use crate::{
-    ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
-    DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
-    DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
-};
-
 use std::time::Duration;
 
 use super::config::Config;
+use crate::error::TryFromDurationError;
+use crate::parse::ReprParser;
+use crate::time::{Multiplier, TimeUnitsLike};
+use crate::TimeUnit::*;
+use crate::{
+    ParseError, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
+    DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
+    DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
+};
 
 /// Part of the `custom` feature with [`TimeUnit`] ids as defined in
 /// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
@@ -279,25 +279,18 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = CustomDurationParser::new();
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![]
-    /// );
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
     ///
-    /// assert_eq!(
-    ///     parser.parse("100.0").unwrap(),
-    ///     Duration::new(100, 0)
-    /// );
+    /// let mut parser = CustomDurationParser::new();
+    /// assert_eq!(parser.get_current_time_units(), vec![]);
+    ///
+    /// assert_eq!(parser.parse("100.0").unwrap(), Duration::new(100, 0));
     ///
     /// parser.default_unit(Minute);
-    /// assert_eq!(
-    ///     parser.parse("1.0e2").unwrap(),
-    ///     Duration::new(6000, 0)
-    /// );
+    /// assert_eq!(parser.parse("1.0e2").unwrap(), Duration::new(6000, 0));
     /// ```
     pub fn new() -> Self {
         Self {
@@ -316,8 +309,7 @@ impl<'a> CustomDurationParser<'a> {
     /// Note the ids for time units are case sensitive.
     ///
     /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
-    /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the
-    ///   [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
+    /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
     ///   documentation
     /// * [`DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default ids as
     ///   used the standard crate by [`crate::DurationParser`]
@@ -342,23 +334,21 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = CustomDurationParser::with_time_units(
-    ///     &[(Second, &["s"]), (Minute, &["Min"]), (Hour, &["ώρα"])]
-    /// );
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![Second, Minute, Hour]
-    /// );
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[
+    ///     (Second, &["s"]),
+    ///     (Minute, &["Min"]),
+    ///     (Hour, &["ώρα"]),
+    /// ]);
+    /// assert_eq!(parser.get_current_time_units(), vec![Second, Minute, Hour]);
     ///
     /// assert!(parser.parse("42.0min").is_err()); // Note the small letter `m` instead of `M`
     ///
-    /// assert_eq!(
-    ///     parser.parse("42e-1ώρα").unwrap(),
-    ///     Duration::new(15120, 0)
-    /// );
+    /// assert_eq!(parser.parse("42e-1ώρα").unwrap(), Duration::new(15120, 0));
     /// ```
     pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
         Self {
@@ -375,11 +365,16 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
     /// assert_eq!(
-    ///     CustomDurationParser::new().default_unit(NanoSecond).parse("42").unwrap(),
+    ///     CustomDurationParser::new()
+    ///         .default_unit(NanoSecond)
+    ///         .parse("42")
+    ///         .unwrap(),
     ///     Duration::new(0, 42)
     /// );
     /// ```
@@ -395,12 +390,12 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, ParseError, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = CustomDurationParser::with_time_units(
-    ///     &[(NanoSecond, &["ns"])]
-    /// );
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, ParseError};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
     /// assert_eq!(
     ///     parser.parse("123 ns"),
     ///     Err(ParseError::Syntax(3, "No spaces allowed".to_string()))
@@ -424,8 +419,10 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, ParseError, TimeUnit::*, DEFAULT_TIME_UNITS};
     /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.disable_exponent();
@@ -448,8 +445,10 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, ParseError, TimeUnit::*};
     /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{DurationParser, ParseError};
     ///
     /// let mut parser = DurationParser::new();
     /// parser.disable_fraction();
@@ -459,15 +458,9 @@ impl<'a> CustomDurationParser<'a> {
     ///     Err(ParseError::Syntax(3, "No fraction allowed".to_string()))
     /// );
     ///
-    /// assert_eq!(
-    ///     parser.parse("123e-2"),
-    ///     Ok(Duration::new(1, 230_000_000))
-    /// );
+    /// assert_eq!(parser.parse("123e-2"), Ok(Duration::new(1, 230_000_000)));
     ///
-    /// assert_eq!(
-    ///     parser.parse("123ns"),
-    ///     Ok(Duration::new(0, 123))
-    /// );
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::new(0, 123)));
     /// ```
     ///
     /// [`DurationParser::disable_fraction`]: [`crate::DurationParser::disable_fraction`]
@@ -483,17 +476,16 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, ParseError, TimeUnit::*};
     /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{DurationParser, ParseError};
     ///
     /// let mut parser = DurationParser::new();
     /// parser.number_is_optional();
     ///
     /// for input in &["ns", "e-9", "e-3Ms"] {
-    ///     assert_eq!(
-    ///         parser.parse(input),
-    ///         Ok(Duration::new(0, 1))
-    ///     );
+    ///     assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
     /// }
     /// ```
     ///
@@ -533,30 +525,23 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = CustomDurationParser::new();;
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// let mut parser = CustomDurationParser::new();
     /// parser.time_unit(Minute, &["minutes", "λεπτό"]);
     ///
-    /// assert_eq!(
-    ///     parser.parse("42minutes").unwrap(),
-    ///     Duration::new(2520, 0)
-    /// );
+    /// assert_eq!(parser.parse("42minutes").unwrap(), Duration::new(2520, 0));
     ///
-    /// assert_eq!(
-    ///     parser.parse("42λεπτό").unwrap(),
-    ///     Duration::new(2520, 0)
-    /// );
+    /// assert_eq!(parser.parse("42λεπτό").unwrap(), Duration::new(2520, 0));
     ///
     /// assert!(parser.parse("42Minutes").is_err());
     ///
     /// parser.time_unit(Minute, &["Minutes"]);
     ///
-    /// assert_eq!(
-    ///     parser.parse("42Minutes").unwrap(),
-    ///     Duration::new(2520, 0)
-    /// );
+    /// assert_eq!(parser.parse("42Minutes").unwrap(), Duration::new(2520, 0));
     /// ```
     pub fn time_unit(&mut self, unit: TimeUnit, identifiers: &'a [&'a str]) -> &mut Self {
         self.time_units.add_time_unit((unit, identifiers));
@@ -572,16 +557,17 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
+    ///
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
     ///
     /// let mut parser = CustomDurationParser::new();
     /// assert_eq!(
-    ///     parser.time_units(
-    ///         &[(MicroSecond, &["µ", "Ms"]), (Second, &["s", "seconds"])]
-    ///     )
-    ///     .parse("1µ")
-    ///     .unwrap(),
+    ///     parser
+    ///         .time_units(&[(MicroSecond, &["µ", "Ms"]), (Second, &["s", "seconds"])])
+    ///         .parse("1µ")
+    ///         .unwrap(),
     ///     Duration::new(0, 1000),
     /// );
     /// ```
@@ -604,18 +590,22 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*, Multiplier};
     /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
     ///
     /// let mut parser = CustomDurationParser::new();
     /// parser
     ///     .custom_time_unit(Week, Multiplier(2, 0), &["fortnight", "fortnights"])
-    ///     .custom_time_unit(Second, Multiplier(1000, 0), &["kilosecond", "kiloseconds", "kilos"])
+    ///     .custom_time_unit(
+    ///         Second,
+    ///         Multiplier(1000, 0),
+    ///         &["kilosecond", "kiloseconds", "kilos"],
+    ///     )
     ///     .custom_time_unit(Second, Multiplier(1, -8), &["shakes"]);
     /// assert_eq!(
-    ///     parser
-    ///         .parse("1fortnights")
-    ///         .unwrap(),
+    ///     parser.parse("1fortnights").unwrap(),
     ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
@@ -626,8 +616,10 @@ impl<'a> CustomDurationParser<'a> {
     /// definition of this crate (=`365.25` days).
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*, DEFAULT_TIME_UNITS, Multiplier};
     /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// // The common year is usually defined as 365 days
@@ -656,8 +648,10 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
+    ///
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     CustomDurationParser::new().parse("1.2e-1").unwrap(),
@@ -695,8 +689,9 @@ impl<'a> Default for CustomDurationParser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
+
+    use super::*;
 
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;
@@ -788,11 +783,13 @@ mod tests {
     fn test_custom_time_units_when_add_time_unit() {
         let mut custom = CustomTimeUnits::new();
         custom.add_time_unit((MicroSecond, &["some", "ids"]));
-        assert!(custom
-            .time_units
-            .iter()
-            .filter(|(data, _)| data.time_unit != MicroSecond)
-            .all(|(_, v)| v.is_empty()));
+        assert!(
+            custom
+                .time_units
+                .iter()
+                .filter(|(data, _)| data.time_unit != MicroSecond)
+                .all(|(_, v)| v.is_empty())
+        );
         assert_eq!(custom.lookup_mut(MicroSecond).1, vec!["some", "ids"]);
         assert_eq!(
             custom.get("some"),
@@ -858,8 +855,7 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_with_same_id_already_exists(
-    ) {
+    fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_with_same_id() {
         let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
         custom.add_custom_time_unit(Second, Multiplier(2, 0), &["s"]);
         assert_eq!(custom.get_time_units(), vec![Second, Second]);

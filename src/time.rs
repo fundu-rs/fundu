@@ -35,11 +35,14 @@ pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 /// # Examples
 ///
 /// ```rust
-/// use fundu::{DurationParser, TimeUnit};
 /// use std::time::Duration;
 ///
+/// use fundu::{DurationParser, TimeUnit};
+///
 /// assert_eq!(
-///     DurationParser::with_time_units(&[TimeUnit::NanoSecond]).parse("42ns").unwrap(),
+///     DurationParser::with_time_units(&[TimeUnit::NanoSecond])
+///         .parse("42ns")
+///         .unwrap(),
 ///     Duration::new(0, 42)
 /// );
 /// ```
@@ -47,13 +50,15 @@ pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 /// [`DurationParser`]: crate::DurationParser
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub enum TimeUnit {
-    /// Represents the lowest possible time unit. The default id is given by [`DEFAULT_ID_NANO_SECOND`] = `ns`
+    /// Represents the lowest possible time unit. The default id is given by
+    /// [`DEFAULT_ID_NANO_SECOND`] = `ns`
     NanoSecond,
     /// The default id is given by [`DEFAULT_ID_MICRO_SECOND`] = `Ms`
     MicroSecond,
     /// The default id is given by [`DEFAULT_ID_MILLI_SECOND`] = `ms`
     MilliSecond,
-    /// The default if no time unit is given. The default id is given by [`DEFAULT_ID_SECOND`] = `s`
+    /// The default if no time unit is given. The default id is given by [`DEFAULT_ID_SECOND`] =
+    /// `s`
     Second,
     /// The default id is given by [`DEFAULT_ID_MINUTE`] = `m`
     Minute,
@@ -65,7 +70,8 @@ pub enum TimeUnit {
     Week,
     /// The default id is given by [`DEFAULT_ID_MONTH`] = `M`
     Month,
-    /// Represents the hightest possible time unit. The default id is given by [`DEFAULT_ID_YEAR`] = `y`
+    /// Represents the hightest possible time unit. The default id is given by [`DEFAULT_ID_YEAR`]
+    /// = `y`
     Year,
 }
 
@@ -214,8 +220,9 @@ impl TryFrom<Duration> for time::Duration {
 #[cfg(feature = "negative")]
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
+
+    use super::*;
 
     #[rstest]
     #[case::nano_second(NanoSecond, "ns")]

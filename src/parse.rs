@@ -219,8 +219,8 @@ impl DurationRepr {
         let Multiplier(multiplier, mut exponent) = self.unit.multiplier() * self.multiplier;
         exponent += self.exponent as i32;
 
-        // The maximum absolute value of the exponent is `abs(i16::MIN) + 9 (nano seconds)`, so it is
-        // safe to cast to usize
+        // The maximum absolute value of the exponent is `abs(i16::MIN) + 9 (nano seconds)`, so it
+        // is safe to cast to usize
         let exponent_abs: usize = exponent.unsigned_abs().try_into().unwrap();
 
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
@@ -273,9 +273,10 @@ impl DurationRepr {
             Some(result) => match result {
                 Ok(seconds) => (seconds, attos.unwrap_or_default()),
                 Err(ParseError::Overflow) => {
-                    return Ok(FunduDuration::new(self.is_negative, Duration::MAX))
+                    return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
                 }
-                Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
+                Err(_) => unreachable!(), /* cov:excl-line only ParseError::Overflow is returned
+                                           * by `Seconds::parse` */
             },
             None => (0, attos.unwrap_or_default()),
         };
@@ -422,12 +423,14 @@ impl<'a> ReprParser<'a> {
                 return Ok(duration_repr);
             }
             Some(byte) if byte.is_ascii_digit() => {
-                // the maximum number of digits that need to be considered depending on the exponent:
-                // max(-exponent) = abs(i16::MIN) + max_digits(u64::MAX) = 20 + 9 (nano seconds) + 1 + alignment at modulo 8
+                // the maximum number of digits that need to be considered depending on the
+                // exponent: max(-exponent) = abs(i16::MIN) + max_digits(u64::MAX) =
+                // 20 + 9 (nano seconds) + 1 + alignment at modulo 8
                 let max = ((min_exponent as isize).abs() + 32) as usize;
 
                 // // Using `len()` is a rough (but always correct) estimation for an upper bound.
-                // // However, using maybe more memory than needed spares the costly memory reallocations
+                // // However, using maybe more memory than needed spares the costly memory
+                // reallocations
                 duration_repr.digits = Some(Vec::with_capacity(
                     max.min(self.input.len() - self.current_pos),
                 ));
@@ -447,7 +450,7 @@ impl<'a> ReprParser<'a> {
                 return Err(ParseError::Syntax(
                     self.current_pos,
                     "Unexpected end of input".to_string(),
-                ))
+                ));
             }
         }
 
@@ -480,7 +483,7 @@ impl<'a> ReprParser<'a> {
                             self.current_pos,
                             "Either the whole number part or the fraction must be present"
                                 .to_string(),
-                        ))
+                        ));
                     }
                     Some(_) => None,
                     None => return Ok(duration_repr),
@@ -491,7 +494,7 @@ impl<'a> ReprParser<'a> {
                 return Err(ParseError::Syntax(
                     self.current_pos,
                     "No fraction allowed".to_string(),
-                ))
+                ));
             }
             Some(_) => {}
             None => return Ok(duration_repr),
@@ -550,7 +553,7 @@ impl<'a> ReprParser<'a> {
 
         // check we've reached the end of input
         match self.current_byte {
-            Some(_) => unreachable!("Parsing time units consumes the rest of the input"), // cov:excl-line
+            Some(_) => unreachable!("Parsing time units consumes the rest of the input"), /* cov:excl-line */
             None => Ok(duration_repr),
         }
     }
@@ -586,9 +589,10 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_whole(&mut self, digits: &mut Vec<u8>) -> Whole {
-        debug_assert!(self
-            .current_byte
-            .map_or(false, |byte| byte.is_ascii_digit()));
+        debug_assert!(
+            self.current_byte
+                .map_or(false, |byte| byte.is_ascii_digit())
+        );
 
         let mut capacity = digits.capacity();
         let mut strip_leading_zeroes = true;
@@ -636,9 +640,10 @@ impl<'a> ReprParser<'a> {
 
     #[inline]
     fn parse_fract(&mut self, digits: &mut Vec<u8>) -> Fract {
-        debug_assert!(self
-            .current_byte
-            .map_or(false, |byte| byte.is_ascii_digit()));
+        debug_assert!(
+            self.current_byte
+                .map_or(false, |byte| byte.is_ascii_digit())
+        );
 
         let mut capacity = digits.capacity() - digits.len();
         let start = digits.len();
@@ -691,14 +696,14 @@ impl<'a> ReprParser<'a> {
                     return Err(ParseError::Syntax(
                         self.current_pos,
                         "Invalid infinity".to_string(),
-                    ))
+                    ));
                 }
                 None if pos == 3 => return Ok(()), // short `inf` is allowed
                 None => {
                     return Err(ParseError::Syntax(
                         self.current_pos,
                         "Unexpected end of input".to_string(),
-                    ))
+                    ));
                 }
             }
         }
@@ -777,8 +782,9 @@ impl<'a> ReprParser<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
+
+    use super::*;
 
     struct TimeUnitsFixture;
 

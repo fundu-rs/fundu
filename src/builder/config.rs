@@ -3,10 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use crate::{
-    time::{Multiplier, DEFAULT_TIME_UNIT},
-    TimeUnit,
-};
+use crate::time::{Multiplier, DEFAULT_TIME_UNIT};
+use crate::TimeUnit;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Config {

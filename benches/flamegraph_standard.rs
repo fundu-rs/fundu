@@ -6,7 +6,8 @@
 //! Flamegraphs for the standard module and the DurationParser
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu::{DurationParser, TimeUnit::*};
+use fundu::DurationParser;
+use fundu::TimeUnit::*;
 use pprof::criterion::{Output, PProfProfiler};
 use pprof::flamegraph::Options as FlamegraphOptions;
 

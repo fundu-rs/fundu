@@ -6,7 +6,8 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu::{DurationParser, TimeUnit::*};
+use fundu::DurationParser;
+use fundu::TimeUnit::*;
 
 fn criterion_config() -> Criterion {
     Criterion::default()

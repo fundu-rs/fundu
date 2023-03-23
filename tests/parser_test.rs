@@ -5,12 +5,13 @@
 
 #![cfg(not(feature = "negative"))]
 
+use std::time::Duration;
+
+use fundu::TimeUnit::*;
 use fundu::{
-    parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, TimeUnit::*,
-    SYSTEMD_TIME_UNITS,
+    parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
 };
 use rstest::rstest;
-use std::time::Duration;
 
 const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
 const MONTH: u64 = YEAR / 12;
@@ -203,10 +204,12 @@ fn test_parser_when_time_units_are_not_present_then_error(
     #[case] source: &str,
     #[case] time_units: Vec<TimeUnit>,
 ) {
-    assert!(DurationParser::without_time_units()
-        .time_units(time_units.as_slice())
-        .parse(source)
-        .is_err());
+    assert!(
+        DurationParser::without_time_units()
+            .time_units(time_units.as_slice())
+            .parse(source)
+            .is_err()
+    );
 }
 
 #[rstest]
@@ -275,10 +278,12 @@ fn test_parser_when_disable_exponent(
 #[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
 fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
-    assert!(DurationParser::without_time_units()
-        .time_unit(time_unit)
-        .parse(source)
-        .is_err());
+    assert!(
+        DurationParser::without_time_units()
+            .time_unit(time_unit)
+            .parse(source)
+            .is_err()
+    );
 }
 
 #[rstest]
