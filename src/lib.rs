@@ -234,6 +234,8 @@
 //! [`Month`]: [`TimeUnit::Month`]
 //! [`Year`]: [`TimeUnit::Year`]
 
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 mod builder;
 mod error;
 mod parse;

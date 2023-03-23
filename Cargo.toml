@@ -14,6 +14,7 @@ rust-version = "1.60.0"
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [lib]
 bench = false
@@ -25,7 +26,7 @@ custom = []
 negative = ["dep:time"]
 
 [dependencies]
-time = { version = "<= 0.3.16", optional = true, no-defalt-features = true }
+time = { version = "<= 0.3.16", optional = true, default-features = false }
 
 [dev-dependencies]
 rstest = "0.17.0"

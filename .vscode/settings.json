@@ -16,6 +16,7 @@
     "codecov",
     "cuda",
     "dawidd",
+    "docsrs",
     "dtolnay",
     "eabi",
     "eabihf",
