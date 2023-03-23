@@ -5,9 +5,7 @@
 
 use std::time::Duration;
 
-use super::config::Config;
-use crate::error::TryFromDurationError;
-use crate::parse::ReprParser;
+use crate::parse::Parser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::TimeUnit::*;
 use crate::{
@@ -178,7 +176,7 @@ impl TimeUnits {
 /// ```
 pub struct DurationParser {
     time_units: TimeUnits,
-    config: Config,
+    inner: Parser,
 }
 
 impl DurationParser {
@@ -222,7 +220,7 @@ impl DurationParser {
     pub const fn new() -> Self {
         Self {
             time_units: TimeUnits::with_default_time_units(),
-            config: Config::new(),
+            inner: Parser::new(),
         }
     }
 
@@ -246,7 +244,7 @@ impl DurationParser {
     pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
         Self {
             time_units: TimeUnits::with_time_units(time_units),
-            config: Config::new(),
+            inner: Parser::new(),
         }
     }
 
@@ -273,7 +271,7 @@ impl DurationParser {
     pub const fn without_time_units() -> Self {
         Self {
             time_units: TimeUnits::new(),
-            config: Config::new(),
+            inner: Parser::new(),
         }
     }
 
@@ -306,7 +304,7 @@ impl DurationParser {
     pub const fn with_all_time_units() -> Self {
         Self {
             time_units: TimeUnits::with_all_time_units(),
-            config: Config::new(),
+            inner: Parser::new(),
         }
     }
 
@@ -328,48 +326,34 @@ impl DurationParser {
     ///     Duration::new(0, 120_000_000),
     /// );
     /// ```
-    #[inline(never)]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
-        parser.parse().and_then(|mut repr| {
-            repr.parse().and_then(|fundu_duration| {
-                fundu_duration
-                    .try_into()
-                    .map_err(|error: TryFromDurationError| error.into())
-            })
-        })
+        self.inner.parse(source, &self.time_units)
     }
 
-    /// Parse the `source` string into a [`time::Duration`] depending on the current set of
-    /// configured [`TimeUnit`]s.
+    /// Parse a source string into a [`time::Duration`] which can be negative.
     ///
-    /// See the [module-level documentation](crate) for more information on the format.
+    /// This method is only available when activating the `negative` feature and saturates at
+    /// [`time::Duration::MIN`] for parsed negative durations and at [`time::Duration::MAX`] for
+    /// positive durations.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::DurationParser;
     /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
-    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
-    ///     Duration::new(0, 120_000_000),
-    /// );
-    /// assert_eq!(
     ///     DurationParser::new().parse_negative("-10.2e-1s").unwrap(),
     ///     time::Duration::new(-1, -20_000_000),
     /// );
+    /// assert_eq!(
+    ///     DurationParser::new().parse_negative("1.2e-1s").unwrap(),
+    ///     time::Duration::new(0, 120_000_000),
+    /// );
     /// ```
     #[cfg(any(feature = "negative", doc))]
-    #[inline(never)]
     pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
-        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
-        parser.parse().and_then(|mut repr| {
-            repr.parse()
-                .map(|fundu_duration| fundu_duration.saturating_into())
-        })
+        self.inner.parse_negative(source, &self.time_units)
     }
 
     /// Add a time unit to the current set of [`TimeUnit`]s.
@@ -450,7 +434,7 @@ impl DurationParser {
     /// );
     /// ```
     pub fn default_unit(&mut self, unit: TimeUnit) -> &Self {
-        self.config.default_unit = unit;
+        self.inner.config.default_unit = unit;
         self
     }
 
@@ -477,7 +461,7 @@ impl DurationParser {
     /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
     /// ```
     pub fn allow_spaces(&mut self) -> &mut Self {
-        self.config.allow_spaces = true;
+        self.inner.config.allow_spaces = true;
         self
     }
 
@@ -502,7 +486,7 @@ impl DurationParser {
     /// );
     /// ```
     pub fn disable_exponent(&mut self) -> &mut Self {
-        self.config.disable_exponent = true;
+        self.inner.config.disable_exponent = true;
         self
     }
 
@@ -532,7 +516,7 @@ impl DurationParser {
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::new(0, 123)));
     /// ```
     pub fn disable_fraction(&mut self) -> &mut Self {
-        self.config.disable_fraction = true;
+        self.inner.config.disable_fraction = true;
         self
     }
 
@@ -558,7 +542,7 @@ impl DurationParser {
     /// }
     /// ```
     pub fn number_is_optional(&mut self) -> &mut Self {
-        self.config.number_is_optional = true;
+        self.inner.config.number_is_optional = true;
         self
     }
 
@@ -629,6 +613,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::builder::config::Config;
 
     #[test]
     fn test_time_units_new() {
@@ -803,7 +788,7 @@ mod tests {
     fn test_duration_parser_init_when_default() {
         let config = Config::new();
         let parser = DurationParser::default();
-        assert_eq!(parser.config, config);
+        assert_eq!(parser.inner.config, config);
         assert_eq!(
             parser.get_current_time_units(),
             vec![
@@ -823,6 +808,6 @@ mod tests {
     fn test_duration_parser_setting_allow_spaces() {
         let mut parser = DurationParser::new();
         parser.allow_spaces();
-        assert!(parser.config.allow_spaces);
+        assert!(parser.inner.config.allow_spaces);
     }
 }

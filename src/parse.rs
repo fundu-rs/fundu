@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
 use crate::builder::config::Config;
-use crate::error::ParseError;
+use crate::error::{ParseError, TryFromDurationError};
 use crate::time::{Duration as FunduDuration, Multiplier, TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
@@ -38,6 +38,89 @@ const POW10: [u64; 20] = [
     1_000_000_000_000_000_000,
     10_000_000_000_000_000_000,
 ];
+
+pub(crate) struct Parser {
+    pub(crate) config: Config,
+}
+
+impl Parser {
+    pub(crate) const fn new() -> Self {
+        Self {
+            config: Config::new(),
+        }
+    }
+
+    /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
+    /// configured [`TimeUnit`]s.
+    ///
+    /// See the [module-level documentation](crate) for more information on the format.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::DurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
+    ///     Duration::new(0, 120_000_000),
+    /// );
+    /// ```
+    #[inline]
+    pub(crate) fn parse(
+        &self,
+        source: &str,
+        time_units: &dyn TimeUnitsLike,
+    ) -> Result<Duration, ParseError> {
+        ReprParser::new(source, &self.config, time_units)
+            .parse()
+            .and_then(|mut repr| {
+                repr.parse().and_then(|fundu_duration| {
+                    fundu_duration
+                        .try_into()
+                        .map_err(|error: TryFromDurationError| error.into())
+                })
+            })
+    }
+
+    /// Parse a source string into a [`time::Duration`] which can be negative.
+    ///
+    /// This method is only available when activating the `negative` feature and saturates at
+    /// [`time::Duration::MIN`] for parsed negative durations and at [`time::Duration::MAX`] for
+    /// positive durations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::DurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::new().parse_negative("-10.2e-1s").unwrap(),
+    ///     time::Duration::new(-1, -20_000_000),
+    /// );
+    /// assert_eq!(
+    ///     DurationParser::new().parse_negative("1.2e-1s").unwrap(),
+    ///     time::Duration::new(0, 120_000_000),
+    /// );
+    /// ```
+    #[cfg(any(feature = "negative", doc))]
+    #[inline]
+    pub fn parse_negative(
+        &self,
+        source: &str,
+        time_units: &dyn TimeUnitsLike,
+    ) -> Result<time::Duration, ParseError> {
+        ReprParser::new(source, &self.config, time_units)
+            .parse()
+            .and_then(|mut repr| {
+                repr.parse()
+                    .map(|fundu_duration| fundu_duration.saturating_into())
+            })
+    }
+}
 
 trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post

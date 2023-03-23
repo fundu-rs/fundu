@@ -217,7 +217,6 @@ impl TryFrom<Duration> for time::Duration {
     }
 }
 
-#[cfg(feature = "negative")]
 #[cfg(test)]
 mod tests {
     use rstest::rstest;

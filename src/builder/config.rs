@@ -7,19 +7,25 @@ use crate::time::{Multiplier, DEFAULT_TIME_UNIT};
 use crate::TimeUnit;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Config {
-    pub allow_spaces: bool,
-    pub default_unit: TimeUnit,
-    pub default_multiplier: Multiplier,
-    pub disable_exponent: bool,
-    pub disable_fraction: bool,
-    pub number_is_optional: bool,
-    pub max_exponent: i16,
-    pub min_exponent: i16,
+pub(crate) struct Config {
+    pub(crate) allow_spaces: bool,
+    pub(crate) default_unit: TimeUnit,
+    pub(crate) default_multiplier: Multiplier,
+    pub(crate) disable_exponent: bool,
+    pub(crate) disable_fraction: bool,
+    pub(crate) number_is_optional: bool,
+    pub(crate) max_exponent: i16,
+    pub(crate) min_exponent: i16,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Config {
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             allow_spaces: false,
             default_unit: DEFAULT_TIME_UNIT,
