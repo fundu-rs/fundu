@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+#![cfg(not(feature = "negative"))]
+
 use fundu::{
     parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, TimeUnit::*,
     SYSTEMD_TIME_UNITS,

@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use crate::builder::config::Config;
 use crate::error::ParseError;
-use crate::time::{Multiplier, TimeUnit, TimeUnitsLike};
+use crate::time::{Duration as FunduDuration, Multiplier, TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
@@ -194,13 +194,9 @@ pub(crate) struct DurationRepr {
 
 impl DurationRepr {
     #[inline]
-    pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
+    pub(crate) fn parse(&mut self) -> Result<FunduDuration, ParseError> {
         if self.is_infinite {
-            if self.is_negative {
-                return Err(ParseError::NegativeNumber);
-            } else {
-                return Ok(Duration::MAX);
-            }
+            return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
         }
 
         let (whole, fract) = match (self.whole.take(), self.fract.take()) {
@@ -276,10 +272,9 @@ impl DurationRepr {
         let (seconds, attos) = match seconds {
             Some(result) => match result {
                 Ok(seconds) => (seconds, attos.unwrap_or_default()),
-                Err(ParseError::Overflow) if self.is_negative => {
-                    return Err(ParseError::NegativeNumber)
+                Err(ParseError::Overflow) => {
+                    return Ok(FunduDuration::new(self.is_negative, Duration::MAX))
                 }
-                Err(ParseError::Overflow) => return Ok(Duration::MAX),
                 Err(_) => unreachable!(), // cov:excl-line only ParseError::Overflow is returned by `Seconds::parse`
             },
             None => (0, attos.unwrap_or_default()),
@@ -288,11 +283,12 @@ impl DurationRepr {
         // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
         // as zero duration
         if seconds == 0 && attos == 0 {
-            Ok(Duration::ZERO)
-        } else if self.is_negative {
-            Err(ParseError::NegativeNumber)
+            Ok(FunduDuration::new(false, Duration::ZERO))
         } else if multiplier == 1 {
-            Ok(Duration::new(seconds, (attos / ATTO_TO_NANO) as u32))
+            Ok(FunduDuration::new(
+                self.is_negative,
+                Duration::new(seconds, (attos / ATTO_TO_NANO) as u32),
+            ))
         } else {
             let attos = attos as u128 * (multiplier as u128);
             Ok(
@@ -300,10 +296,11 @@ impl DurationRepr {
                     .checked_mul(multiplier)
                     .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
                 {
-                    Some(s) => {
-                        Duration::new(s, ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32)
-                    }
-                    None => Duration::MAX,
+                    Some(s) => FunduDuration::new(
+                        self.is_negative,
+                        Duration::new(s, ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32),
+                    ),
+                    None => FunduDuration::new(self.is_negative, Duration::MAX),
                 },
             )
         }

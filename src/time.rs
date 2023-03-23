@@ -5,6 +5,8 @@
 
 use TimeUnit::*;
 
+use crate::error::TryFromDurationError;
+
 /// The default identifier of [`TimeUnit::NanoSecond`]
 pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
 /// The default identifier of [`TimeUnit::MicroSecond`]
@@ -146,6 +148,70 @@ impl std::ops::Mul for Multiplier {
     }
 }
 
+pub(crate) struct Duration {
+    is_negative: bool,
+    inner: std::time::Duration,
+}
+
+impl Duration {
+    pub(crate) fn new(is_negative: bool, inner: std::time::Duration) -> Self {
+        Self { is_negative, inner }
+    }
+
+    #[cfg(feature = "negative")]
+    pub(crate) fn saturating_into(self) -> time::Duration {
+        time::Duration::try_from(self).unwrap_or_else(|error| match error {
+            TryFromDurationError::NegativeOverflow => time::Duration::MIN,
+            TryFromDurationError::PositiveOverflow => time::Duration::MAX,
+            TryFromDurationError::NegativeNumber => unreachable!(),
+        })
+    }
+}
+
+impl From<std::time::Duration> for Duration {
+    fn from(duration: std::time::Duration) -> Self {
+        Self {
+            is_negative: false,
+            inner: duration,
+        }
+    }
+}
+
+impl TryFrom<Duration> for std::time::Duration {
+    type Error = TryFromDurationError;
+
+    fn try_from(duration: Duration) -> Result<Self, Self::Error> {
+        if duration.is_negative {
+            Err(TryFromDurationError::NegativeNumber)
+        } else {
+            Ok(duration.inner)
+        }
+    }
+}
+
+#[cfg(feature = "negative")]
+impl TryFrom<Duration> for time::Duration {
+    type Error = TryFromDurationError;
+
+    fn try_from(duration: Duration) -> Result<Self, Self::Error> {
+        match (duration.is_negative, duration.inner.as_secs()) {
+            (true, secs) if secs > i64::MIN.unsigned_abs() => {
+                Err(TryFromDurationError::NegativeOverflow)
+            }
+            (true, secs) => Ok(time::Duration::new(
+                -(secs as i64),
+                -(duration.inner.subsec_nanos() as i32),
+            )),
+            (false, secs) if secs > i64::MAX as u64 => Err(TryFromDurationError::PositiveOverflow),
+            (false, secs) => Ok(time::Duration::new(
+                secs as i64,
+                duration.inner.subsec_nanos() as i32,
+            )),
+        }
+    }
+}
+
+#[cfg(feature = "negative")]
 #[cfg(test)]
 mod tests {
     use super::*;

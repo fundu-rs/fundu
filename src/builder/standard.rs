@@ -3,8 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::time::Duration;
-
+use super::config::Config;
+use crate::error::TryFromDurationError;
 use crate::parse::ReprParser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::{
@@ -12,8 +12,7 @@ use crate::{
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
-
-use super::config::Config;
+use std::time::Duration;
 
 const DEFAULT_TIME_UNITS: [&str; 10] = [
     DEFAULT_ID_NANO_SECOND,
@@ -288,7 +287,43 @@ impl DurationParser {
     #[inline(never)]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         let mut parser = ReprParser::new(source, &self.config, &self.time_units);
-        parser.parse().and_then(|mut repr| repr.parse())
+        parser.parse().and_then(|mut repr| {
+            repr.parse().and_then(|fundu_duration| {
+                fundu_duration
+                    .try_into()
+                    .map_err(|error: TryFromDurationError| error.into())
+            })
+        })
+    }
+
+    /// Parse the `source` string into a [`time::Duration`] depending on the current set of
+    /// configured [`TimeUnit`]s.
+    ///
+    /// See the [module-level documentation](crate) for more information on the format.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use std::time::Duration;
+    ///
+    /// assert_eq!(
+    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
+    ///     Duration::new(0, 120_000_000),
+    /// );
+    /// assert_eq!(
+    ///     DurationParser::new().parse_negative("-10.2e-1s").unwrap(),
+    ///     time::Duration::new(-1, -20_000_000),
+    /// );
+    /// ```
+    #[cfg(any(feature = "negative", doc))]
+    #[inline(never)]
+    pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
+        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
+        parser.parse().and_then(|mut repr| {
+            repr.parse()
+                .map(|fundu_duration| fundu_duration.saturating_into())
+        })
     }
 
     /// Add a time unit to the current set of [`TimeUnit`]s.

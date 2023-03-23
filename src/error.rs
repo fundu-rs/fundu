@@ -59,6 +59,24 @@ impl Display for ParseError {
     }
 }
 
+pub(crate) enum TryFromDurationError {
+    NegativeNumber,
+    #[allow(dead_code)]
+    PositiveOverflow,
+    #[allow(dead_code)]
+    NegativeOverflow,
+}
+
+impl From<TryFromDurationError> for ParseError {
+    fn from(error: TryFromDurationError) -> Self {
+        match error {
+            TryFromDurationError::NegativeNumber => ParseError::NegativeNumber,
+            TryFromDurationError::PositiveOverflow => ParseError::Overflow,
+            TryFromDurationError::NegativeOverflow => ParseError::Overflow,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

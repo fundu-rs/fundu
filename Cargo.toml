@@ -22,6 +22,10 @@ bench = false
 default = ["standard"]
 standard = []
 custom = []
+negative = ["dep:time"]
+
+[dependencies]
+time = { version = "<= 0.3.16", optional = true, no-defalt-features = true }
 
 [dev-dependencies]
 rstest = "0.17.0"
@@ -93,3 +97,7 @@ test = true
 [[example]]
 name = "clap_builder"
 test = true
+
+[[example]]
+name = "chrono"
+test = false

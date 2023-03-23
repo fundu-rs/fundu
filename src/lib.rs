@@ -231,13 +231,13 @@ mod error;
 mod parse;
 mod time;
 
-pub use error::ParseError;
-pub use time::{Multiplier, TimeUnit};
-pub use time::{
+pub use crate::time::{Multiplier, TimeUnit};
+pub use crate::time::{
     DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
     DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,
     DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
+pub use error::ParseError;
 
 #[cfg(feature = "standard")]
 pub use builder::standard::{parse_duration, DurationParser};

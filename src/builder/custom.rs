@@ -3,6 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use crate::error::TryFromDurationError;
 use crate::parse::ReprParser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::{
@@ -10,6 +11,7 @@ use crate::{
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
+
 use std::time::Duration;
 
 use super::config::Config;
@@ -665,7 +667,23 @@ impl<'a> CustomDurationParser<'a> {
     #[inline(never)]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         let mut parser = ReprParser::new(source, &self.config, &self.time_units);
-        parser.parse().and_then(|mut repr| repr.parse())
+        parser.parse().and_then(|mut repr| {
+            repr.parse().and_then(|fundu_duration| {
+                fundu_duration
+                    .try_into()
+                    .map_err(|error: TryFromDurationError| error.into())
+            })
+        })
+    }
+
+    #[cfg(any(feature = "negative", doc))]
+    #[inline(never)]
+    pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
+        let mut parser = ReprParser::new(source, &self.config, &self.time_units);
+        parser.parse().and_then(|mut repr| {
+            repr.parse()
+                .map(|fundu_duration| fundu_duration.saturating_into())
+        })
     }
 }
 
@@ -680,7 +698,7 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-    const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
+    const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;
 
     #[test]
