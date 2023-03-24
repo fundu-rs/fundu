@@ -656,7 +656,7 @@ impl<'a> CustomDurationParser<'a> {
     ///     Duration::new(0, 120_000_000),
     /// );
     /// ```
-    #[inline(never)]
+    #[inline]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         self.inner.parse(source, &self.time_units)
     }
@@ -687,7 +687,7 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     #[cfg(feature = "negative")]
-    #[inline(never)]
+    #[inline]
     pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
         self.inner.parse_negative(source, &self.time_units)
     }

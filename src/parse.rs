@@ -52,7 +52,6 @@ impl Parser {
 
     /// Parse the `source` string with a positive number into a [`std::time::Duration`] saturating
     /// at [`std::time::Duration::ZERO`] and [`std::time::Duration::MAX`]
-    #[inline]
     pub(crate) fn parse(
         &self,
         source: &str,
@@ -72,7 +71,6 @@ impl Parser {
     /// Parse a possibly negative number in the source string into a [`time::Duration`] saturating
     /// at [`time::Duration::MIN`] and [`time::Duration::MAX`]
     #[cfg(feature = "negative")]
-    #[inline]
     pub fn parse_negative(
         &self,
         source: &str,
@@ -90,7 +88,6 @@ impl Parser {
 trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
-    #[inline]
     unsafe fn parse_8_digits(digits: &[u8]) -> u64 {
         // cov:excl-start
         debug_assert!(
@@ -142,7 +139,6 @@ impl Whole {
         Ok(seconds)
     }
 
-    #[inline]
     fn parse(&self, digits: &[u8], zeroes: Option<usize>) -> Result<u64, ParseError> {
         if digits.is_empty() {
             return Ok(0);
@@ -208,7 +204,6 @@ impl Fract {
         attos
     }
 
-    #[inline]
     fn parse(&self, digits: &[u8], zeroes: Option<usize>) -> u64 {
         if digits.is_empty() {
             return 0;
@@ -243,7 +238,6 @@ pub(crate) struct DurationRepr {
 }
 
 impl DurationRepr {
-    #[inline]
     pub(crate) fn parse(&mut self) -> Result<FunduDuration, ParseError> {
         if self.is_infinite {
             return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
@@ -368,7 +362,6 @@ pub(crate) struct ReprParser<'a> {
 
 /// Parse a source string into a [`DurationRepr`].
 impl<'a> ReprParser<'a> {
-    #[inline]
     pub fn new(input: &'a str, config: &'a Config, time_units: &'a dyn TimeUnitsLike) -> Self {
         let input = input.as_bytes();
         Self {
@@ -437,7 +430,6 @@ impl<'a> ReprParser<'a> {
             })
     }
 
-    #[inline]
     pub(crate) fn parse(&'a mut self) -> Result<DurationRepr, ParseError> {
         if self.current_byte.is_none() {
             return Err(ParseError::Empty);
