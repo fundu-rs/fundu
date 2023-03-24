@@ -113,27 +113,33 @@ impl Whole {
     #[inline]
     fn parse_slice(digits: &[u8]) -> Result<u64, ParseError> {
         let mut seconds = 0u64;
-        let mut iter = digits.chunks_exact(8);
-        for digits in iter.by_ref() {
-            match seconds
-                .checked_mul(100_000_000)
-                .and_then(|s| s.checked_add(unsafe { Self::parse_8_digits(digits) }))
-            {
-                Some(s) => seconds = s,
-                None => {
-                    return Err(ParseError::Overflow);
+        if digits.len() >= 8 {
+            let mut iter = digits.chunks_exact(8);
+            for digits in iter.by_ref() {
+                match seconds
+                    .checked_mul(100_000_000)
+                    .and_then(|s| s.checked_add(unsafe { Self::parse_8_digits(digits) }))
+                {
+                    Some(s) => seconds = s,
+                    None => {
+                        return Err(ParseError::Overflow);
+                    }
                 }
             }
-        }
-        for num in iter.remainder() {
-            match seconds
-                .checked_mul(10)
-                .and_then(|s| s.checked_add(*num as u64))
-            {
-                Some(s) => seconds = s,
-                None => {
-                    return Err(ParseError::Overflow);
+            for num in iter.remainder() {
+                match seconds
+                    .checked_mul(10)
+                    .and_then(|s| s.checked_add(*num as u64))
+                {
+                    Some(s) => seconds = s,
+                    None => {
+                        return Err(ParseError::Overflow);
+                    }
                 }
+            }
+        } else {
+            for num in digits {
+                seconds = seconds * 10 + *num as u64
             }
         }
         Ok(seconds)
@@ -210,7 +216,11 @@ impl Fract {
         }
 
         let num_zeroes = zeroes.unwrap_or_default();
-        let multi = ATTO_MULTIPLIER / POW10.get(num_zeroes).unwrap_or(&u64::MAX);
+        let pow = match POW10.get(num_zeroes) {
+            Some(pow) => pow,
+            None => return 0,
+        };
+        let multi = ATTO_MULTIPLIER / pow;
         if multi == 0 {
             return 0;
         }
