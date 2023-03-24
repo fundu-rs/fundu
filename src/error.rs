@@ -111,4 +111,12 @@ mod tests {
     fn test_error_messages(#[case] error: ParseError, #[case] expected: &str) {
         assert_eq!(error.to_string(), expected);
     }
+
+    #[rstest]
+    #[case::negative_overflow(TryFromDurationError::NegativeOverflow, ParseError::Overflow)]
+    #[case::positive_overflow(TryFromDurationError::PositiveOverflow, ParseError::Overflow)]
+    #[case::negative_number(TryFromDurationError::NegativeNumber, ParseError::NegativeNumber)]
+    fn test_from_for_parse_error(#[case] from: TryFromDurationError, #[case] expected: ParseError) {
+        assert_eq!(ParseError::from(from), expected);
+    }
 }

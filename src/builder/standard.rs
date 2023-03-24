@@ -810,4 +810,22 @@ mod tests {
         parser.allow_spaces();
         assert!(parser.inner.config.allow_spaces);
     }
+
+    #[cfg(feature = "negative")]
+    #[test]
+    fn test_duration_parser_parse_negative_calls_parser() {
+        let parser = DurationParser::new();
+        assert_eq!(parser.inner.config, Config::new());
+        assert_eq!(
+            parser.parse_negative("1y"),
+            Err(ParseError::TimeUnit(
+                1,
+                "Invalid time unit: 'y'".to_string()
+            ))
+        );
+        assert_eq!(
+            parser.parse_negative("-1.0e0ns"),
+            Ok(time::Duration::new(0, -1))
+        )
+    }
 }

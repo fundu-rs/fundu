@@ -262,4 +262,76 @@ mod tests {
     fn test_time_unit_multiplier(#[case] time_unit: TimeUnit, #[case] expected: Multiplier) {
         assert_eq!(time_unit.multiplier(), expected);
     }
+
+    #[cfg(feature = "negative")]
+    #[rstest]
+    #[case::positive_zero(Duration::new(false, std::time::Duration::ZERO), time::Duration::ZERO)]
+    #[case::negative_zero(Duration::new(true, std::time::Duration::ZERO), time::Duration::ZERO)]
+    #[case::positive_one(
+        Duration::new(false, std::time::Duration::new(1, 0)),
+        time::Duration::new(1, 0)
+    )]
+    #[case::negative_one(
+        Duration::new(true, std::time::Duration::new(1, 0)),
+        time::Duration::new(-1, 0)
+    )]
+    #[case::negative_barely_no_overflow(
+        Duration::new(true, std::time::Duration::new(i64::MIN.unsigned_abs(), 999_999_999)),
+        time::Duration::MIN
+    )]
+    #[case::negative_barely_overflow(
+        Duration::new(true, std::time::Duration::new(i64::MIN.unsigned_abs() + 1, 0)),
+        time::Duration::MIN
+    )]
+    #[case::negative_max_overflow(
+        Duration::new(true, std::time::Duration::new(u64::MAX, 999_999_999)),
+        time::Duration::MIN
+    )]
+    #[case::positive_barely_no_overflow(
+        Duration::new(false, std::time::Duration::new(i64::MAX as u64, 999_999_999)),
+        time::Duration::MAX
+    )]
+    #[case::positive_barely_overflow(
+        Duration::new(false, std::time::Duration::new(i64::MAX as u64 + 1, 999_999_999)),
+        time::Duration::MAX
+    )]
+    #[case::positive_max_overflow(
+        Duration::new(false, std::time::Duration::new(u64::MAX, 999_999_999)),
+        time::Duration::MAX
+    )]
+    fn test_duration_saturating_into(#[case] duration: Duration, #[case] expected: time::Duration) {
+        assert_eq!(duration.saturating_into(), expected);
+    }
+
+    #[cfg(feature = "negative")]
+    #[test]
+    fn test_duration_try_from_duration_for_time_duration() {
+        let duration = Duration::new(false, std::time::Duration::new(1, 0));
+        let time_duration: time::Duration = duration.try_into().unwrap();
+        assert_eq!(time_duration, time::Duration::new(1, 0));
+    }
+
+    #[rstest]
+    #[case::zero(
+        std::time::Duration::ZERO,
+        Duration::new(false, std::time::Duration::ZERO)
+    )]
+    #[case::one(
+        std::time::Duration::new(1, 0),
+        Duration::new(false, std::time::Duration::new(1, 0))
+    )]
+    #[case::with_nano_seconds(
+        std::time::Duration::new(1, 123_456_789),
+        Duration::new(false, std::time::Duration::new(1, 123_456_789))
+    )]
+    #[case::max(
+        std::time::Duration::MAX,
+        Duration::new(false, std::time::Duration::MAX)
+    )]
+    fn test_from_std_time_duration_for_duration(
+        #[case] std_duration: std::time::Duration,
+        #[case] expected: Duration,
+    ) {
+        assert_eq!(Duration::from(std_duration), expected);
+    }
 }

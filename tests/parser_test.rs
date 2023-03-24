@@ -10,6 +10,8 @@ use fundu::{
     parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
 };
 use rstest::rstest;
+#[cfg(feature = "negative")]
+use time::Duration as NegativeDuration;
 
 const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
 const MONTH: u64 = YEAR / 12;
@@ -377,4 +379,48 @@ fn test_custom_duration_parser_parse_when_systemd_time_units(
     for input in inputs {
         assert_eq!(parser.parse(&format!("1{input}")), Ok(expected));
     }
+}
+
+#[cfg(feature = "negative")]
+#[rstest]
+#[case::negative_zero("-0", NegativeDuration::ZERO)]
+#[case::negative_barely_not_zero("-0.000000001", NegativeDuration::new(0, -1))]
+#[case::negative_barely_zero("-0.0000000001", NegativeDuration::ZERO)]
+#[case::positive_zero("+0", NegativeDuration::ZERO)]
+#[case::positive_barely_not_zero("0.000000001", NegativeDuration::new(0, 1))]
+#[case::positive_barely_zero("0.0000000001", NegativeDuration::ZERO)]
+#[case::zero_without_sign("0", NegativeDuration::ZERO)]
+#[case::negative_one("-1", NegativeDuration::new(-1, 0))]
+#[case::negative_one_with_fraction("-1.2", NegativeDuration::new(-1, -200_000_000))]
+#[case::negative_one_with_exponent("-1e-9", NegativeDuration::new(0, -1))]
+#[case::negative_min_seconds(&format!("{}", i64::MIN), NegativeDuration::new(i64::MIN, 0))]
+#[case::negative_min_seconds_low_nanos(&format!("{}.000000001", i64::MIN), NegativeDuration::new(i64::MIN, -1))]
+#[case::negative_min_seconds_and_nanos(&format!("{}.999999999", i64::MIN), NegativeDuration::MIN)]
+#[case::negative_min_nanos_10_digits(&format!("{}.9999999999", i64::MIN), NegativeDuration::MIN)]
+#[case::negative_seconds_barely_saturate(&format!("{}", i64::MIN as i128 - 1), NegativeDuration::MIN)]
+#[case::negative_some_mixed_number(
+    "-1122334455.123456789e-4",
+    NegativeDuration::new(-112233, -445512345)
+)]
+#[case::negative_years("-1.000000001y", NegativeDuration::new(-(YEAR as i64), -(YEAR as i32)))]
+#[case::negative_high_value_saturate(&format!("-{}.{}e1000", "1".repeat(1000), "1".repeat(1000)), NegativeDuration::MIN)]
+#[case::positive_one("1", NegativeDuration::new(1, 0))]
+#[case::positive_max_seconds(&format!("{}", i64::MAX), NegativeDuration::new(i64::MAX, 0))]
+#[case::positive_max_seconds_low_nanos(&format!("{}.000000001", i64::MAX), NegativeDuration::new(i64::MAX, 1))]
+#[case::positive_max_seconds_and_nanos(&format!("{}.999999999", i64::MAX), NegativeDuration::MAX)]
+#[case::positive_seconds_barely_saturate(&format!("{}", i64::MAX as i128 + 1), NegativeDuration::MAX)]
+#[case::positive_seconds_and_nanos_barely_saturate(&format!("{}.000000001", i64::MAX as i128 + 1), NegativeDuration::MAX)]
+#[case::positive_some_mixed_number(
+    "1122334455.123456789e-4",
+    NegativeDuration::new(112233, 445512345)
+)]
+#[case::positive_years("1.000000001y", NegativeDuration::new(YEAR as i64, YEAR as i32))]
+#[case::positive_high_value_saturate(&format!("{}.{}e1000", "1".repeat(1000), "1".repeat(1000)), NegativeDuration::MAX)]
+fn test_parse_negative(#[case] source: &str, #[case] expected: NegativeDuration) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .parse_negative(source)
+            .unwrap(),
+        expected
+    );
 }

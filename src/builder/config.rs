@@ -38,3 +38,13 @@ impl Config {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_for_config() {
+        assert_eq!(Config::default(), Config::new());
+    }
+}

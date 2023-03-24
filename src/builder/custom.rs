@@ -704,6 +704,8 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    #[cfg(feature = "negative")]
+    use crate::builder::config::Config;
 
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;
@@ -1052,5 +1054,23 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.number_is_optional();
         assert!(parser.inner.config.number_is_optional);
+    }
+
+    #[cfg(feature = "negative")]
+    #[test]
+    fn test_custom_duration_parser_parse_negative_calls_parser() {
+        let parser = CustomDurationParser::new();
+        assert_eq!(parser.inner.config, Config::new());
+        assert_eq!(
+            parser.parse_negative("1s"),
+            Err(ParseError::TimeUnit(
+                1,
+                "No time units allowed but found: 's'".to_string()
+            ))
+        );
+        assert_eq!(
+            parser.parse_negative("-1.0e0"),
+            Ok(time::Duration::new(-1, 0))
+        )
     }
 }
