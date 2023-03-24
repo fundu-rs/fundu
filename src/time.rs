@@ -154,6 +154,7 @@ impl std::ops::Mul for Multiplier {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Duration {
     is_negative: bool,
     inner: std::time::Duration,
@@ -165,11 +166,11 @@ impl Duration {
     }
 
     #[cfg(feature = "negative")]
-    pub(crate) fn saturating_into(self) -> time::Duration {
+    pub(crate) fn saturating_into(&self) -> time::Duration {
         time::Duration::try_from(self).unwrap_or_else(|error| match error {
             TryFromDurationError::NegativeOverflow => time::Duration::MIN,
             TryFromDurationError::PositiveOverflow => time::Duration::MAX,
-            TryFromDurationError::NegativeNumber => unreachable!(),
+            TryFromDurationError::NegativeNumber => unreachable!(), // cov:excl-line
         })
     }
 }
@@ -200,12 +201,21 @@ impl TryFrom<Duration> for time::Duration {
     type Error = TryFromDurationError;
 
     fn try_from(duration: Duration) -> Result<Self, Self::Error> {
+        (&duration).try_into()
+    }
+}
+
+#[cfg(feature = "negative")]
+impl TryFrom<&Duration> for time::Duration {
+    type Error = TryFromDurationError;
+
+    fn try_from(duration: &Duration) -> Result<Self, Self::Error> {
         match (duration.is_negative, duration.inner.as_secs()) {
             (true, secs) if secs > i64::MIN.unsigned_abs() => {
                 Err(TryFromDurationError::NegativeOverflow)
             }
             (true, secs) => Ok(time::Duration::new(
-                -(secs as i64),
+                secs.wrapping_neg() as i64,
                 -(duration.inner.subsec_nanos() as i32),
             )),
             (false, secs) if secs > i64::MAX as u64 => Err(TryFromDurationError::PositiveOverflow),

@@ -50,24 +50,8 @@ impl Parser {
         }
     }
 
-    /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
-    /// configured [`TimeUnit`]s.
-    ///
-    /// See the [module-level documentation](crate) for more information on the format.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::DurationParser;
-    /// use fundu::TimeUnit::*;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::new().parse("1.2e-1s").unwrap(),
-    ///     Duration::new(0, 120_000_000),
-    /// );
-    /// ```
+    /// Parse the `source` string with a positive number into a [`std::time::Duration`] saturating
+    /// at [`std::time::Duration::ZERO`] and [`std::time::Duration::MAX`]
     #[inline]
     pub(crate) fn parse(
         &self,
@@ -85,28 +69,9 @@ impl Parser {
             })
     }
 
-    /// Parse a source string into a [`time::Duration`] which can be negative.
-    ///
-    /// This method is only available when activating the `negative` feature and saturates at
-    /// [`time::Duration::MIN`] for parsed negative durations and at [`time::Duration::MAX`] for
-    /// positive durations.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::DurationParser;
-    /// use fundu::TimeUnit::*;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::new().parse_negative("-10.2e-1s").unwrap(),
-    ///     time::Duration::new(-1, -20_000_000),
-    /// );
-    /// assert_eq!(
-    ///     DurationParser::new().parse_negative("1.2e-1s").unwrap(),
-    ///     time::Duration::new(0, 120_000_000),
-    /// );
-    /// ```
-    #[cfg(any(feature = "negative", doc))]
+    /// Parse a possibly negative number in the source string into a [`time::Duration`] saturating
+    /// at [`time::Duration::MIN`] and [`time::Duration::MAX`]
+    #[cfg(feature = "negative")]
     #[inline]
     pub fn parse_negative(
         &self,
