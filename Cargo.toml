@@ -52,18 +52,27 @@ debug = true
 [[bench]]
 name = "benchmarks_custom"
 harness = false
+required-features = ["custom"]
 
 [[bench]]
 name = "benchmarks_standard"
 harness = false
+required-features = ["standard"]
 
 [[bench]]
 name = "iai_bench_parsing_time_units"
 harness = false
+required-features = ["standard"]
 
 [[bench]]
 name = "iai_bench_parsing"
 harness = false
+required-features = ["standard"]
+
+[[bench]]
+name = "iai_bench_parsing_negative"
+harness = false
+required-features = ["standard", "negative"]
 
 [[bench]]
 name = "iai_bench_reference"
@@ -72,20 +81,24 @@ harness = false
 [[bench]]
 name = "iai_bench_standard"
 harness = false
+required-features = ["standard"]
 
 [[bench]]
 name = "iai_bench_custom"
 harness = false
+required-features = ["custom"]
 
 [[bench]]
 name = "flamegraph_standard"
 harness = false
 bench = false
+required-features = ["standard"]
 
 [[bench]]
 name = "flamegraph_custom"
 harness = false
 bench = false
+required-features = ["custom"]
 
 [[example]]
 name = "simple"

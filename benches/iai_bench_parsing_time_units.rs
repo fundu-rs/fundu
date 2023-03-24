@@ -26,36 +26,44 @@ fn setup_parser_with_all_time_units(default_unit: TimeUnit) -> DurationParser {
 
 #[inline(never)]
 fn parsing_nano_second_when_no_time_unit() -> Result<Duration> {
-    black_box(setup_parser_with_all_time_units(black_box(NanoSecond)))
-        .parse(black_box(INPUT_NO_TIME_UNIT))
+    let time_unit = black_box(NanoSecond);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(INPUT_NO_TIME_UNIT))
 }
 
 #[inline(never)]
 fn parsing_nano_second_when_time_unit() -> Result<Duration> {
-    black_box(setup_parser_with_all_time_units(black_box(NanoSecond)))
-        .parse(black_box(INPUT_NANO_SECOND))
+    let time_unit = black_box(NanoSecond);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(INPUT_NANO_SECOND))
 }
 
 #[inline(never)]
 fn parsing_second_when_no_time_unit() -> Result<Duration> {
-    black_box(setup_parser_with_all_time_units(black_box(Second)))
-        .parse(black_box(INPUT_NO_TIME_UNIT))
+    let time_unit = black_box(Second);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(INPUT_NO_TIME_UNIT))
 }
 
 #[inline(never)]
 fn parsing_second_when_time_unit() -> Result<Duration> {
-    black_box(setup_parser_with_all_time_units(black_box(Second))).parse(black_box(INPUT_SECOND))
+    let time_unit = black_box(Second);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(INPUT_SECOND))
 }
 
 #[inline(never)]
 fn parsing_year_when_no_time_unit() -> Result<Duration> {
-    black_box(setup_parser_with_all_time_units(black_box(Year)))
-        .parse(black_box(INPUT_NO_TIME_UNIT))
+    let time_unit = black_box(Year);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(INPUT_NO_TIME_UNIT))
 }
 
 #[inline(never)]
 fn parsing_year_when_time_unit() -> Result<Duration> {
-    black_box(setup_parser_with_all_time_units(black_box(Year))).parse(black_box(INPUT_YEAR))
+    let time_unit = black_box(Year);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(INPUT_YEAR))
 }
 
 main!(

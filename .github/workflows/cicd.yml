@@ -318,8 +318,12 @@ jobs:
             --bench iai_bench_reference | tee bench.out
       - name: Run iai-callgrind custom feature benchmarks
         run: |
-          cargo bench --features custom \
+          cargo bench --features custom --no-default-features \
             --bench iai_bench_custom | tee -a bench.out
+      - name: Run iai-callgrind negative feature benchmarks
+        run: |
+          cargo bench --features negative \
+            --bench iai_bench_parsing_negative | tee -a bench.out
       - name: Check for regression
         run: |
           echo 0 > fail
