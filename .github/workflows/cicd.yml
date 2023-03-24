@@ -309,8 +309,17 @@ jobs:
           check_artifacts: true
           path: target/iai
           if_no_artifact_found: warn
-      - name: Run iai-callgrind benchmarks
-        run: cargo bench --all-features iai_bench | tee bench.out
+      - name: Run iai-callgrind standard feature benchmarks
+        run: |
+          cargo bench --features standard \
+            --bench iai_bench_standard \
+            --bench iai_bench_parsing \
+            --bench iai_bench_parsing_time_units \
+            --bench iai_bench_reference | tee bench.out
+      - name: Run iai-callgrind custom feature benchmarks
+        run: |
+          cargo bench --features custom \
+            --bench iai_bench_custom | tee -a bench.out
       - name: Check for regression
         run: |
           echo 0 > fail
