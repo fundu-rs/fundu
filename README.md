@@ -225,7 +225,7 @@ string. The table below gives an overview of the constructor methods and which t
 available. If a custom set of time units is required, `DurationParser::with_time_units` can be used.
 
 TimeUnit | Default identifier | Calculation | Default time unit
---- | --- | --- | ---
+---:| ---:| ---:|:---:
 `Nanosecond` | ns | `1e-9s` | &#9745;
 `Microsecond` | Ms | `1e-6s` | &#9745;
 `Millisecond` | ms | `1e-3s` | &#9745;
@@ -350,7 +350,7 @@ To get a rough idea about the parsing times, here the average parsing speed of s
 comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
 Input | avg parsing time | ~ samples / s
---- | --- | ---
+--- | ---:| ---:
 `1` | `37.925 ns` | `26_367_831.245`
 `123456789.123456789` | `73.162 ns` | `13_668_297.750`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `551.59 ns` | `1_812_940.771`
@@ -360,7 +360,7 @@ for small and some mixed input and performs better than the reference function f
 the input gets larger (the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
 
 Input | avg parsing time | ~ samples / s
---- | --- | ---
+--- | ---:| ---:
 `1` | `25.630 ns` | `39_016_777.214`
 `123456789.123456789` | `45.007 ns` | `22_218_765.969`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `1.7457 µs` | `572_836.111`
@@ -376,7 +376,7 @@ Here's a short incomplete overview of differences and advantages of `fundu` over
 `Duration::(try_)from_secs_f64(input.parse().unwrap())`
 
 Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
---- | --- | ---
+---:| --- | ---
 `01271480964981728917.1` | `Duration::new(1_271_480_964_981_728_917, 100_000_000)` | `Duration::new(1_271_480_964_981_729_024, 0)`
 `1.11111111111e10` | `Duration::new(11_111_111_111, 100_000_000)` | `Duration::new(11_111_111_111, 100_000_381)`
 `1ns` | `Duration::new(0, 1)` | cannot parse time units
