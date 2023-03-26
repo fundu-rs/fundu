@@ -442,9 +442,9 @@ impl<'a> CustomDurationParser<'a> {
     /// use std::time::Duration;
     ///
     /// use fundu::TimeUnit::*;
-    /// use fundu::{DurationParser, ParseError};
+    /// use fundu::{CustomDurationParser, ParseError};
     ///
-    /// let mut parser = DurationParser::new();
+    /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
     /// parser.disable_fraction();
     ///
     /// assert_eq!(
@@ -473,9 +473,9 @@ impl<'a> CustomDurationParser<'a> {
     /// use std::time::Duration;
     ///
     /// use fundu::TimeUnit::*;
-    /// use fundu::{DurationParser, ParseError};
+    /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
     ///
-    /// let mut parser = DurationParser::new();
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.number_is_optional();
     ///
     /// for input in &["ns", "e-9", "e-3Ms"] {

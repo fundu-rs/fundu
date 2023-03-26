@@ -137,6 +137,7 @@ pub trait TimeUnitsLike {
 /// Second: (1, 0)
 /// Hour: (3600, 0)
 /// ```
+// TODO: i32 -> i16
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct Multiplier(pub u64, pub i32);
 

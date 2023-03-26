@@ -22,18 +22,20 @@
 //!
 //! ## `standard`
 //!
-//! The `standard` feature exposes a [`DurationParser`] with time units which can be customized,
-//! although the `identifiers` are fixed.
+//! The `standard` feature exposes the [`DurationParser`] and [`DurationParserBuilder`] structs with
+//! time units which can be customized. However, the `identifier` for each [`TimeUnit`] is fixed.
 //!
 //! ## `custom`
 //!
 //! The `custom` feature provides a [`CustomDurationParser`] with fully customizable identifiers for
-//! each [`TimeUnit`]. With the [`CustomDurationParser`] it is also possible to define time units
-//! completely by yourself.
+//! each [`TimeUnit`]. With the [`CustomDurationParser`] it is also possible to define completely
+//! new time units.
 //!
 //! ## `negative`
 //!
-//! Enable parsing negative durations into a [`time::Duration`]
+//! Enable parsing negative numbers into negative durations represented by [`time::Duration`]
+//! (instead of a [`std::time::Duration`]). If not activated, negative numbers produce a
+//! [`ParseError::NegativeNumber`].
 //!
 //! # Configuration and Format
 //!
@@ -233,19 +235,22 @@
 //! ```
 //!
 //! The number format can be easily adjusted to your needs. For example to allow numbers being
-//! optional and restrict the number format to whole numbers (without fraction and exponent):
+//! optional, allow space between the number and the time unit and restrict the number format to
+//! whole numbers, without fractional part and an exponent:
 //!
 //! ```rust
 //! use std::time::Duration;
 //!
+//! use fundu::TimeUnit::*;
 //! use fundu::{DurationParser, ParseError};
 //!
-//! let mut parser = DurationParser::with_all_time_units();
-//! parser
+//! let parser = DurationParser::builder()
+//!     .custom_time_units(&[NanoSecond])
 //!     .allow_spaces()
 //!     .number_is_optional()
 //!     .disable_fraction()
-//!     .disable_exponent();
+//!     .disable_exponent()
+//!     .build();
 //!
 //! for (input, expected) in &[
 //!     ("ns", Duration::new(0, 1)),
@@ -294,7 +299,9 @@ pub use builder::custom::{
     CustomDurationParser, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
 };
 #[cfg(feature = "standard")]
-pub use builder::standard::{parse_duration, DurationParser};
+pub use builder::standard::{
+    parse_duration, DurationParser, DurationParserBuilder, TimeUnitsChoice,
+};
 pub use error::ParseError;
 
 pub use crate::time::{

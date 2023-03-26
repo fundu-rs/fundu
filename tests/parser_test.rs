@@ -207,8 +207,7 @@ fn test_parser_when_time_units_are_not_present_then_error(
     #[case] time_units: Vec<TimeUnit>,
 ) {
     assert!(
-        DurationParser::without_time_units()
-            .time_units(time_units.as_slice())
+        DurationParser::with_time_units(time_units.as_slice())
             .parse(source)
             .is_err()
     );
@@ -221,9 +220,13 @@ fn test_parser_when_time_units_are_not_present_then_error(
 #[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
 #[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
 fn test_parser_when_allow_spaces_then_error(#[case] input: &str, #[case] expected: ParseError) {
-    let mut parser = DurationParser::with_all_time_units();
-    parser.allow_spaces();
-    assert_eq!(parser.parse(input).unwrap_err(), expected);
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_spaces(true)
+            .parse(input)
+            .unwrap_err(),
+        expected
+    );
 }
 
 #[rstest]
@@ -232,9 +235,13 @@ fn test_parser_when_allow_spaces_then_error(#[case] input: &str, #[case] expecte
 #[case::multiple_spaces("123      ns", Duration::new(0, 123))]
 #[case::space_at_end_when_no_time_unit("123 ", Duration::new(123, 0))]
 fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
-    let mut parser = DurationParser::with_all_time_units();
-    parser.allow_spaces();
-    assert_eq!(parser.parse(input).unwrap(), expected);
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_spaces(true)
+            .parse(input)
+            .unwrap(),
+        expected
+    );
 }
 
 #[rstest]
@@ -247,9 +254,12 @@ fn test_parser_when_number_is_optional(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
 ) {
-    let mut parser = DurationParser::with_all_time_units();
-    parser.number_is_optional();
-    assert_eq!(parser.parse(input), expected);
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .number_is_optional(true)
+            .parse(input),
+        expected
+    );
 }
 
 #[rstest]
@@ -260,9 +270,12 @@ fn test_parser_when_disable_fraction(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
 ) {
-    let mut parser = DurationParser::with_all_time_units();
-    parser.disable_fraction();
-    assert_eq!(parser.parse(input), expected);
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .disable_fraction(true)
+            .parse(input),
+        expected
+    );
 }
 
 #[rstest]
@@ -273,17 +286,19 @@ fn test_parser_when_disable_exponent(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
 ) {
-    let mut parser = DurationParser::with_all_time_units();
-    parser.disable_exponent();
-    assert_eq!(parser.parse(input), expected);
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .disable_exponent(true)
+            .parse(input),
+        expected
+    );
 }
 
 #[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
 fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
     assert!(
-        DurationParser::without_time_units()
-            .time_unit(time_unit)
+        DurationParser::with_time_units(&[time_unit])
             .parse(source)
             .is_err()
     );

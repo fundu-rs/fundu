@@ -39,6 +39,7 @@ const POW10: [u64; 20] = [
     10_000_000_000_000_000_000,
 ];
 
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Parser {
     pub(crate) config: Config,
 }
@@ -48,6 +49,10 @@ impl Parser {
         Self {
             config: Config::new(),
         }
+    }
+
+    pub(crate) const fn with_config(config: Config) -> Self {
+        Self { config }
     }
 
     /// Parse the `source` string with a positive number into a [`std::time::Duration`] saturating
