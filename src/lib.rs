@@ -5,24 +5,35 @@
 
 //! # Overview
 //!
-//! Parse a string in float-like scientific format into a [`std::time::Duration`].
+//! Parse a rust string in into a [`std::time::Duration`] or for negative numbers into a
+//! [`time::Duration`].
 //!
-//! `fundu` is a configurable, precise and fast string parser
+//! `fundu` is a configurable, precise and blazingly fast string parser
 //!
-//! * with fully customizable [`TimeUnit`]s
+//! * with the flexibility to customize [`TimeUnit`]s, the number format and other aspects
 //! * without floating point calculations. What you put in is what you get out.
 //! * with sound limit handling. Infinity and numbers larger than [`Duration::MAX`] evaluate to
-//!   [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
-//! * without restrictions on the length of the input string
-//! * with helpful error messages
+//! [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
+//! * with the option to parse negative numbers to negative durations if the `negative` feature is
+//! enabled
+//! * and with informative error messages
 //!
 //! # Features
 //!
+//! ## `standard`
+//!
 //! The `standard` feature exposes a [`DurationParser`] with time units which can be customized,
-//! although the `identifiers` are fixed. The `custom` feature provides a [`CustomDurationParser`]
-//! with fully customizable identifiers for each [`TimeUnit`]. They both share most of the
-//! functionality, so in the following sections only the `DurationParser` is presented. See the
-//! [`CustomDurationParser`] documentation for further details.
+//! although the `identifiers` are fixed.
+//!
+//! ## `custom`
+//!
+//! The `custom` feature provides a [`CustomDurationParser`] with fully customizable identifiers for
+//! each [`TimeUnit`]. With the [`CustomDurationParser`] it is also possible to define time units
+//! completely by yourself.
+//!
+//! ## `negative`
+//!
+//! Enable parsing negative durations into a [`time::Duration`]
 //!
 //! # Configuration and Format
 //!
@@ -193,12 +204,12 @@
 //!
 //! let parser = CustomDurationParser::with_time_units(&[
 //!     (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
-//!     (Second, &["s", "secs", "..."]),
+//!     (Second, &["s", "secs"]),
 //!     (Hour, &["⏳"]),
 //! ]);
 //! for (input, expected) in &[
 //!     (".3χιλιοστό του δευτερολέπτου", Duration::new(0, 300_000)),
-//!     ("1e3...", Duration::new(1000, 0)),
+//!     ("1e3secs", Duration::new(1000, 0)),
 //!     ("1.1⏳", Duration::new(3960, 0)),
 //! ] {
 //!     assert_eq!(parser.parse(input).unwrap(), *expected);
@@ -221,6 +232,43 @@
 //! );
 //! ```
 //!
+//! The number format can be easily adjusted to your needs. For example to allow numbers being
+//! optional and restrict the number format to whole numbers (without fraction and exponent):
+//!
+//! ```rust
+//! use std::time::Duration;
+//!
+//! use fundu::{DurationParser, ParseError};
+//!
+//! let mut parser = DurationParser::with_all_time_units();
+//! parser
+//!     .allow_spaces()
+//!     .number_is_optional()
+//!     .disable_fraction()
+//!     .disable_exponent();
+//!
+//! for (input, expected) in &[
+//!     ("ns", Duration::new(0, 1)),
+//!     ("1000 ns", Duration::new(0, 1000)),
+//! ] {
+//!     assert_eq!(parser.parse(input).unwrap(), *expected);
+//! }
+//!
+//! for (input, expected) in &[
+//!     (
+//!         "1.0ns",
+//!         ParseError::Syntax(1, "No fraction allowed".to_string()),
+//!     ),
+//!     (
+//!         "1e9ns",
+//!         ParseError::Syntax(1, "No exponent allowed".to_string()),
+//!     ),
+//! ] {
+//!     assert_eq!(parser.parse(input).unwrap_err(), *expected);
+//! }
+//! ```
+//!
+//! [`time::Duration`]: <https://docs.rs/time/latest/time/struct.Duration.html>
 //! [`Duration::MAX`]: [`std::Duration::MAX`]
 //! [`Duration::ZERO`]: [`std::Duration::ZERO`]
 //! [`NanoSecond`]: [`TimeUnit::NanoSecond`]

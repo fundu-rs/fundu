@@ -303,7 +303,7 @@ impl<'a> CustomDurationParser<'a> {
     /// Not all time units need to be defined, so if there is no intention to include a specific
     /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this library does not check
     /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there are no
-    /// other limitations. There is also no check for duplicate `ids`, and empty `ids` are ignored.
+    /// other limitations. There is also no check for duplicate `ids` but empty `ids` are ignored.
     /// Note the ids for time units are case sensitive.
     ///
     /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
@@ -314,8 +314,9 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// # Problems
     ///
-    /// It's possible to choose identifiers very freely in the `utf-8` range but some identifiers
-    /// interact badly with the parser and may lead to unexpected results, if they start with:
+    /// It's possible to choose identifiers very freely within the `utf-8` range. However, some
+    /// identifiers interact badly with the parser and may lead to unexpected results if they
+    /// start with:
     ///
     /// * `e` or `E` which is also indicating an exponent. If
     /// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
@@ -323,11 +324,6 @@ impl<'a> CustomDurationParser<'a> {
     /// * decimal point `.` which is also indicating a fraction. If
     /// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur
     /// * `+`, `-` which is used for signs.
-    ///
-    /// # Security
-    ///
-    /// If there is the intention to expose defining of [`TimeUnit`]s to an untrusted source, it's
-    /// maybe better to limit the possible characters to something like [`char::is_alphabetic`].
     ///
     /// # Examples
     ///
@@ -579,12 +575,6 @@ impl<'a> CustomDurationParser<'a> {
     /// Custom time units have a base [`TimeUnit`] and a [`Multiplier`] in addition to their
     /// identifiers.
     ///
-    /// # Problems
-    ///
-    /// Don't use a [`Multiplier`] to get lower than [`TimeUnit::NanoSecond`] (=Multiplier(1, -9))
-    /// or higher than [`u64::MAX`]. Such multipliers may lead to unexpected results or even panics
-    /// in other parts of the program.
-    ///
     /// # Examples
     ///
     /// ```rust
@@ -608,7 +598,7 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     ///
-    /// The `base_unit` is only used to calculate the final time span and does not need to be unique
+    /// The `base_unit` is only used to calculate the final duration and does not need to be unique
     /// in the set of time units. It's even possible to define an own time unit for example for a
     /// definition of a [`TimeUnit::Year`] either in addition or as a replacement of the year
     /// definition of this crate (=`365.25` days).

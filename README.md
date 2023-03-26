@@ -198,20 +198,20 @@ use std::time::Duration;
 let parser = CustomDurationParser::with_time_units(
     &[
         (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
-        (Second, &["s", "secs", "..."]),
+        (Second, &["s", "secs"]),
         (Hour, &["⏳"])
     ]
 );
 for (input, expected) in &[
     (".3χιλιοστό του δευτερολέπτου", Duration::new(0, 300_000)),
-    ("1e3...", Duration::new(1000, 0)),
+    ("1e3secs", Duration::new(1000, 0)),
     ("1.1⏳", Duration::new(3960, 0)),
 ] {
     assert_eq!(parser.parse(input).unwrap(), *expected);
 }
 ```
 
-See also the [examples folder](examples) for common recipes. Run an example with
+See also the [examples folder](examples) for common recipes and integration with other crates. Run an example with
 
 ```shell
 cargo run --example $FILE_NAME_WITHOUT_FILETYPE_SUFFIX
