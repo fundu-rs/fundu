@@ -5,7 +5,7 @@
  https://opensource.org/licenses/MIT
 -->
 
-<h1 align="center">Configurable, precise and fast string parser to a rust std::time::Duration</h1>
+<h1 align="center">Configurable, precise and fast rust string parser to a Duration</h1>
 <div align="center">
     <a href="https://docs.rs/crate/fundu/">Released API Docs</a>
     |
@@ -37,6 +37,7 @@
     - [Installation](#installation)
     - [Examples](#examples)
     - [Time Units](#time-units)
+    - [Customization](#customization)
     - [Benchmarks](#benchmarks)
     - [Comparison](#comparison-fundu-vs-durationtry_from_secs_f64)
     - [Platform support](#platform-support)
@@ -45,7 +46,9 @@
   
 # Overview
 
-`fundu` provides a parser to convert strings into a [`std::time::Duration`]. Some examples for valid input strings:
+`fundu` provides a flexible parser to convert rust strings into a [`std::time::Duration`] and for
+negative durations into a [`time::Duration`]. Some examples for valid input strings with the
+`standard` feature:
 
 - `"1.41"`
 - `"42"`
@@ -55,25 +58,26 @@
 - `"inf"`, `"+inf"`, `"infinity"`, `"+infinity"`
 - `"1w"` (1 week) or likewise `"7d"`, `"168h"`, `"10080m"`, `"604800s"`, ...
 
-This crate tries to improve on the standard methods [`Duration::from_secs_f64`] and
-[`Duration::try_from_secs_f64`] (which is stable since `1.66.0`) with intermediate parsing to a
-float via [`f64::from_str`]. Some advantages and features this crate provides:
+A quick summary of features provided by this crate:
 
 - __Precision__: There are no floating point calculations and the input is precisely parsed as it
-is. So, what you put in you is what you get out within the range of a `std::time::Duration`.
-- __Performance__: The parser is very fast (See [Benchmarks](#benchmarks))
-- __Customization__: [`TimeUnits`](#time-units), but also other aspects are configurable
-- __Sound limits__: The duration evaluates to [`Duration::MAX`] if the input number was larger than that maximum
-or if the input string was positive `infinity`.
-- __Single Interface__: `fundu` merges the separate steps of parsing float like strings to `f64` and parsing of `f64` to a [`Duration`]
-- __Error handling__: The error messages try to be more informative on their own but can also be easily adjusted
+is. So, what you put in you is what you get out within the range of a `Duration`. (See also
+[Comparison](#comparison-fundu-vs-durationtry_from_secs_f64))
+- __Performance__: The parser is blazingly fast ([Benchmarks](#benchmarks))
+- __Customization__: [`TimeUnits`](#time-units), the number format and other aspects are
+easily configurable ([Customization](#customization))
+- __Sound limits__: The duration evaluates to [`Duration::MAX`] if the input number was larger than
+that maximum or if the input string was positive `infinity`.
+- __Negative_Durations__: Negative numbers can be parsed to negative [`time::Duration`]s when the
+`negative` feature is activated.
+- __Error handling__: The error messages try to be informative on their own but can also be
+easily adjusted (See also [Examples](#examples))
 
 `fundu` aims for good performance and being a lightweight crate. It is purely built on top of the
-rust `stdlib`, and there are no additional dependencies required. The accepted string format is
-almost the same like the scientific floating point format and compatible to the [`f64::from_str`]
-format. In other words, if the accepted input string could previously converted to an `f64` with
-`f64::from_str`, no change is needed to accept the same format with `fundu`. For a direct comparison
-of `fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
+rust `stdlib`, and there are no additional dependencies required in the standard configuration. The
+accepted number format is per default the scientific floating point format and
+compatible with [`f64::from_str`]. However, the number format can be [adjusted](#customization). For a direct
+comparison of `fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
 [Comparison](#comparison-fundu-vs-durationtry_from_secs_f64).
 
 For further details see the [Documentation](https://docs.rs/crate/fundu)!
@@ -87,8 +91,8 @@ Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 fundu = "0.4.3"
 ```
 
-fundu is split into two features, `standard` (providing `DurationParser` and `parse_duration`) and
-`custom` (providing the `CustomDurationParser`). The first is described here in in detail, the
+fundu is split into two main features, `standard` (providing `DurationParser` and `parse_duration`)
+and `custom` (providing the `CustomDurationParser`). The first is described here in in detail, the
 latter adds fully customizable identifiers for [time units](#time-units). Most of the time only one
 of the parsers is needed. To include only the `CustomDurationParser` add the following to
 `Cargo.toml`:
@@ -97,6 +101,8 @@ of the parsers is needed. To include only the `CustomDurationParser` add the fol
 [dependencies]
 fundu = { version = "0.4.3", default-features = false, features = ["custom"] }
 ```
+
+Activating the `negative` feature allows parsing negative numbers to negative [`time::Duration`]s.
 
 # Examples
 
@@ -110,16 +116,17 @@ let input = "1.0e2s";
 assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
 ```
 
-When a customization of the accepted [TimeUnit](#time-units)s is required, then the builder
-`DurationParser` can be used.
+When a customization of the accepted [TimeUnit](#time-units)s is required, then
+[`DurationParser::with_time_units`] can be used.
 
 ```rust
 use fundu::DurationParser;
+use fundu::TimeUnit::*;
 use std::time::Duration;
 
 let input = "3m";
 assert_eq!(
-    DurationParser::with_all_time_units().parse(input).unwrap(),
+    DurationParser::with_time_units(&[Minute]).parse(input).unwrap(),
     Duration::new(180, 0)
 );
 ```
@@ -144,7 +151,10 @@ use fundu::{DurationParser, TimeUnit::*};
 use std::time::Duration;
 
 assert_eq!(
-    DurationParser::without_time_units().default_unit(MilliSecond).parse("1000").unwrap(),
+    DurationParser::without_time_units()
+        .default_unit(MilliSecond)
+        .parse("1000")
+        .unwrap(),
     Duration::new(1, 0)
 );
 ```
@@ -155,8 +165,10 @@ Note the following will return an error because `y` (Years) is not in the defaul
 ```rust
 use fundu::DurationParser;
 
-let input = "3y";
-assert!(DurationParser::new().parse(input).is_err());
+assert_eq!(
+    DurationParser::new().parse("3y").unwrap_err().to_string(),
+    "Time unit error: Invalid time unit: 'y' at column 1"
+);
 ```
 
 The parser is reusable and the set of time units is fully customizable
@@ -199,21 +211,6 @@ for (input, expected) in &[
 }
 ```
 
-Also, `fundu` tries to give informative error messages
-
-```rust
-use fundu::DurationParser;
-use std::time::Duration;
-
-assert_eq!(
-    DurationParser::without_time_units()
-        .parse("1y")
-        .unwrap_err()
-        .to_string(),
-    "Time unit error: No time units allowed but found: 'y' at column 1"
-);
-```
-
 See also the [examples folder](examples) for common recipes. Run an example with
 
 ```shell
@@ -222,23 +219,23 @@ cargo run --example $FILE_NAME_WITHOUT_FILETYPE_SUFFIX
 
 # Time units
 
-Time units are used to calculate the final `Duration`. `Second` is the default time unit (if not
-specified otherwise) and if no time unit was specified in the input string. The table below gives an
-overview of the constructor methods and which time units are available. If a custom set of time
-units is required, `DurationParser::with_time_units` can be used.
+`Second` is the default time unit (if not specified otherwise for example with
+[`DurationParser::default_unit`]) which is applied when no time unit was encountered in the input
+string. The table below gives an overview of the constructor methods and which time units are
+available. If a custom set of time units is required, `DurationParser::with_time_units` can be used.
 
-Name | Time unit | Calculation | `DurationParser::new` \| `parse_duration` | `DurationParser::` `with_all_time_units` | `DurationParser::` `without_time_units`
---- | --- | --- | --- | --- | ---
-`Nanoseconds` | ns | `1e-9s` | &#9745; | &#9745; | &#9744;
-`Microseconds` | Ms | `1e-6s` | &#9745; | &#9745; | &#9744;
-`Milliseconds` | ms | `1e-3s` |&#9745; | &#9745; | &#9744;
-`Seconds` | s | SI definition | &#9745; | &#9745; | &#9744;
-`Minutes` | m | `60s` | &#9745; | &#9745; | &#9744;
-`Hours` | h | `60m` | &#9745; | &#9745; | &#9744;
-`Days` | d | `24h` | &#9745; | &#9745; | &#9744;
-`Weeks` | w | `7d` | &#9745; | &#9745; | &#9744;
-`Months` | M | `Year / 12` | &#9744; | &#9745; | &#9744;
-`Years` | y | `365.25d` | &#9744; | &#9745; | &#9744;
+TimeUnit | Default identifier | Calculation | Default time unit
+--- | --- | --- | ---
+`Nanosecond` | ns | `1e-9s` | &#9745;
+`Microsecond` | Ms | `1e-6s` | &#9745;
+`Millisecond` | ms | `1e-3s` | &#9745;
+`Second` | s | SI definition | &#9745;
+`Minute` | m | `60s` | &#9745;
+`Hour` | h | `60m` | &#9745;
+`Day` | d | `24h` | &#9745;
+`Week` | w | `7d` | &#9745;
+`Month` | M | `Year / 12` | &#9744;
+`Year` | y | `365.25d` | &#9744;
 
 Note that `Months` and `Years` are not included in the default set of time units. The current
 implementation uses an approximate calculation of `Months` and `Years` in seconds and if they are
@@ -246,8 +243,78 @@ included in the final configuration, the [Julian
 year](https://en.wikipedia.org/wiki/Julian_year_(astronomy)) based calculation is used. (See table
 above)
 
-With the `CustomDurationParser` in the `custom` feature, the identifiers for time units can be fully
-customized.
+With the `CustomDurationParser` from the `custom` feature, the identifiers for time units can be
+fully customized.
+
+# Customization
+
+Unlike other crates `fundu` does not try to establish a standard for time units and their
+identifiers or a specific number format. So, a lot of these aspects can be adjusted with ease when
+initializing the parser. Here's an incomplete example for possible customizations of the number
+format:
+
+```rust
+use std::time::Duration;
+
+use fundu::TimeUnit::*;
+use fundu::{DurationParser, ParseError};
+
+let mut parser = DurationParser::with_time_units(&[NanoSecond]);
+parser
+    // Allows spaces between the number and the time unit: `1000 ns`
+    .allow_spaces()
+    // Makes a number optional and if not present `1` is assumed
+    .number_is_optional()
+    // Disable parsing the fractional part of the number
+    .disable_fraction()
+    // Disable parsing an exponent
+    .disable_exponent();
+
+for (input, expected) in &[
+    ("ns", Duration::new(0, 1)),
+    ("1000 ns", Duration::new(0, 1000)),
+] {
+    assert_eq!(parser.parse(input).unwrap(), *expected);
+}
+
+for (input, expected) in &[
+    (
+        "1.0ns",
+        ParseError::Syntax(1, "No fraction allowed".to_string()),
+    ),
+    (
+        "1e9ns",
+        ParseError::Syntax(1, "No exponent allowed".to_string()),
+    ),
+] {
+    assert_eq!(parser.parse(input).unwrap_err(), *expected);
+}
+```
+
+Here's an example for fully-customizable time units which uses the `CustomDurationParser` from the
+`custom` feature:
+
+```rust
+use std::time::Duration;
+
+use fundu::TimeUnit::*;
+use fundu::{CustomDurationParser, Multiplier};
+
+let mut parser = CustomDurationParser::with_time_units(&[
+    (Second, &["s", "secs", "seconds"]),
+    (Minute, &["min"]),
+    (Hour, &["ώρα"]),
+]);
+
+// Let's define a custom time unit which isn't part of the basic [`TimeUnit`]s:
+parser.custom_time_unit(Week, Multiplier(2, 0), &["f", "fortnight", "fortnights"]);
+
+assert_eq!(parser.parse("42e-1ώρα").unwrap(), Duration::new(15120, 0));
+assert_eq!(
+    parser.parse("1fortnight").unwrap(),
+    Duration::new(60 * 60 * 24 * 7 * 2, 0)
+);
+```
 
 # Benchmarks
 
@@ -283,10 +350,10 @@ To get a rough idea about the parsing times, here the average parsing speed of s
 comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
 
 Input | avg parsing time | ~ samples / s
---- | --- | --- | ---
-`1` | `41.539 ns` | `24_073_762.006`
-`123456789.123456789e5` | `78.195 ns` | `12_788_541.466`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `530.64 ns` | `1_884_516.809`
+--- | --- | ---
+`1` | `37.925 ns` | `26_367_831.245`
+`123456789.123456789` | `73.162 ns` | `13_668_297.750`
+`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `551.59 ns` | `1_812_940.771`
 
 For comparison, `fundu`'s precision and additional features only add a very low performance overhead
 for small and some mixed input and performs better than the reference function from the `stdlib` as
@@ -295,11 +362,11 @@ the input gets larger (the reference function is `Duration::from_secs_f64(input.
 Input | avg parsing time | ~ samples / s
 --- | --- | ---
 `1` | `25.630 ns` | `39_016_777.214`
-`123456789.123456789e5` | `48.373 ns` | `20_672_689.310`
+`123456789.123456789` | `45.007 ns` | `22_218_765.969`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `1.7457 µs` | `572_836.111`
 
 The initialization for fixed size time unit sets with `DurationParser::new`,
-`DurationParser::with_all_time_units` etc. takes around `1-2 ns` and is negligibly small. The
+`DurationParser::with_all_time_units` takes around `1-2 ns` and is negligibly small. The
 initialization time for custom sets with `DurationParser::with_time_units` has a maximum of around
 `10 ns`.
 
@@ -344,8 +411,8 @@ See also [Changelog](CHANGELOG.md)
 MIT license ([LICENSE](LICENSE) or <http://opensource.org/licenses/MIT>)
 
 [`std::time::Duration`]: https://doc.rust-lang.org/std/time/struct.Duration.html
-[`Duration`]: https://doc.rust-lang.org/std/time/struct.Duration.html
-[`Duration::from_secs_f64`]: https://doc.rust-lang.org/std/time/struct.Duration.html#method.from_secs_f64
-[`Duration::try_from_secs_f64`]: https://doc.rust-lang.org/std/time/struct.Duration.html#method.try_from_secs_f64
+[`time::Duration`]: https://docs.rs/time/latest/time/struct.Duration.html
 [`Duration::MAX`]: https://doc.rust-lang.org/std/time/struct.Duration.html#associatedconstant.MAX
 [`f64::from_str`]: https://doc.rust-lang.org/std/primitive.f64.html#impl-FromStr-for-f64
+[`DurationParser::default_unit`]: https://docs.rs/fundu/latest/fundu/struct.DurationParser.html#method.default_unit
+[`DurationParser::with_time_units`]: https://docs.rs/fundu/latest/fundu/struct.DurationParser.html#method.with_time_units
