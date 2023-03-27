@@ -115,3 +115,8 @@ test = true
 [[example]]
 name = "chrono"
 test = false
+
+[[example]]
+name = "custom"
+test = false
+required-features = ["custom"]
