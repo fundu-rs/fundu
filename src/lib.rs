@@ -296,7 +296,8 @@ mod time;
 
 #[cfg(feature = "custom")]
 pub use builder::custom::{
-    CustomDurationParser, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
+    CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, DEFAULT_ALL_TIME_UNITS,
+    DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
 };
 #[cfg(feature = "standard")]
 pub use builder::standard::{
