@@ -92,10 +92,6 @@ impl LookupData {
         let len = identifier.len();
         self.min_length <= len && self.max_length >= len
     }
-
-    fn is_empty(&self) -> bool {
-        self.min_length == usize::MAX && self.max_length == 0
-    }
 }
 
 /// A [`CustomTimeUnit`] is a completely customizable [`TimeUnit`] using an additional
@@ -282,6 +278,27 @@ impl<'a> CustomTimeUnits<'a> {
             .find(|(data, _)| data.time_unit == unit && data.multiplier == multiplier)
     }
 
+    #[allow(dead_code)]
+    fn lookup(
+        &self,
+        unit: TimeUnit,
+        multiplier: Multiplier,
+    ) -> Option<&(LookupData, Vec<&'a str>)> {
+        self.time_units
+            .iter()
+            .find(|(data, _)| data.time_unit == unit && data.multiplier == multiplier)
+    }
+
+    fn find_id(&self, id: &str) -> Option<(TimeUnit, Multiplier)> {
+        self.time_units.iter().find_map(|(data, v)| {
+            if data.check(id) && v.contains(&id) {
+                Some((data.time_unit, data.multiplier))
+            } else {
+                None
+            }
+        })
+    }
+
     fn update_lengths(&mut self, min_length: usize, max_length: usize) {
         if self.min_length > min_length {
             self.min_length = min_length;
@@ -289,20 +306,6 @@ impl<'a> CustomTimeUnits<'a> {
         if self.max_length < max_length {
             self.max_length = max_length;
         }
-    }
-
-    // TODO: REMOVE??
-    fn get_time_units(&self) -> Vec<TimeUnit> {
-        self.time_units
-            .iter()
-            .filter_map(|(data, _)| {
-                if !data.is_empty() {
-                    Some(data.time_unit)
-                } else {
-                    None
-                }
-            })
-            .collect()
     }
 }
 
@@ -316,13 +319,7 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
         if self.min_length > len || self.max_length < len {
             return None;
         }
-        self.time_units.iter().find_map(|(data, v)| {
-            if data.check(identifier) && v.contains(&identifier) {
-                Some((data.time_unit, data.multiplier))
-            } else {
-                None
-            }
-        })
+        self.find_id(identifier)
     }
 }
 
@@ -347,13 +344,10 @@ impl<'a> CustomDurationParser<'a> {
     /// use fundu::CustomDurationParser;
     /// use fundu::TimeUnit::*;
     ///
-    /// let mut parser = CustomDurationParser::new();
-    /// assert_eq!(parser.get_current_time_units(), vec![]);
-    ///
-    /// assert_eq!(parser.parse("100.0").unwrap(), Duration::new(100, 0));
-    ///
-    /// parser.default_unit(Minute);
-    /// assert_eq!(parser.parse("1.0e2").unwrap(), Duration::new(6000, 0));
+    /// assert_eq!(
+    ///     CustomDurationParser::new().parse("100.0").unwrap(),
+    ///     Duration::new(100, 0)
+    /// );
     /// ```
     pub fn new() -> Self {
         Self {
@@ -395,15 +389,26 @@ impl<'a> CustomDurationParser<'a> {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::CustomDurationParser;
     /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&[
     ///     (Second, &["s"]),
     ///     (Minute, &["Min"]),
     ///     (Hour, &["ώρα"]),
     /// ]);
-    /// assert_eq!(parser.get_current_time_units(), vec![Second, Minute, Hour]);
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("s"),
+    ///     Some((Second, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("Min"),
+    ///     Some((Minute, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("ώρα"),
+    ///     Some((Hour, Multiplier(1, 0)))
+    /// );
     ///
     /// assert!(parser.parse("42.0min").is_err()); // Note the small letter `m` instead of `M`
     ///
@@ -733,28 +738,30 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
-    /// Return the currently defined set of [`TimeUnit`].
+    /// Try to find the [`TimeUnit`] with it's associate [`Multiplier`] by id
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let parser = CustomDurationParser::new();
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![]
-    /// );
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
     ///
-    /// let parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![NanoSecond]
-    /// );
-    /// // TODO: Remove??
-    pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
-        self.time_units.get_time_units()
+    /// let parser =
+    ///     CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"]), (MicroSecond, &["Ms"])]);
+    ///
+    /// assert_eq!(parser.get_time_unit_by_id("does_not_exist"), None);
+    ///
+    /// for (time_unit, id) in &[(NanoSecond, "ns"), (MicroSecond, "Ms")] {
+    ///     assert_eq!(
+    ///         parser.get_time_unit_by_id(id),
+    ///         Some((*time_unit, Multiplier(1, 0)))
+    ///     );
+    /// }
+    /// ```
+    pub fn get_time_unit_by_id(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+        self.time_units.get(identifier)
     }
 }
 
@@ -841,19 +848,28 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::CustomDurationParserBuilder;
     /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, Multiplier};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&[
+    ///         (NanoSecond, &["ns"]),
+    ///         (Second, &["s", "sec", "secs"]),
+    ///         (Year, &["year"]),
+    ///     ])
+    ///     .build();
     ///
     /// assert_eq!(
-    ///     CustomDurationParserBuilder::new()
-    ///         .time_units(&[
-    ///             (NanoSecond, &["ns"]),
-    ///             (Second, &["s", "sec", "secs"]),
-    ///             (Year, &["year"])
-    ///         ])
-    ///         .build()
-    ///         .get_current_time_units(),
-    ///     vec![NanoSecond, Second, Year]
+    ///     parser.get_time_unit_by_id("ns"),
+    ///     Some((NanoSecond, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("s"),
+    ///     Some((Second, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("year"),
+    ///     Some((Year, Multiplier(1, 0)))
     /// );
     /// ```
     pub fn time_units(mut self, time_units: &'a [IdentifiersSlice<'a>]) -> Self {
@@ -1106,6 +1122,24 @@ mod tests {
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;
 
+    fn make_lookup_result(
+        min_length: usize,
+        max_length: usize,
+        time_unit: TimeUnit,
+        multiplier: Multiplier,
+        identifiers: Vec<&str>,
+    ) -> (LookupData, Vec<&str>) {
+        (
+            LookupData {
+                min_length,
+                max_length,
+                time_unit,
+                multiplier,
+            },
+            identifiers,
+        )
+    }
+
     #[test]
     fn test_custom_time_units_init_new() {
         let custom = CustomTimeUnits::new();
@@ -1140,29 +1174,34 @@ mod tests {
         #[case] min_length: usize,
         #[case] max_length: usize,
     ) {
-        let mut custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
-
+        let custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
         assert!(!custom.is_empty());
         assert_eq!(
-            custom.lookup_mut(time_unit, Multiplier::default()),
-            Some(&mut (
-                LookupData {
-                    min_length,
-                    max_length,
-                    time_unit,
-                    multiplier: Multiplier::default()
-                },
+            custom.lookup(time_unit, Multiplier::default()),
+            Some(&make_lookup_result(
+                min_length,
+                max_length,
+                time_unit,
+                Multiplier::default(),
                 Vec::from(ids)
             ))
         );
-        assert_eq!(custom.get_time_units(), vec![time_unit]);
     }
 
     #[test]
     fn test_custom_time_units_init_with_time_units_when_multiple_equal_ids() {
         let custom = CustomTimeUnits::with_time_units(&[(NanoSecond, &["same", "same"])]);
         assert!(!custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![NanoSecond]);
+        assert_eq!(
+            custom.lookup(NanoSecond, Multiplier::default()),
+            Some(&make_lookup_result(
+                4,
+                4,
+                NanoSecond,
+                Multiplier::default(),
+                vec!["same", "same"]
+            ))
+        );
         assert_eq!(
             custom.get("same"),
             Some((NanoSecond, Multiplier::default()))
@@ -1181,10 +1220,7 @@ mod tests {
                 .all(|(_, v)| v.is_empty())
         );
         assert_eq!(
-            custom
-                .lookup_mut(MicroSecond, Multiplier::default())
-                .unwrap()
-                .1,
+            custom.lookup(MicroSecond, Multiplier::default()).unwrap().1,
             vec!["some", "ids"]
         );
         assert_eq!(
@@ -1204,7 +1240,7 @@ mod tests {
         let mut custom = CustomTimeUnits::new();
         custom.add_time_unit((MicroSecond, &[]));
         assert!(custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![]);
+        assert_eq!(custom.lookup(MicroSecond, Multiplier::default()), None);
     }
 
     #[test]
@@ -1212,7 +1248,7 @@ mod tests {
         let mut custom = CustomTimeUnits::new();
         custom.add_time_unit((MicroSecond, &[""]));
         assert!(custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![]);
+        assert_eq!(custom.lookup(MicroSecond, Multiplier::default()), None);
     }
 
     #[test]
@@ -1231,7 +1267,16 @@ mod tests {
             Some(Multiplier(2, 0)),
         ));
         assert!(!custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![Second]);
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                3,
+                3,
+                Second,
+                Multiplier(2, 0),
+                vec!["sec"]
+            ))
+        );
         assert_eq!(custom.get("sec"), Some((Second, Multiplier(2, 0))));
     }
 
@@ -1248,7 +1293,26 @@ mod tests {
             &["secs"],
             Some(Multiplier(2, 0)),
         ));
-        assert_eq!(custom.get_time_units(), vec![Second, Second]);
+        assert_eq!(
+            custom.lookup(Second, Multiplier::default()),
+            Some(&make_lookup_result(
+                3,
+                3,
+                Second,
+                Multiplier::default(),
+                vec!["sec"]
+            ))
+        );
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                4,
+                4,
+                Second,
+                Multiplier(2, 0),
+                vec!["secs"]
+            ))
+        );
         assert_eq!(custom.get("sec"), Some((Second, Multiplier(1, 0))));
         assert_eq!(custom.get("secs"), Some((Second, Multiplier(2, 0))));
     }
@@ -1257,7 +1321,26 @@ mod tests {
     fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_already_exists() {
         let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["ss"], Some(Multiplier(2, 0))));
-        assert_eq!(custom.get_time_units(), vec![Second, Second]);
+        assert_eq!(
+            custom.lookup(Second, Multiplier::default()),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier::default(),
+                vec!["s"]
+            ))
+        );
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                2,
+                2,
+                Second,
+                Multiplier(2, 0),
+                vec!["ss"]
+            ))
+        );
         assert_eq!(custom.get("s"), Some((Second, Multiplier(1, 0))));
         assert_eq!(custom.get("ss"), Some((Second, Multiplier(2, 0))));
     }
@@ -1266,7 +1349,26 @@ mod tests {
     fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_with_same_id() {
         let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
-        assert_eq!(custom.get_time_units(), vec![Second, Second]);
+        assert_eq!(
+            custom.lookup(Second, Multiplier::default()),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier::default(),
+                vec!["s"]
+            ))
+        );
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier(2, 0),
+                vec!["s"]
+            ))
+        );
         assert_eq!(custom.get("s"), Some((Second, Multiplier(1, 0))));
     }
 
@@ -1274,7 +1376,8 @@ mod tests {
     fn test_custom_time_units_adding_custom_time_unit_when_identifiers_is_empty() {
         let mut custom = CustomTimeUnits::new();
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &[], Some(Multiplier(2, 0))));
-        assert_eq!(custom.get_time_units(), vec![]);
+        assert!(custom.is_empty());
+        assert_eq!(custom.lookup(Second, Multiplier(2, 0)), None);
     }
 
     #[test]
@@ -1282,7 +1385,16 @@ mod tests {
         let mut custom = CustomTimeUnits::new();
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
-        assert_eq!(custom.get_time_units(), vec![Second]);
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier(2, 0),
+                vec!["s", "s"]
+            ))
+        );
     }
 
     #[test]
@@ -1290,7 +1402,6 @@ mod tests {
         let parser = CustomDurationParser::new();
         assert_eq!(parser.inner.config.default_unit, Second);
         assert!(parser.time_units.is_empty());
-        assert_eq!(parser.get_current_time_units(), vec![]);
         assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
         assert_eq!(
             parser.parse("1.0s"),
@@ -1320,13 +1431,6 @@ mod tests {
                 ))
                 .collect::<Vec<(LookupData, Vec<&str>)>>()
         );
-        assert_eq!(
-            parser.get_current_time_units(),
-            DEFAULT_ALL_TIME_UNITS
-                .iter()
-                .map(|(t, _)| *t)
-                .collect::<Vec<TimeUnit>>()
-        );
         assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
     }
 
@@ -1334,7 +1438,6 @@ mod tests {
     fn test_custom_duration_parser_init_default() {
         let parser = CustomDurationParser::default();
         assert!(parser.time_units.is_empty());
-        assert_eq!(parser.get_current_time_units(), vec![]);
     }
 
     #[test]
@@ -1345,7 +1448,16 @@ mod tests {
             &["century", "centuries"],
             Some(Multiplier(100, 0)),
         ));
-        assert_eq!(parser.get_current_time_units(), vec![Year]);
+        assert_eq!(
+            parser.time_units.lookup(Year, Multiplier(100, 0)),
+            Some(&make_lookup_result(
+                7,
+                9,
+                Year,
+                Multiplier(100, 0),
+                vec!["century", "centuries"]
+            ))
+        );
     }
 
     #[test]
