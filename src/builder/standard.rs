@@ -1204,4 +1204,115 @@ mod tests {
             Ok(time::Duration::new(0, -1))
         )
     }
+
+    #[test]
+    fn test_duration_parser_when_builder() {
+        assert_eq!(DurationParser::builder(), DurationParserBuilder::new());
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_default() {
+        assert_eq!(
+            DurationParserBuilder::default(),
+            DurationParserBuilder::new()
+        );
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_new() {
+        let builder = DurationParserBuilder::new();
+        assert_eq!(builder.config, Config::new());
+        assert_eq!(builder.time_units_choice, TimeUnitsChoice::None);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_default_time_units() {
+        let mut builder = DurationParserBuilder::new();
+        builder.default_time_units();
+        assert_eq!(builder.time_units_choice, TimeUnitsChoice::Default);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_all_time_units() {
+        let mut builder = DurationParserBuilder::new();
+        builder.all_time_units();
+        assert_eq!(builder.time_units_choice, TimeUnitsChoice::All);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_custom_time_units() {
+        let mut builder = DurationParserBuilder::new();
+        builder.custom_time_units(&[MicroSecond, Hour, Week, Year]);
+        assert_eq!(
+            builder.time_units_choice,
+            TimeUnitsChoice::Custom(&[MicroSecond, Hour, Week, Year])
+        );
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_default_unit() {
+        let mut expected = Config::new();
+        expected.default_unit = MicroSecond;
+
+        let mut builder = DurationParserBuilder::new();
+        builder.default_unit(MicroSecond);
+
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_allow_delimiter() {
+        let mut builder = DurationParserBuilder::new();
+        builder.allow_delimiter(|b| b == b' ');
+
+        assert!(builder.config.allow_delimiter.unwrap()(b' '));
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_disable_fraction() {
+        let mut expected = Config::new();
+        expected.disable_fraction = true;
+
+        let mut builder = DurationParserBuilder::new();
+        builder.disable_fraction();
+
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_disable_exponent() {
+        let mut expected = Config::new();
+        expected.disable_exponent = true;
+
+        let mut builder = DurationParserBuilder::new();
+        builder.disable_exponent();
+
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_number_is_optional() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+
+        let mut builder = DurationParserBuilder::new();
+        builder.number_is_optional();
+
+        assert_eq!(builder.config, expected);
+    }
+
+    #[rstest]
+    #[case::default_time_units(TimeUnitsChoice::Default, DurationParser::new())]
+    #[case::all_time_units(TimeUnitsChoice::All, DurationParser::with_all_time_units())]
+    #[case::no_time_units(TimeUnitsChoice::None, DurationParser::without_time_units())]
+    #[case::custom_time_units(TimeUnitsChoice::Custom(&[NanoSecond, Minute]), DurationParser::with_time_units(&[NanoSecond, Minute]))]
+    fn test_duration_parser_builder_build(
+        #[case] choice: TimeUnitsChoice,
+        #[case] expected: DurationParser,
+    ) {
+        let mut builder = DurationParserBuilder::new();
+        builder.time_units_choice = choice;
+
+        assert_eq!(builder.build(), expected);
+    }
 }

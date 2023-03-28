@@ -770,6 +770,21 @@ impl<'a> CustomDurationParser<'a> {
     pub fn get_time_unit_by_id(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         self.time_units.get(identifier)
     }
+
+    /// Return true if there are haven't been any time units added, yet.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
+    ///
+    /// let parser = CustomDurationParser::new();
+    /// assert!(parser.is_empty())
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.time_units.is_empty()
+    }
 }
 
 impl<'a> Default for CustomDurationParser<'a> {
@@ -1406,6 +1421,27 @@ mod tests {
         );
     }
 
+    #[rstest]
+    #[case::none_and_default_multiplier_when_same_ids(CustomTimeUnit::new(Second, &["s"], None), CustomTimeUnit::new(Second, &["s"], Some(Multiplier::default())))]
+    #[case::none_and_default_multiplier_when_different_ids(CustomTimeUnit::new(Second, &["s"], None), CustomTimeUnit::new(Second, &["secs"], Some(Multiplier::default())))]
+    #[case::same_multipliers(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2,0))), CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2,0))))]
+    fn test_custom_time_unit_equality_when_equal(
+        #[case] time_unit: CustomTimeUnit,
+        #[case] other: CustomTimeUnit,
+    ) {
+        assert_eq!(time_unit, other);
+    }
+
+    #[rstest]
+    #[case::different_time_units(CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1,0))), CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0))))]
+    #[case::different_multipliers(CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1000,0))), CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0))))]
+    fn test_custom_time_unit_equality_when_not_equal(
+        #[case] time_unit: CustomTimeUnit,
+        #[case] other: CustomTimeUnit,
+    ) {
+        assert_ne!(time_unit, other);
+    }
+
     #[test]
     fn test_custom_duration_parser_init_new() {
         let parser = CustomDurationParser::new();
@@ -1550,5 +1586,166 @@ mod tests {
             parser.parse_negative("-1.0e0"),
             Ok(time::Duration::new(-1, 0))
         )
+    }
+
+    #[test]
+    fn test_custom_duration_parser_method_builder() {
+        assert_eq!(
+            CustomDurationParser::builder(),
+            CustomDurationParserBuilder::new()
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_adding_custom_time_units() {
+        let time_units = [
+            CustomTimeUnit::new(Second, &["sec"], Some(Multiplier(1, 0))),
+            CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2, 0))),
+        ];
+        let mut custom = CustomDurationParser::new();
+        custom.custom_time_units(&time_units);
+        assert_eq!(
+            custom.get_time_unit_by_id("sec"),
+            Some((Second, Multiplier(1, 0)))
+        );
+        assert_eq!(
+            custom.get_time_unit_by_id("secs"),
+            Some((Second, Multiplier(2, 0)))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_calling_custom_time_units_with_empty_collection() {
+        let mut custom = CustomDurationParser::new();
+        assert!(custom.is_empty());
+
+        custom.custom_time_units(&[]);
+        assert!(custom.is_empty());
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_default() {
+        assert_eq!(
+            CustomDurationParserBuilder::default(),
+            CustomDurationParserBuilder::new()
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_new() {
+        let builder = CustomDurationParserBuilder::new();
+        assert_eq!(builder.config, Config::new());
+        assert!(builder.time_units.is_none());
+        assert!(builder.custom_time_units.is_empty());
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_default_unit() {
+        let mut expected = Config::new();
+        expected.default_unit = MicroSecond;
+
+        let builder = CustomDurationParserBuilder::new().default_unit(MicroSecond);
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_allow_delimiter() {
+        let builder = CustomDurationParserBuilder::new().allow_delimiter(|byte| byte == b' ');
+        assert!(builder.config.allow_delimiter.unwrap()(b' '));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_disable_exponent() {
+        let mut expected = Config::new();
+        expected.disable_exponent = true;
+
+        let builder = CustomDurationParserBuilder::new().disable_exponent();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_disable_fraction() {
+        let mut expected = Config::new();
+        expected.disable_fraction = true;
+
+        let builder = CustomDurationParserBuilder::new().disable_fraction();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_number_is_optional() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+
+        let builder = CustomDurationParserBuilder::new().number_is_optional();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_build_with_regular_time_units() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+        let parser = CustomDurationParserBuilder::new()
+            .time_units(&[(Second, &["s", "secs"])])
+            .custom_time_unit(CustomTimeUnit::new(Hour, &["h"], Some(Multiplier(3, 0))))
+            .custom_time_units(&[
+                CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),
+                CustomTimeUnit::new(Day, &["d"], Some(Multiplier(4, 0))),
+            ])
+            .number_is_optional()
+            .build();
+        assert_eq!(parser.inner.config, expected);
+        assert!(!parser.is_empty());
+        assert_eq!(
+            parser.get_time_unit_by_id("s"),
+            Some((Second, Multiplier(1, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("secs"),
+            Some((Second, Multiplier(1, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("h"),
+            Some((Hour, Multiplier(3, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("m"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("min"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("d"),
+            Some((Day, Multiplier(4, 0)))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_build_without_regular_time_units() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+        let parser = CustomDurationParserBuilder::new()
+            .custom_time_units(&[
+                CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),
+                CustomTimeUnit::new(Day, &["d"], Some(Multiplier(4, 0))),
+            ])
+            .number_is_optional()
+            .build();
+        assert_eq!(parser.inner.config, expected);
+        assert!(!parser.is_empty());
+        assert_eq!(
+            parser.get_time_unit_by_id("m"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("min"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("d"),
+            Some((Day, Multiplier(4, 0)))
+        );
     }
 }

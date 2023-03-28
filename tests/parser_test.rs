@@ -86,6 +86,7 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 #[case::higher_than_seconds_max(&format!("{}9.999999999e-1", u64::MAX), Duration::MAX)]
 #[case::plus_sign("0.1000000001e+1", Duration::new(1, 1))]
 #[case::minus_sign_zero_to_fract("10.00000001e-1", Duration::new(1, 1))]
+#[case::exponent_then_nineteen_zeroes_in_fraction("1.0e-20", Duration::ZERO)]
 #[case::no_overflow_error_low("1.0e-32768", Duration::ZERO)]
 #[case::no_overflow_error_high("1.0e+32767", Duration::MAX)]
 #[case::maximum_exponent(&format!("0.{}9e+{}", "0".repeat(i16::MAX as usize), i16::MAX), Duration::new(0, 900_000_000))]
