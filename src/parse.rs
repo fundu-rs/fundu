@@ -766,13 +766,12 @@ impl<'a> ReprParser<'a> {
         }
 
         // assure we've reached the end of input
-        if self.current_byte.is_none() {
-            Ok(())
-        } else {
-            Err(ParseError::Syntax(
+        match self.current_byte {
+            Some(byte) => Err(ParseError::Syntax(
                 self.current_pos,
-                "Expected end of input".to_string(),
-            ))
+                format!("Expected end of input but found '{}'", *byte as char),
+            )),
+            None => Ok(()),
         }
     }
 
