@@ -299,7 +299,8 @@ jobs:
           )
           cargo install iai-callgrind-runner --version $version
       - name: Prepare
-        run: sudo apt-get -y update && sudo apt-get -y install valgrind
+        run: |
+          sudo apt-get -y update && sudo apt-get -y install valgrind
       - name: Download reference benchmarks
         if: ${{ !inputs.resetBenchmarks }}
         uses: dawidd6/action-download-artifact@v2
@@ -324,6 +325,10 @@ jobs:
         run: |
           cargo bench --features negative \
             --bench iai_bench_parsing_negative | tee -a bench.out
+      - name: Strip colors from output file bench.out
+        run: |
+          # remove colors (from https://unix.stackexchange.com/a/111936 by user55518)
+          sed -Ei 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]//g' bench.out
       - name: Check for regression
         run: |
           echo 0 > fail
