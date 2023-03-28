@@ -5,7 +5,7 @@
 
 //! # Overview
 //!
-//! Parse a rust string in into a [`std::time::Duration`] or for negative numbers into a
+//! Parse a rust string into a [`std::time::Duration`] or for negative numbers into a
 //! [`time::Duration`].
 //!
 //! `fundu` is a configurable, precise and blazingly fast string parser
@@ -29,7 +29,7 @@
 //!
 //! The `custom` feature provides a [`CustomDurationParser`] with fully customizable identifiers for
 //! each [`TimeUnit`]. With the [`CustomDurationParser`] it is also possible to define completely
-//! new time units.
+//! new time units, a [`CustomTimeUnit`].
 //!
 //! ## `negative`
 //!
@@ -300,9 +300,7 @@ pub use builder::custom::{
     DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
 };
 #[cfg(feature = "standard")]
-pub use builder::standard::{
-    parse_duration, DurationParser, DurationParserBuilder, TimeUnitsChoice,
-};
+pub use builder::standard::{parse_duration, DurationParser, DurationParserBuilder};
 pub use error::ParseError;
 
 pub use crate::time::{

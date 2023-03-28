@@ -562,7 +562,7 @@ impl Default for DurationParser {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum TimeUnitsChoice<'a> {
+enum TimeUnitsChoice<'a> {
     Default,
     All,
     None,
@@ -643,7 +643,7 @@ impl<'a> DurationParserBuilder<'a> {
         }
     }
 
-    /// Let's the [`DurationParserBuilder`] build the [`DurationParser`] with default time units.
+    /// Configure [`DurationParserBuilder`] to build the [`DurationParser`] with default time units.
     ///
     /// Setting the time units with this method overwrites any previously made choices with
     ///
@@ -654,14 +654,14 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// | [`TimeUnit`]    | default id
     /// | --------------- | ----------:
-    /// | [`Nanosecond`]  |         ns
-    /// | [`Microsecond`] |         Ms
-    /// | [`Millisecond`] |         ms
-    /// | [`Second`]      |          s
-    /// | [`Minute`]      |          m
-    /// | [`Hour`]        |          h
-    /// | [`Day`]         |          d
-    /// | [`Week`]        |          w
+    /// | Nanosecond  |         ns
+    /// | Microsecond |         Ms
+    /// | Millisecond |         ms
+    /// | Second      |          s
+    /// | Minute      |          m
+    /// | Hour        |          h
+    /// | Day         |          d
+    /// | Week        |          w
     ///
     /// # Examples
     ///
@@ -686,21 +686,12 @@ impl<'a> DurationParserBuilder<'a> {
     ///     ]
     /// );
     /// ```
-    ///
-    /// [`NanoSecond`]: [`TimeUnit::NanoSecond`]
-    /// [`MicroSecond`]: [`TimeUnit::MicroSecond`]
-    /// [`MilliSecond`]: [`TimeUnit::MilliSecond`]
-    /// [`Second`]: [`TimeUnit::Second`]
-    /// [`Minute`]: [`TimeUnit::Minute`]
-    /// [`Hour`]: [`TimeUnit::Hour`]
-    /// [`Day`]: [`TimeUnit::Day`]
-    /// [`Week`]: [`TimeUnit::Week`]
     pub fn default_time_units(&mut self) -> &mut Self {
         self.time_units_choice = TimeUnitsChoice::Default;
         self
     }
 
-    /// Let's the [`DurationParserBuilder`] build the [`DurationParser`] with all time units.
+    /// Configure [`DurationParserBuilder`] to build the [`DurationParser`] with all time units.
     ///
     /// Setting the time units with this method overwrites any previously made choices with
     ///
@@ -711,16 +702,16 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// | [`TimeUnit`]    | default id
     /// | --------------- | ----------:
-    /// | [`Nanosecond`]  |         ns
-    /// | [`Microsecond`] |         Ms
-    /// | [`Millisecond`] |         ms
-    /// | [`Second`]      |          s
-    /// | [`Minute`]      |          m
-    /// | [`Hour`]        |          h
-    /// | [`Day`]         |          d
-    /// | [`Week`]        |          w
-    /// | [`Month`]       |          M
-    /// | [`Year`]        |          y
+    /// | Nanosecond  |         ns
+    /// | Microsecond |         Ms
+    /// | Millisecond |         ms
+    /// | Second      |          s
+    /// | Minute      |          m
+    /// | Hour        |          h
+    /// | Day         |          d
+    /// | Week        |          w
+    /// | Month       |          M
+    /// | Year        |          y
     ///
     /// # Examples
     ///
@@ -747,24 +738,13 @@ impl<'a> DurationParserBuilder<'a> {
     ///     ]
     /// );
     /// ```
-    ///
-    /// [`NanoSecond`]: [`TimeUnit::NanoSecond`]
-    /// [`MicroSecond`]: [`TimeUnit::MicroSecond`]
-    /// [`MilliSecond`]: [`TimeUnit::MilliSecond`]
-    /// [`Second`]: [`TimeUnit::Second`]
-    /// [`Minute`]: [`TimeUnit::Minute`]
-    /// [`Hour`]: [`TimeUnit::Hour`]
-    /// [`Day`]: [`TimeUnit::Day`]
-    /// [`Week`]: [`TimeUnit::Week`]
-    /// [`Month`]: [`TimeUnit::Month`]
-    /// [`Year`]: [`TimeUnit::Year`]
     pub fn all_time_units(&mut self) -> &mut Self {
         self.time_units_choice = TimeUnitsChoice::All;
         self
     }
 
-    /// Let's the [`DurationParserBuilder`] build the [`DurationParser`] with a custom set of time
-    /// units.
+    /// Configure the [`DurationParserBuilder`] to build the [`DurationParser`] with a custom set of
+    /// time units.
     ///
     /// Setting the time units with this method overwrites any previously made choices with
     ///
@@ -790,7 +770,7 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
-    /// Sets the default time unit to something different than [`TimeUnit::Second`]
+    /// Set the default time unit to something different than [`TimeUnit::Second`]
     ///
     /// See also [`DurationParser::default_unit`]
     ///
@@ -932,10 +912,10 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// use fundu::DurationParserBuilder;
     ///
-    /// let parser = DurationParserBuilder::new().build();
-    /// let other = DurationParserBuilder::new().build();
-    ///
-    /// assert_eq!(parser, other);
+    /// let parser = DurationParserBuilder::new().default_time_units().build();
+    /// for input in &["1m", "60s"] {
+    ///     assert_eq!(parser.parse(input).unwrap(), Duration::new(60, 0))
+    /// }
     /// ```
     pub fn build(&mut self) -> DurationParser {
         let parser = Parser::with_config(self.config.clone());
