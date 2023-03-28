@@ -76,8 +76,8 @@
 //! * `3.14e8w`
 //! * ...
 //!
-//! Per default there are no spaces allowed between the number and the [`TimeUnit`], but this
-//! behavior can be changed with setting [`DurationParser::allow_spaces`].
+//! Per default there is no whitespace allowed between the number and the [`TimeUnit`], but this
+//! behavior can be changed with setting [`DurationParser::allow_delimiter`].
 //!
 //! # Format specification
 //!
@@ -104,9 +104,9 @@
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
 //! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`
-//! * If `allow_spaces` is set then `Number Spaces? TimeUnit?` is allowed with `Spaces ::= ' '*`
-//!   This setting also allows the input string to end with spaces if no time unit was present and
-//!   the parser then assumes the default time unit.
+//! * If `allow_delimiter` is set then any defined delimiter is allowed between the Number and
+//! TimeUnit. This setting also allows the input string to end with this delimiter but only if no
+//! time unit was present. The parser then assumes the default time unit.
 //!
 //! # Examples
 //!
@@ -235,8 +235,8 @@
 //! ```
 //!
 //! The number format can be easily adjusted to your needs. For example to allow numbers being
-//! optional, allow space between the number and the time unit and restrict the number format to
-//! whole numbers, without fractional part and an exponent:
+//! optional, allow some ascii whitespace between the number and the time unit and restrict the
+//! number format to whole numbers, without fractional part and an exponent:
 //!
 //! ```rust
 //! use std::time::Duration;
@@ -246,7 +246,7 @@
 //!
 //! let parser = DurationParser::builder()
 //!     .custom_time_units(&[NanoSecond])
-//!     .allow_spaces()
+//!     .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
 //!     .number_is_optional()
 //!     .disable_fraction()
 //!     .disable_exponent()
@@ -254,7 +254,7 @@
 //!
 //! for (input, expected) in &[
 //!     ("ns", Duration::new(0, 1)),
-//!     ("1000 ns", Duration::new(0, 1000)),
+//!     ("1000\t\n\r ns", Duration::new(0, 1000)),
 //! ] {
 //!     assert_eq!(parser.parse(input).unwrap(), *expected);
 //! }
@@ -294,6 +294,7 @@ mod error;
 mod parse;
 mod time;
 
+use builder::config;
 #[cfg(feature = "custom")]
 pub use builder::custom::{
     CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, DEFAULT_ALL_TIME_UNITS,
@@ -301,6 +302,7 @@ pub use builder::custom::{
 };
 #[cfg(feature = "standard")]
 pub use builder::standard::{parse_duration, DurationParser, DurationParserBuilder};
+pub use config::Delimiter;
 pub use error::ParseError;
 
 pub use crate::time::{

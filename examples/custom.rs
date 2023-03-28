@@ -81,7 +81,7 @@ fn main() {
         .custom_time_units(&CUSTOM_TIME_UNITS)
         .default_unit(NanoSecond)
         .disable_exponent()
-        .allow_spaces()
+        .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
         .build();
 
     // The headline

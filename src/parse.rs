@@ -9,7 +9,7 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
-use crate::builder::config::Config;
+use crate::builder::config::{Config, Delimiter};
 use crate::error::{ParseError, TryFromDurationError};
 use crate::time::{Duration as FunduDuration, Multiplier, TimeUnit, TimeUnitsLike};
 
@@ -76,7 +76,7 @@ impl Parser {
     /// Parse a possibly negative number in the source string into a [`time::Duration`] saturating
     /// at [`time::Duration::MIN`] and [`time::Duration::MAX`]
     #[cfg(feature = "negative")]
-    pub fn parse_negative(
+    pub(crate) fn parse_negative(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,
@@ -451,7 +451,6 @@ impl<'a> ReprParser<'a> {
         }
 
         let Config {
-            allow_spaces,
             default_unit,
             default_multiplier: _,
             disable_exponent,
@@ -459,6 +458,7 @@ impl<'a> ReprParser<'a> {
             max_exponent,
             min_exponent,
             number_is_optional,
+            allow_delimiter,
         } = *self.config;
 
         let mut duration_repr = DurationRepr {
@@ -574,22 +574,15 @@ impl<'a> ReprParser<'a> {
             None => return Ok(duration_repr),
         }
 
-        // If there are spaces between the number and the time unit, the spaces are consumed or an
-        // error is returned depending on the configuration value for `allow_spaces`
-        match self.current_byte {
-            Some(byte) if *byte == b' ' => {
-                if allow_spaces {
-                    self.advance();
-                    self.consume_spaces();
-                } else {
-                    return Err(ParseError::Syntax(
-                        self.current_pos,
-                        "No spaces allowed".to_string(),
-                    ));
-                }
+        // If there are any delimiters between the number and the time unit, the delimiters are
+        // consumed
+        match (self.current_byte, allow_delimiter) {
+            (Some(byte), Some(func)) if func(*byte) => {
+                self.advance();
+                self.consume_delimiter(func);
             }
-            Some(_) => {}
-            None => return Ok(duration_repr),
+            (Some(_), _) => {}
+            (None, _) => return Ok(duration_repr),
         }
 
         // parse the time unit if present
@@ -616,9 +609,9 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline]
-    fn consume_spaces(&mut self) {
+    fn consume_delimiter(&mut self, delimiter: Delimiter) {
         while let Some(byte) = self.current_byte {
-            if *byte == b' ' {
+            if delimiter(*byte) {
                 self.advance()
             } else {
                 break;

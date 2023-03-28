@@ -10,7 +10,7 @@ use crate::parse::Parser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::TimeUnit::*;
 use crate::{
-    ParseError, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
+    Delimiter, ParseError, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
@@ -440,7 +440,7 @@ impl<'a> CustomDurationParser<'a> {
     /// let parser = DurationParser::builder()
     ///     .all_time_units()
     ///     .default_unit(MicroSecond)
-    ///     .allow_spaces()
+    ///     .allow_delimiter(|b| b == b' ')
     ///     .build();
     ///
     /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
@@ -449,7 +449,9 @@ impl<'a> CustomDurationParser<'a> {
     /// // instead of
     ///
     /// let mut parser = DurationParser::with_all_time_units();
-    /// parser.default_unit(MicroSecond).allow_spaces(true);
+    /// parser
+    ///     .default_unit(MicroSecond)
+    ///     .allow_delimiter(Some(|b| b == b' '));
     ///
     /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
     /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
@@ -634,9 +636,9 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
-    /// Allow spaces between the number and the [`TimeUnit`].
+    /// Allow one or more delimiters between the number and the [`TimeUnit`].
     ///
-    /// See also [`crate::DurationParser::allow_spaces`].
+    /// See also [`crate::DurationParser::allow_delimiter`].
     ///
     /// # Examples
     ///
@@ -649,15 +651,20 @@ impl<'a> CustomDurationParser<'a> {
     /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
     /// assert_eq!(
     ///     parser.parse("123 ns"),
-    ///     Err(ParseError::Syntax(3, "No spaces allowed".to_string()))
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: ' ns'".to_string()
+    ///     ))
     /// );
     ///
-    /// parser.allow_spaces(true);
+    /// parser.allow_delimiter(Some(|byte| byte == b' '));
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
-    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    ///
+    /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
+    /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::new(0, 123)));
     /// ```
-    pub fn allow_spaces(&mut self, value: bool) -> &mut Self {
-        self.inner.config.allow_spaces = value;
+    pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.allow_delimiter = delimiter;
         self
     }
 
@@ -785,7 +792,7 @@ impl<'a> Default for CustomDurationParser<'a> {
 /// let parser = CustomDurationParserBuilder::new()
 ///     .time_units(&[(NanoSecond, &["ns"])])
 ///     .default_unit(MicroSecond)
-///     .allow_spaces()
+///     .allow_delimiter(|byte| byte == b' ')
 ///     .build();
 ///
 /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
@@ -794,7 +801,9 @@ impl<'a> Default for CustomDurationParser<'a> {
 /// // instead of
 ///
 /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
-/// parser.default_unit(MicroSecond).allow_spaces(true);
+/// parser
+///     .default_unit(MicroSecond)
+///     .allow_delimiter(Some(|byte| byte == b' '));
 ///
 /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
 /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
@@ -965,9 +974,9 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
-    /// Allow spaces between the number and the [`TimeUnit`].
+    /// Allow one or more delimiters between the number and the [`TimeUnit`].
     ///
-    /// See also [`crate::DurationParser::allow_spaces`].
+    /// See also [`crate::DurationParser::allow_delimiter`].
     ///
     /// # Examples
     ///
@@ -979,14 +988,14 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&[(NanoSecond, &["ns"])])
-    ///     .allow_spaces()
+    ///     .allow_delimiter(|byte| byte == b' ')
     ///     .build();
     ///
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
     /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
     /// ```
-    pub fn allow_spaces(mut self) -> Self {
-        self.config.allow_spaces = true;
+    pub fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.allow_delimiter = Some(delimiter);
         self
     }
 
@@ -1087,10 +1096,10 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&[(Minute, &["min"]), (Hour, &["h", "hr"])])
-    ///     .allow_spaces()
+    ///     .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
     ///     .build();
     ///
-    /// for input in &["60 min", "1h", "1 hr"] {
+    /// for input in &["60 min", "1h", "1\t\n hr"] {
     ///     assert_eq!(parser.parse(input).unwrap(), Duration::new(60 * 60, 0));
     /// }
     /// ```
@@ -1500,8 +1509,8 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_setting_allow_spaces() {
         let mut parser = CustomDurationParser::new();
-        parser.allow_spaces(true);
-        assert!(parser.inner.config.allow_spaces);
+        parser.allow_delimiter(Some(|b| b == b' '));
+        assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
     }
 
     #[test]

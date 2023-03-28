@@ -219,10 +219,10 @@ fn test_parser_when_time_units_are_not_present_then_error(
 #[case::space_before_number(" 123", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
 #[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
 #[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
-fn test_parser_when_allow_spaces_then_error(#[case] input: &str, #[case] expected: ParseError) {
+fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(
         DurationParser::with_all_time_units()
-            .allow_spaces(true)
+            .allow_delimiter(Some(|b| b == b' '))
             .parse(input)
             .unwrap_err(),
         expected
@@ -237,7 +237,24 @@ fn test_parser_when_allow_spaces_then_error(#[case] input: &str, #[case] expecte
 fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(
         DurationParser::with_all_time_units()
-            .allow_spaces(true)
+            .allow_delimiter(Some(|b| b == b' '))
+            .parse(input)
+            .unwrap(),
+        expected
+    );
+}
+
+#[rstest]
+#[case::without_delimiter("123ns", |b : u8| b.is_ascii_whitespace(),  Duration::new(0, 123))]
+#[case::all_rust_whitespace("123 \t\n\x0C\rns", |b : u8| b.is_ascii_whitespace(),  Duration::new(0, 123))]
+fn test_parser_when_allow_delimiter(
+    #[case] input: &str,
+    #[case] delimiter: fundu::Delimiter,
+    #[case] expected: Duration,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_delimiter(Some(delimiter))
             .parse(input)
             .unwrap(),
         expected

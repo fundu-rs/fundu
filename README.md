@@ -261,8 +261,8 @@ use fundu::{DurationParser, ParseError};
 
 let mut parser = DurationParser::with_time_units(&[NanoSecond]);
 parser
-    // Allows spaces between the number and the time unit: `1000 ns`
-    .allow_spaces()
+    // Allows some user defined white space between the number and the time unit: `1000\t\n\r ns`
+    .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
     // Makes a number optional and if not present `1` is assumed
     .number_is_optional()
     // Disable parsing the fractional part of the number

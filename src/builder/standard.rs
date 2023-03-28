@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use super::config::Config;
+use super::config::{Config, Delimiter};
 use crate::parse::Parser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::TimeUnit::*;
@@ -43,7 +43,7 @@ impl Default for TimeUnits {
 impl TimeUnitsLike for TimeUnits {
     /// Return `true` if this set of time units is empty.
     fn is_empty(&self) -> bool {
-        self.data.iter().all(|b| b.is_none())
+        self.data.iter().all(|byte| byte.is_none())
     }
 
     /// Return the [`TimeUnit`] associated with the provided `identifier`.
@@ -329,16 +329,18 @@ impl DurationParser {
     /// let parser = DurationParser::builder()
     ///     .all_time_units()
     ///     .default_unit(MicroSecond)
-    ///     .allow_spaces()
+    ///     .allow_delimiter(|byte| byte.is_ascii_whitespace())
     ///     .build();
     ///
-    /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+    /// assert_eq!(parser.parse("1 \t\nns").unwrap(), Duration::new(0, 1));
     /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
     ///
     /// // instead of
     ///
     /// let mut parser = DurationParser::with_all_time_units();
-    /// parser.default_unit(MicroSecond).allow_spaces(true);
+    /// parser
+    ///     .default_unit(MicroSecond)
+    ///     .allow_delimiter(Some(|byte| byte == b' '));
     ///
     /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
     /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
@@ -423,10 +425,12 @@ impl DurationParser {
         self
     }
 
-    /// If true, allow spaces between the number and the [`TimeUnit`].
+    /// If true, allow one or more delimiters between the number and the [`TimeUnit`].
     ///
-    /// Per default no spaces are allowed between the number and the [`TimeUnit`]. This setting
-    /// implicitly allows spaces at the end of the string if no time unit was present.
+    /// A delimiter is defined as function taking a byte and returning true if the delimiter was
+    /// found. Per default no delimiter is allowed between the number and the [`TimeUnit`]. Note
+    /// this setting implicitly allows the delimiter at the end of the string, but only if no time
+    /// unit was present. As usual the default time is assumed.
     ///
     /// # Examples
     ///
@@ -438,15 +442,20 @@ impl DurationParser {
     /// let mut parser = DurationParser::new();
     /// assert_eq!(
     ///     parser.parse("123 ns"),
-    ///     Err(ParseError::Syntax(3, "No spaces allowed".to_string()))
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: ' ns'".to_string()
+    ///     ))
     /// );
     ///
-    /// parser.allow_spaces(true);
+    /// parser.allow_delimiter(Some(|byte| byte == b' '));
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
-    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    ///
+    /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
+    /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::new(0, 123)));
     /// ```
-    pub fn allow_spaces(&mut self, value: bool) -> &mut Self {
-        self.inner.config.allow_spaces = value;
+    pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.allow_delimiter = delimiter;
         self
     }
 
@@ -585,18 +594,20 @@ enum TimeUnitsChoice<'a> {
 /// let parser = DurationParserBuilder::new()
 ///     .all_time_units()
 ///     .default_unit(MicroSecond)
-///     .allow_spaces()
+///     .allow_delimiter(|byte| byte == b' ')
 ///     .build();
 ///
-/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+/// assert_eq!(parser.parse("1   ns").unwrap(), Duration::new(0, 1));
 /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
 ///
 /// // instead of
 ///
 /// let mut parser = DurationParser::with_all_time_units();
-/// parser.default_unit(MicroSecond).allow_spaces(true);
+/// parser
+///     .default_unit(MicroSecond)
+///     .allow_delimiter(Some(|byte| byte == b' '));
 ///
-/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+/// assert_eq!(parser.parse("1    ns").unwrap(), Duration::new(0, 1));
 /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
 /// ```
 #[derive(Debug, PartialEq, Eq)]
@@ -797,9 +808,9 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
-    /// Allow spaces between the number and the [`TimeUnit`].
+    /// Allow one or more delimiters between the number and the [`TimeUnit`].
     ///
-    /// See also [`DurationParser::allow_spaces`].
+    /// See also [`DurationParser::allow_delimiter`].
     ///
     /// # Examples
     ///
@@ -810,14 +821,14 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
-    ///     .allow_spaces()
+    ///     .allow_delimiter(|byte| byte.is_ascii_whitespace())
     ///     .build();
     ///
-    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
-    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    /// assert_eq!(parser.parse("123 \t\n\x0C\rns"), Ok(Duration::new(0, 123)));
+    /// assert_eq!(parser.parse("123\n"), Ok(Duration::new(123, 0)));
     /// ```
-    pub fn allow_spaces(&mut self) -> &mut Self {
-        self.config.allow_spaces = true;
+    pub fn allow_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
+        self.config.allow_delimiter = Some(delimiter);
         self
     }
 
@@ -1174,10 +1185,10 @@ mod tests {
     }
 
     #[test]
-    fn test_duration_parser_setting_allow_spaces() {
+    fn test_duration_parser_setting_allow_delimiter() {
         let mut parser = DurationParser::new();
-        parser.allow_spaces(true);
-        assert!(parser.inner.config.allow_spaces);
+        parser.allow_delimiter(Some(|byte| byte == b' '));
+        assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
     }
 
     #[cfg(feature = "negative")]
