@@ -614,7 +614,6 @@ enum TimeUnitsChoice<'a> {
 pub struct DurationParserBuilder<'a> {
     time_units_choice: TimeUnitsChoice<'a>,
     config: Config,
-    time_units: Vec<TimeUnit>,
 }
 
 impl<'a> Default for DurationParserBuilder<'a> {
@@ -650,7 +649,6 @@ impl<'a> DurationParserBuilder<'a> {
         Self {
             time_units_choice: TimeUnitsChoice::None,
             config: Config::new(),
-            time_units: vec![],
         }
     }
 
@@ -930,7 +928,8 @@ impl<'a> DurationParserBuilder<'a> {
     /// ```
     pub fn build(&mut self) -> DurationParser {
         let parser = Parser::with_config(self.config.clone());
-        let mut parser = match self.time_units_choice {
+
+        match self.time_units_choice {
             TimeUnitsChoice::Default => DurationParser {
                 time_units: TimeUnits::with_default_time_units(),
                 inner: parser,
@@ -947,10 +946,7 @@ impl<'a> DurationParserBuilder<'a> {
                 time_units: TimeUnits::with_time_units(time_units),
                 inner: parser,
             },
-        };
-
-        parser.time_units.add_time_units(&self.time_units);
-        parser
+        }
     }
 }
 
