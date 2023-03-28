@@ -125,17 +125,19 @@ pub trait TimeUnitsLike {
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
 }
 
-/// The multiplier of a TimeUnit to calculate the final [`std::time::Duration`]
+/// The multiplier of a [`TimeUnit`].
 ///
-/// This multiplier consists of two numbers `(m, exp)` which are applied to a number `x` as follows:
+/// The multiplier consists of two numbers `(m, e)` which are applied to another number `x` as
+/// follows:
+///
 /// `x * m * 10 ^ e`
 ///
 /// Examples:
 ///
-/// ```text
-/// NanoSecond: (1, -9)
-/// Second: (1, 0)
-/// Hour: (3600, 0)
+/// ```ignore
+/// let nano_second = Multiplier(1, -9);
+/// let second = Multiplier(1, 0);
+/// let hour = Multiplier(3600, 0);
 /// ```
 // TODO: i32 -> i16
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
