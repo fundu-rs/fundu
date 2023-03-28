@@ -1305,7 +1305,10 @@ mod tests {
     #[case::default_time_units(TimeUnitsChoice::Default, DurationParser::new())]
     #[case::all_time_units(TimeUnitsChoice::All, DurationParser::with_all_time_units())]
     #[case::no_time_units(TimeUnitsChoice::None, DurationParser::without_time_units())]
-    #[case::custom_time_units(TimeUnitsChoice::Custom(&[NanoSecond, Minute]), DurationParser::with_time_units(&[NanoSecond, Minute]))]
+    #[case::custom_time_units(
+            TimeUnitsChoice::Custom(&[NanoSecond, Minute]),
+            DurationParser::with_time_units(&[NanoSecond, Minute])
+    )]
     fn test_duration_parser_builder_build(
         #[case] choice: TimeUnitsChoice,
         #[case] expected: DurationParser,
