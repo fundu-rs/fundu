@@ -248,10 +248,10 @@ fully customized.
 
 # Customization
 
-Unlike other crates `fundu` does not try to establish a standard for time units and their
+Unlike other crates, `fundu` does not try to establish a standard for time units and their
 identifiers or a specific number format. So, a lot of these aspects can be adjusted with ease when
-initializing the parser. Here's an incomplete example for possible customizations of the number
-format:
+initializing or building the parser. Here's an incomplete example for possible customizations of the
+number format:
 
 ```rust
 use std::time::Duration;
@@ -259,24 +259,29 @@ use std::time::Duration;
 use fundu::TimeUnit::*;
 use fundu::{DurationParser, ParseError};
 
-let mut parser = DurationParser::with_time_units(&[NanoSecond]);
-parser
-    // Allows some user defined white space between the number and the time unit: `1000\t\n\r ns`
+let parser = DurationParser::builder()
+    // Use a custom set of time units. For demonstration purposes just NanoSecond = `ns`
+    .custom_time_units(&[NanoSecond])
+    // Allow some whitespace characters as delimiter between the number and the time unit
     .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
-    // Makes a number optional and if not present `1` is assumed
+    // Makes the number optional. If no number was encountered `1` is assumed
     .number_is_optional()
-    // Disable parsing the fractional part of the number
+    // Disable parsing the fractional part of the number => 1.0 will return an error
     .disable_fraction()
-    // Disable parsing an exponent
-    .disable_exponent();
+    // Disable parsing the exponent => 1e0 will return an error
+    .disable_exponent()
+    // Finally, build a reusable DurationParser
+    .build();
 
+// Some valid input
 for (input, expected) in &[
     ("ns", Duration::new(0, 1)),
-    ("1000 ns", Duration::new(0, 1000)),
+    ("1000\t\n\r ns", Duration::new(0, 1000)),
 ] {
     assert_eq!(parser.parse(input).unwrap(), *expected);
 }
 
+// Some invalid input
 for (input, expected) in &[
     (
         "1.0ns",
@@ -306,7 +311,8 @@ let mut parser = CustomDurationParser::with_time_units(&[
     (Hour, &["ώρα"]),
 ]);
 
-// Let's define a custom time unit which isn't part of the basic [`TimeUnit`]s:
+// Let's define a custom time unit `fortnight == 2 weeks` which isn't part of the basic
+// [`TimeUnit`]s:
 parser.custom_time_unit(Week, Multiplier(2, 0), &["f", "fortnight", "fortnights"]);
 
 assert_eq!(parser.parse("42e-1ώρα").unwrap(), Duration::new(15120, 0));
