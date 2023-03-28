@@ -153,7 +153,7 @@ impl std::ops::Mul for Multiplier {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Multiplier(self.0.saturating_mul(rhs.0), self.1.saturating_add(rhs.1))
+        Multiplier(self.0 * rhs.0, self.1 + rhs.1)
     }
 }
 
