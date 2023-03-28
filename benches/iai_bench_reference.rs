@@ -3,8 +3,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use iai_callgrind::{black_box, main};
 use std::time::Duration;
+
+use iai_callgrind::{black_box, main};
 
 const SMALL_INPUT: &str = "1";
 
@@ -26,6 +27,8 @@ fn large_reference() -> Duration {
 }
 
 main!(
-    callgrind_args = "toggle-collect=__iai_setup::generate_large_input";
+    callgrind_args =
+        "toggle-collect=iai_callgrind::black_box",
+        "toggle-collect=__iai_setup::generate_large_input";
     functions = small_reference, large_reference
 );

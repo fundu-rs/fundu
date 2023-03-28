@@ -25,7 +25,18 @@ jobs:
       - uses: actions/checkout@v3
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          rust-version: "1.60.0"
+          rust-version: "1.61.0"
+
+  format:
+    name: Check format with nightly rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2.2.0
+      - run: cargo fmt --check
 
   base:
     name: Build, check and test
@@ -34,16 +45,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         toolchain:
-          - "1.60.0" # MSRV
+          - "1.61.0" # MSRV
           - stable
           - nightly
         include:
-          - toolchain: "1.60.0"
-            components: rustfmt
-          - toolchain: nightly
-            components: rustfmt
           - toolchain: stable
-            components: rustfmt, clippy
+            components: clippy
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -76,8 +83,6 @@ jobs:
           rustup component list --installed
       - name: Build
         run: cargo build --all-features
-      - name: Format
-        run: cargo fmt --check
       - name: Lint
         run: cargo +stable clippy --all-features --all-targets -- -D warnings
         env:
@@ -112,7 +117,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.60.0"
+          toolchain: "1.61.0"
       - name: Install cross
         run: |
           set -e
@@ -130,7 +135,7 @@ jobs:
           EOF
       - uses: Swatinem/rust-cache@v2.2.0
         with:
-          key: "ubuntu-latest_1.60.0_${{ matrix.target }}"
+          key: "ubuntu-latest_1.61.0_${{ matrix.target }}"
       - name: Info
         run: |
           set -x
@@ -146,7 +151,7 @@ jobs:
         run: cross test --all-features --target ${{ matrix.target }}
 
   docs:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Docs/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -159,7 +164,7 @@ jobs:
         run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Coverage/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -208,7 +213,7 @@ jobs:
             --output-type files \
             --excl-start "cov:\s*excl-start" \
             --excl-stop "cov:\s*excl-stop" \
-            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*//\s*cov:\s*excl-line)' \
+            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*cov:\s*excl-line)' \
             --ignore "examples/*" \
             --ignore build.rs \
             --ignore "vendor/*" \
@@ -225,7 +230,7 @@ jobs:
             --source-dir . \
             --excl-start "cov:\s*excl-start" \
             --excl-stop "cov:\s*excl-stop" \
-            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*//\s*cov:\s*excl-line)' \
+            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*cov:\s*excl-line)' \
             --ignore "examples/*" \
             --ignore build.rs \
             --ignore "vendor/*" \
@@ -244,7 +249,7 @@ jobs:
       RUST_BACKTRACE: "0"
 
   fuzzing:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Fuzzy testing/ubuntu-latest
     runs-on: ubuntu-latest
     defaults:
@@ -277,14 +282,14 @@ jobs:
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
 
   benchmarks:
-    needs: [base, cross]
+    needs: [format, base, cross]
     name: Benchmarks/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.60.0"
+          toolchain: "1.61.0"
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Install iai-callgrind-runner
         run: |
@@ -294,7 +299,8 @@ jobs:
           )
           cargo install iai-callgrind-runner --version $version
       - name: Prepare
-        run: sudo apt-get -y update && sudo apt-get -y install valgrind
+        run: |
+          sudo apt-get -y update && sudo apt-get -y install valgrind
       - name: Download reference benchmarks
         if: ${{ !inputs.resetBenchmarks }}
         uses: dawidd6/action-download-artifact@v2
@@ -304,8 +310,25 @@ jobs:
           check_artifacts: true
           path: target/iai
           if_no_artifact_found: warn
-      - name: Run iai-callgrind benchmarks
-        run: cargo bench --all-features iai_bench | tee bench.out
+      - name: Run iai-callgrind standard feature benchmarks
+        run: |
+          cargo bench --features standard \
+            --bench iai_bench_standard \
+            --bench iai_bench_parsing \
+            --bench iai_bench_parsing_time_units \
+            --bench iai_bench_reference | tee bench.out
+      - name: Run iai-callgrind custom feature benchmarks
+        run: |
+          cargo bench --features custom --no-default-features \
+            --bench iai_bench_custom | tee -a bench.out
+      - name: Run iai-callgrind negative feature benchmarks
+        run: |
+          cargo bench --features negative \
+            --bench iai_bench_parsing_negative | tee -a bench.out
+      - name: Strip colors from output file bench.out
+        run: |
+          # remove colors (from https://unix.stackexchange.com/a/111936 by user55518)
+          sed -Ei 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]//g' bench.out
       - name: Check for regression
         run: |
           echo 0 > fail

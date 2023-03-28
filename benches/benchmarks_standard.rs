@@ -6,7 +6,8 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu::{DurationParser, TimeUnit::*};
+use fundu::DurationParser;
+use fundu::TimeUnit::*;
 
 fn criterion_config() -> Criterion {
     Criterion::default()
@@ -18,9 +19,14 @@ fn criterion_config() -> Criterion {
 fn get_parsing_speed_inputs() -> Vec<(String, String)> {
     vec![
         ("single digit".to_string(), "1".to_string()),
+        ("mixed digits 7".to_string(), "1234567.1234567".to_string()),
         (
-            "mixed digits".to_string(),
-            "123456789.123456789e+5".to_string(),
+            "mixed digits 8".to_string(),
+            "12345678.12345678".to_string(),
+        ),
+        (
+            "mixed digits 9".to_string(),
+            "123456789.123456789".to_string(),
         ),
         (
             "large input".to_string(),
@@ -64,7 +70,7 @@ fn benchmark_parsing(criterion: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("input without time units", parameter),
             &input,
-            |b, input| b.iter(|| black_box(&parser).parse(input)),
+            |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
     }
     group.finish();
@@ -79,7 +85,7 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new(format!("input without time unit (default = {unit:?})"), "1"),
             "1",
-            |b, input| b.iter(|| black_box(&parser).parse(input)),
+            |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
         let input = format!("1{input}");
         group.bench_with_input(
@@ -88,7 +94,7 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
                 &input,
             ),
             &input,
-            |b, input| b.iter(|| black_box(&parser).parse(input)),
+            |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
     }
     group.finish();

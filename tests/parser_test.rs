@@ -3,12 +3,15 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::time::Duration;
+
+use fundu::TimeUnit::*;
 use fundu::{
-    parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, TimeUnit::*,
-    SYSTEMD_TIME_UNITS,
+    parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
 };
 use rstest::rstest;
-use std::time::Duration;
+#[cfg(feature = "negative")]
+use time::Duration as NegativeDuration;
 
 const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
 const MONTH: u64 = YEAR / 12;
@@ -70,6 +73,8 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 }
 
 #[rstest]
+#[case::seconds_overflow_when_negative_exponent(&format!("{}e-1", u64::MAX as u128 * 100), Duration::MAX)]
+#[case::seconds_overflow_when_positive_exponent(&format!("{}.11e1", u64::MAX), Duration::MAX)]
 #[case::minus_sign_whole_to_fract("1.00000001e-1", Duration::new(0, 100_000_001))]
 #[case::zero("1.1e0", Duration::new(1, 100_000_000))]
 #[case::point_and_then_exponent("1.e0", Duration::new(1, 0))]
@@ -81,6 +86,7 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 #[case::higher_than_seconds_max(&format!("{}9.999999999e-1", u64::MAX), Duration::MAX)]
 #[case::plus_sign("0.1000000001e+1", Duration::new(1, 1))]
 #[case::minus_sign_zero_to_fract("10.00000001e-1", Duration::new(1, 1))]
+#[case::exponent_then_nineteen_zeroes_in_fraction("1.0e-20", Duration::ZERO)]
 #[case::no_overflow_error_low("1.0e-32768", Duration::ZERO)]
 #[case::no_overflow_error_high("1.0e+32767", Duration::MAX)]
 #[case::maximum_exponent(&format!("0.{}9e+{}", "0".repeat(i16::MAX as usize), i16::MAX), Duration::new(0, 900_000_000))]
@@ -201,19 +207,119 @@ fn test_parser_when_time_units_are_not_present_then_error(
     #[case] source: &str,
     #[case] time_units: Vec<TimeUnit>,
 ) {
-    assert!(DurationParser::without_time_units()
-        .time_units(time_units.as_slice())
-        .parse(source)
-        .is_err());
+    assert!(
+        DurationParser::with_time_units(time_units.as_slice())
+            .parse(source)
+            .is_err()
+    );
+}
+
+#[rstest]
+#[case::empty("", ParseError::Empty)]
+#[case::only_space(" ", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
+#[case::space_before_number(" 123", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
+#[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
+#[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
+fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expected: ParseError) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_delimiter(Some(|b| b == b' '))
+            .parse(input)
+            .unwrap_err(),
+        expected
+    );
+}
+
+#[rstest]
+#[case::without_spaces("123ns", Duration::new(0, 123))]
+#[case::single_space("123 ns", Duration::new(0, 123))]
+#[case::multiple_spaces("123      ns", Duration::new(0, 123))]
+#[case::space_at_end_when_no_time_unit("123 ", Duration::new(123, 0))]
+fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_delimiter(Some(|b| b == b' '))
+            .parse(input)
+            .unwrap(),
+        expected
+    );
+}
+
+#[rstest]
+#[case::without_delimiter("123ns", |b : u8| b.is_ascii_whitespace(),  Duration::new(0, 123))]
+#[case::all_rust_whitespace("123 \t\n\x0C\rns", |b : u8| b.is_ascii_whitespace(),  Duration::new(0, 123))]
+fn test_parser_when_allow_delimiter(
+    #[case] input: &str,
+    #[case] delimiter: fundu::Delimiter,
+    #[case] expected: Duration,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_delimiter(Some(delimiter))
+            .parse(input)
+            .unwrap(),
+        expected
+    );
+}
+
+#[rstest]
+#[case::nano_seconds("ns", Ok(Duration::new(0, 1)))]
+#[case::just_exponent("e1", Ok(Duration::new(10, 0)))]
+#[case::sign_and_exponent("+e1", Ok(Duration::new(10, 0)))]
+#[case::exponent_with_time_unit("e9ns", Ok(Duration::new(1, 0)))]
+#[case::just_point(".", Err(ParseError::Syntax(1, "Either the whole number part or the fraction must be present".to_string())))]
+fn test_parser_when_number_is_optional(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .number_is_optional(true)
+            .parse(input),
+        expected
+    );
+}
+
+#[rstest]
+#[case::whole_with_just_point("1.", Err(ParseError::Syntax(1, "No fraction allowed".to_string())))]
+#[case::fract_with_just_point(".1", Err(ParseError::Syntax(0, "No fraction allowed".to_string())))]
+#[case::just_point(".", Err(ParseError::Syntax(0, "No fraction allowed".to_string())))]
+fn test_parser_when_disable_fraction(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .disable_fraction(true)
+            .parse(input),
+        expected
+    );
+}
+
+#[rstest]
+#[case::whole_with_exponent("1e0", Err(ParseError::Syntax(1, "No exponent allowed".to_string())))]
+#[case::fract_with_exponent("0.1e0", Err(ParseError::Syntax(3, "No exponent allowed".to_string())))]
+#[case::exponent_without_number("1e", Err(ParseError::Syntax(1, "No exponent allowed".to_string())))]
+fn test_parser_when_disable_exponent(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .disable_exponent(true)
+            .parse(input),
+        expected
+    );
 }
 
 #[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
 fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
-    assert!(DurationParser::without_time_units()
-        .time_unit(time_unit)
-        .parse(source)
-        .is_err());
+    assert!(
+        DurationParser::with_time_units(&[time_unit])
+            .parse(source)
+            .is_err()
+    );
 }
 
 #[rstest]
@@ -306,4 +412,48 @@ fn test_custom_duration_parser_parse_when_systemd_time_units(
     for input in inputs {
         assert_eq!(parser.parse(&format!("1{input}")), Ok(expected));
     }
+}
+
+#[cfg(feature = "negative")]
+#[rstest]
+#[case::negative_zero("-0", NegativeDuration::ZERO)]
+#[case::negative_barely_not_zero("-0.000000001", NegativeDuration::new(0, -1))]
+#[case::negative_barely_zero("-0.0000000001", NegativeDuration::ZERO)]
+#[case::positive_zero("+0", NegativeDuration::ZERO)]
+#[case::positive_barely_not_zero("0.000000001", NegativeDuration::new(0, 1))]
+#[case::positive_barely_zero("0.0000000001", NegativeDuration::ZERO)]
+#[case::zero_without_sign("0", NegativeDuration::ZERO)]
+#[case::negative_one("-1", NegativeDuration::new(-1, 0))]
+#[case::negative_one_with_fraction("-1.2", NegativeDuration::new(-1, -200_000_000))]
+#[case::negative_one_with_exponent("-1e-9", NegativeDuration::new(0, -1))]
+#[case::negative_min_seconds(&format!("{}", i64::MIN), NegativeDuration::new(i64::MIN, 0))]
+#[case::negative_min_seconds_low_nanos(&format!("{}.000000001", i64::MIN), NegativeDuration::new(i64::MIN, -1))]
+#[case::negative_min_seconds_and_nanos(&format!("{}.999999999", i64::MIN), NegativeDuration::MIN)]
+#[case::negative_min_nanos_10_digits(&format!("{}.9999999999", i64::MIN), NegativeDuration::MIN)]
+#[case::negative_seconds_barely_saturate(&format!("{}", i64::MIN as i128 - 1), NegativeDuration::MIN)]
+#[case::negative_some_mixed_number(
+    "-1122334455.123456789e-4",
+    NegativeDuration::new(-112233, -445512345)
+)]
+#[case::negative_years("-1.000000001y", NegativeDuration::new(-(YEAR as i64), -(YEAR as i32)))]
+#[case::negative_high_value_saturate(&format!("-{}.{}e1000", "1".repeat(1000), "1".repeat(1000)), NegativeDuration::MIN)]
+#[case::positive_one("1", NegativeDuration::new(1, 0))]
+#[case::positive_max_seconds(&format!("{}", i64::MAX), NegativeDuration::new(i64::MAX, 0))]
+#[case::positive_max_seconds_low_nanos(&format!("{}.000000001", i64::MAX), NegativeDuration::new(i64::MAX, 1))]
+#[case::positive_max_seconds_and_nanos(&format!("{}.999999999", i64::MAX), NegativeDuration::MAX)]
+#[case::positive_seconds_barely_saturate(&format!("{}", i64::MAX as i128 + 1), NegativeDuration::MAX)]
+#[case::positive_seconds_and_nanos_barely_saturate(&format!("{}.000000001", i64::MAX as i128 + 1), NegativeDuration::MAX)]
+#[case::positive_some_mixed_number(
+    "1122334455.123456789e-4",
+    NegativeDuration::new(112233, 445512345)
+)]
+#[case::positive_years("1.000000001y", NegativeDuration::new(YEAR as i64, YEAR as i32))]
+#[case::positive_high_value_saturate(&format!("{}.{}e1000", "1".repeat(1000), "1".repeat(1000)), NegativeDuration::MAX)]
+fn test_parse_negative(#[case] source: &str, #[case] expected: NegativeDuration) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .parse_negative(source)
+            .unwrap(),
+        expected
+    );
 }
