@@ -50,6 +50,7 @@
     "nresamples",
     "nsec",
     "nvptx",
+    "POSIX",
     "pprof",
     "printenv",
     "profdata",

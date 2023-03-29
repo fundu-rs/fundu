@@ -6,6 +6,43 @@
 use crate::time::{Multiplier, DEFAULT_TIME_UNIT};
 use crate::TimeUnit;
 
+/// An ascii delimiter defined as closure.
+///
+/// The [`Delimiter`] is currently a type alias for a closure taking a `u8` byte and returning a
+/// `bool`. Most likely, the [`Delimiter`] is used to define some whitespace but whitespace
+/// definitions differ, so a closure provides the most flexible definition of a delimiter. For
+/// example the definition of whitespace from rust [`u8::is_ascii_whitespace`]:
+///
+/// ```text
+/// Checks if the value is an ASCII whitespace character: U+0020 SPACE, U+0009 HORIZONTAL TAB,
+/// U+000A LINE FEED, U+000C FORM FEED, or U+000D CARRIAGE RETURN.
+///
+/// Rust uses the WhatWG Infra Standard’s definition of ASCII whitespace. There are several other
+/// definitions in wide use. For instance, the POSIX locale includes U+000B VERTICAL TAB as well
+/// as all the above characters, but—from the very same specification—the default rule for “field
+/// splitting” in the Bourne shell considers only SPACE, HORIZONTAL TAB, and LINE FEED as
+/// whitespace.
+/// ```
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::Delimiter;
+///
+/// fn is_delimiter(delimiter: Delimiter, byte: u8) -> bool {
+///     delimiter(byte)
+/// }
+///
+/// assert!(is_delimiter(
+///     |byte| matches!(byte, b' ' | b'\n' | b'\t'),
+///     b' '
+/// ));
+/// assert!(!is_delimiter(
+///     |byte| matches!(byte, b' ' | b'\n' | b'\t'),
+///     b'\r'
+/// ));
+/// assert!(is_delimiter(|byte| byte.is_ascii_whitespace(), b'\r'));
+/// ```
 pub type Delimiter = fn(u8) -> bool;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

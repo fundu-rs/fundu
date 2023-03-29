@@ -142,8 +142,8 @@ impl TimeUnits {
 
 /// A parser with a customizable set of [`TimeUnit`]s with default identifiers.
 ///
-/// See also the [module level documentation](crate) for more details and more information about the
-/// format.
+/// See also the [module level documentation](crate) for more details and more information about
+/// the format.
 ///
 /// # Examples
 ///
@@ -425,10 +425,10 @@ impl DurationParser {
         self
     }
 
-    /// If true, allow one or more delimiters between the number and the [`TimeUnit`].
+    /// If `Some`, allow one or more [`Delimiter`] between the number and the [`TimeUnit`].
     ///
-    /// A delimiter is defined as function taking a byte and returning true if the delimiter was
-    /// found. Per default no delimiter is allowed between the number and the [`TimeUnit`]. Note
+    /// A [`Delimiter`] is defined as closure taking a byte and returning true if the delimiter
+    /// matched. Per default no delimiter is allowed between the number and the [`TimeUnit`]. Note
     /// this setting implicitly allows the delimiter at the end of the string, but only if no time
     /// unit was present. As usual the default time is assumed.
     ///
@@ -452,6 +452,7 @@ impl DurationParser {
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
     ///
     /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
+    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
     /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::new(0, 123)));
     /// ```
     pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
@@ -461,8 +462,8 @@ impl DurationParser {
 
     /// If true, disable parsing an exponent.
     ///
-    /// If an exponent is encountered in the input string and this setting is active this results in
-    /// an [`ParseError::Syntax`].
+    /// If an exponent is encountered in the input string and this setting is active this results
+    /// in an [`ParseError::Syntax`].
     ///
     /// # Examples
     ///
@@ -487,7 +488,7 @@ impl DurationParser {
     /// If true, disable parsing a fraction in the source string.
     ///
     /// This setting will disable parsing a fraction and a point delimiter will cause an error
-    /// [`ParseError::Syntax`]. This does not prevent [`Duration`]s from being smaller than seconds.
+    /// [`ParseError::Syntax`]. It does not prevent [`Duration`]s from being smaller than seconds.
     ///
     /// # Examples
     ///
@@ -580,8 +581,9 @@ enum TimeUnitsChoice<'a> {
 
 /// An ergonomic builder for a [`DurationParser`].
 ///
-/// The [`DurationParserBuilder`] is more ergonomic in some use cases than using [`DurationParser`]
-/// directly, especially when using the `DurationParser` for parsing multiple inputs.
+/// The [`DurationParserBuilder`] is more ergonomic in some use cases than using
+/// [`DurationParser`] directly, especially when using the `DurationParser` for parsing multiple
+/// inputs.
 ///
 /// # Examples
 ///
@@ -626,8 +628,8 @@ impl<'a> Default for DurationParserBuilder<'a> {
 impl<'a> DurationParserBuilder<'a> {
     /// Construct a new reusable [`DurationParserBuilder`].
     ///
-    /// This method is the same like invoking [`DurationParserBuilder::default`]. Per default there
-    /// are no time units configured in the builder. Use one of
+    /// This method is the same like invoking [`DurationParserBuilder::default`]. Per default
+    /// there are no time units configured in the builder. Use one of
     ///
     /// * [`DurationParserBuilder::default_time_units`]
     /// * [`DurationParserBuilder::all_time_units`]
@@ -652,7 +654,8 @@ impl<'a> DurationParserBuilder<'a> {
         }
     }
 
-    /// Configure [`DurationParserBuilder`] to build the [`DurationParser`] with default time units.
+    /// Configure [`DurationParserBuilder`] to build the [`DurationParser`] with default time
+    /// units.
     ///
     /// Setting the time units with this method overwrites any previously made choices with
     ///
@@ -752,8 +755,8 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
-    /// Configure the [`DurationParserBuilder`] to build the [`DurationParser`] with a custom set of
-    /// time units.
+    /// Configure the [`DurationParserBuilder`] to build the [`DurationParser`] with a custom set
+    /// of time units.
     ///
     /// Setting the time units with this method overwrites any previously made choices with
     ///
@@ -950,16 +953,16 @@ impl<'a> DurationParserBuilder<'a> {
     }
 }
 
-/// Parse a string into a [`std::time::Duration`] by accepting a `string` similar to floating point
-/// with the default set of time units.
+/// Parse a string into a [`std::time::Duration`] by accepting a `string` similar to floating
+/// point with the default set of time units.
 ///
 /// This method is basically the same like [`DurationParser::new`] providing a simple to setup
-/// onetime parser. It is generally a better idea to use the [`DurationParser`] builder if multiple
-/// inputs with the same set of time units need to be parsed or a customization of the time format
-/// is wished.
+/// onetime parser. It is generally a better idea to use the [`DurationParser`] builder if
+/// multiple inputs with the same set of time units need to be parsed or a customization of the
+/// time format is wished.
 ///
-/// See also the [module level documentation](crate) for more details and more information about the
-/// format.
+/// See also the [module level documentation](crate) for more details and more information about
+/// the format.
 ///
 /// # Errors
 ///

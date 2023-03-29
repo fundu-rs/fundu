@@ -324,6 +324,25 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
 }
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
+///
+/// See also [`CustomDurationParser::with_time_units`]. See
+/// [`CustomDurationParser::custom_time_unit`] to define completely new time units.
+///
+/// # Problems
+///
+/// It's possible to choose identifiers very freely within the `utf-8` range. However, some
+/// identifiers interact badly with the parser and may lead to unexpected results if they
+/// start with:
+///
+/// * `e` or `E` which is also indicating an exponent. If
+/// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
+/// * `i` and in consequence `inf` or `infinity`. These are reserved words, the parser uses to
+/// detect infinite durations
+/// * ascii digits from `0` to `9`
+/// * decimal point `.` which is also indicating a fraction. If
+/// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur
+/// * `+`, `-` which are used for signs.
+/// * whitespace characters
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParser<'a> {
     time_units: CustomTimeUnits<'a>,
@@ -360,29 +379,17 @@ impl<'a> CustomDurationParser<'a> {
     /// [`TimeUnit`]s in `units`.
     ///
     /// Not all time units need to be defined, so if there is no intention to include a specific
-    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this library does not check
-    /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there are no
-    /// other limitations. There is also no check for duplicate `ids` but empty `ids` are ignored.
-    /// Note the ids for time units are case sensitive.
+    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this method does not check
+    /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there
+    /// are no other hard limitations but see also the `Problems` section in
+    /// [`CustomDurationParser`]. There is also no check for duplicate `ids` but empty `ids`
+    /// are ignored. Note the ids for time units are case sensitive.
     ///
     /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
     /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
     ///   documentation
     /// * [`DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default ids as
     ///   used the standard crate by [`crate::DurationParser`]
-    ///
-    /// # Problems
-    ///
-    /// It's possible to choose identifiers very freely within the `utf-8` range. However, some
-    /// identifiers interact badly with the parser and may lead to unexpected results if they
-    /// start with:
-    ///
-    /// * `e` or `E` which is also indicating an exponent. If
-    /// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
-    /// * ascii digits from `0` to `9`
-    /// * decimal point `.` which is also indicating a fraction. If
-    /// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur
-    /// * `+`, `-` which is used for signs.
     ///
     /// # Examples
     ///
@@ -496,10 +503,10 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     ///
-    /// The `base_unit` is only used to calculate the final duration and does not need to be unique
-    /// in the set of time units. It's even possible to define an own time unit for example for a
-    /// definition of a [`TimeUnit::Year`] either in addition or as a replacement of the year
-    /// definition of this crate (Julian Year = `365.25` days).
+    /// The `base_unit` is only used to calculate the final duration and does not need to be
+    /// unique in the set of time units. It's even possible to define an own time unit for
+    /// example for a definition of a [`TimeUnit::Year`] either in addition or as a
+    /// replacement of the year definition of this crate (Julian Year = `365.25` days).
     ///
     /// ```rust
     /// use std::time::Duration;
@@ -636,7 +643,7 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
-    /// Allow one or more delimiters between the number and the [`TimeUnit`].
+    /// If `Some`, allow one or more [`Delimiter`] between the number and the [`TimeUnit`].
     ///
     /// See also [`crate::DurationParser::allow_delimiter`].
     ///
@@ -845,8 +852,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// Unlike its counterpart [`crate::DurationParserBuilder`], this builder is not reusable and
     /// [`CustomDurationParserBuilder::build`] consumes this builder. This is due to the more
-    /// complicated structure of custom time units and to keep the building process as performant as
-    /// possible.
+    /// complicated structure of custom time units and to keep the building process as performant
+    /// as possible.
     ///
     /// # Examples
     ///
@@ -1097,9 +1104,9 @@ impl<'a> CustomDurationParserBuilder<'a> {
 
     /// Finally, build the [`CustomDurationParser`] from this builder.
     ///
-    /// Note this method is meant as a one-off builder method and can therefore only be used once on
-    /// each [`CustomDurationParserBuilder`]. However, the parser built with this method can be used
-    /// multiple times.
+    /// Note this method is meant as a one-off builder method and can therefore only be used once
+    /// on each [`CustomDurationParserBuilder`]. However, the parser built with this method
+    /// can be used multiple times.
     ///
     /// # Examples
     ///
