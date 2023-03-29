@@ -99,9 +99,9 @@ impl LookupData {
 ///
 /// Custom time units have a base [`TimeUnit`] (which has an inherent [`Multiplier`]) and an
 /// optional [`Multiplier`] which acts as an additional [`Multiplier`] to the multiplier of the
-/// `base_unit`. Using a multiplier with `Multiplier(1, 0)` is equivalent to using no multiplier
-/// at all. A [`CustomTimeUnit`] also consists of identifiers which are used to identify the
-/// [`CustomTimeUnit`] during the parsing process.
+/// `base_unit`. Using a multiplier with `Multiplier(1, 0)` is equivalent to using no multiplier at
+/// all but see also the `Problems` section. A [`CustomTimeUnit`] also consists of identifiers which
+/// are used to identify the [`CustomTimeUnit`] during the parsing process.
 ///
 /// To create a [`CustomTimeUnit`] representing two weeks there are multiple (almost countless)
 /// solutions. Just to show two very obvious examples:
@@ -142,13 +142,44 @@ impl LookupData {
 /// ```
 ///
 /// In summary, the best choice is to use the [`CustomTimeUnit`] with a `base_unit` having the
-/// lowest [`Multiplier`].
+/// lowest [`Multiplier`] but see also `Problems` below.
 ///
 /// Equality of two [`CustomTimeUnit`] is defined as
 ///
 /// ```ignore
 /// base_unit == other.base_unit && multiplier == other.multiplier
 /// ```
+///
+/// # Problems
+///
+/// For `base_unit`s other than `Second` there may occur an overflow (and panic) during the parsing
+/// process.  The Multiplier boundaries are chosen as high as possible but if the `base_unit`
+/// multiplier multiplied with `multiplier` exceeds `(u64::MAX, i16::MIN)` or `(u64::MAX, i16::MAX)`
+/// this multiplication overflows. By example, with `Multiplier(m, e)` two multipliers x, y are
+/// multiplied as follows : `m = x.m * y.m, e = x.e + y.e`:
+///
+/// If the `base_unit` is `Year`, which has a multiplier of `m = 31557600, e = 0`, then this
+/// restricts the `multiplier` to `m = u64::MAX / 31557600 = 584_542_046_090, e = 32767 or e =
+/// -32768`.
+///
+/// If the `base_unit` is `NanoSecond`, which has a multiplier of `m = 1, e = -9`, then this
+/// restricts the `multiplier` to `m = u64::MAX, e = -32768 + 9 = -32,759 or e = i16::MAX = 32767`.
+///
+/// The `base_unit`s are `Second`s based what results in the following table with limits for the
+/// `multiplier`:
+///
+/// | `base_unit`    | [`Multiplier`] | Limit m | Limit -e | Limit +e
+/// | --------------- | ----------:| -------:| --------:| ------:|
+/// | Nanosecond  | Multiplier(1, -9) | u64::MAX | -32,759 | i16::MAX
+/// | Microsecond | Multiplier(1, -6) | u64::MAX | -32,762 | i16::MAX
+/// | Millisecond | Multiplier(1, -3) | u64::MAX | -32,765 | i16::MAX
+/// | Second      | Multiplier(1, 0) | u64::MAX | i16::MIN | i16::MAX
+/// | Minute      | Multiplier(60, 0) | 307_445_734_561_825_860 | i16::MIN | i16::MAX
+/// | Hour        | Multiplier(3600, 0) | 5_124_095_576_030_431 | i16::MIN | i16::MAX
+/// | Day         | Multiplier(86400, 0) | 213_503_982_334_601 | i16::MIN | i16::MAX
+/// | Week        | Multiplier(604800, 0) | 30_500_568_904_943  | i16::MIN | i16::MAX
+/// | Month       | Multiplier(2629800, 0) | 7_014_504_553_087 | i16::MIN | i16::MAX
+/// | Year        | Multiplier(31557600, 0) | 584_542_046_090 | i16::MIN | i16::MAX
 #[derive(Debug, Eq, Clone, Copy)]
 pub struct CustomTimeUnit<'a> {
     base_unit: TimeUnit,
@@ -164,6 +195,8 @@ impl<'a> PartialEq for CustomTimeUnit<'a> {
 
 impl<'a> CustomTimeUnit<'a> {
     /// Create a new [`CustomTimeUnit`]
+    ///
+    /// See also the documentation for [`CustomTimeUnit`].
     ///
     /// # Examples
     ///
@@ -471,6 +504,9 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// Custom time units have a base [`TimeUnit`] and a [`Multiplier`] in addition to their
     /// identifiers.
+    ///
+    /// # Panics
+    ///
     ///
     /// # Examples
     ///

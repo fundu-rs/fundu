@@ -45,13 +45,13 @@ const CUSTOM_TIME_UNITS: [CustomTimeUnit; 3] = [
     CustomTimeUnit::new(
         Second,
         &["M", "mon", "month", "months"],
-        Some(Multiplier(23_605_915_104, -4)),
+        Some(Multiplier(236_059_151, -2)),
     ),
     // The sidereal year
     CustomTimeUnit::new(
         Second,
         &["y", "yr", "year", "years"],
-        Some(Multiplier(3155814976, -2)),
+        Some(Multiplier(3_155_814_976, -2)),
     ),
 ];
 

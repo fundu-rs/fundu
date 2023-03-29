@@ -272,14 +272,14 @@ impl DurationRepr {
             (Some(whole), Some(fract)) => (whole, fract),
         };
 
-        // This unwrap is safe because there is at least whole or fract
+        // This unwrap is safe because there are whole or fract present
         let digits = self.digits.as_ref().unwrap();
 
-        let Multiplier(multiplier, mut exponent) = self.unit.multiplier() * self.multiplier;
-        exponent += self.exponent as i32;
+        let Multiplier(multiplier, exponent) = self.unit.multiplier() * self.multiplier;
+        let exponent = exponent as i32 + self.exponent as i32;
 
-        // The maximum absolute value of the exponent is `abs(i16::MIN) + 9 (nano seconds)`, so it
-        // is safe to cast to usize
+        // The maximum absolute value of the exponent is `2 * abs(i16::MIN)`, so it is safe to cast
+        // to usize
         let exponent_abs: usize = exponent.unsigned_abs().try_into().unwrap();
 
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing

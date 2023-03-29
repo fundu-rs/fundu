@@ -139,9 +139,8 @@ pub trait TimeUnitsLike {
 /// let second = Multiplier(1, 0);
 /// let hour = Multiplier(3600, 0);
 /// ```
-// TODO: i32 -> i16
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Multiplier(pub u64, pub i32);
+pub struct Multiplier(pub u64, pub i16);
 
 impl Default for Multiplier {
     fn default() -> Self {
@@ -336,5 +335,41 @@ mod tests {
         #[case] expected: Duration,
     ) {
         assert_eq!(Duration::from(std_duration), expected);
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, Multiplier(u64::MAX, i16::MIN + 9))]
+    #[case::micro_second(MicroSecond, Multiplier(u64::MAX, i16::MIN + 6))]
+    #[case::milli_second(MilliSecond, Multiplier(u64::MAX, i16::MIN + 3))]
+    #[case::second(Second, Multiplier(u64::MAX, i16::MIN))]
+    #[case::minute(Minute, Multiplier(307_445_734_561_825_860, i16::MIN))]
+    #[case::hour(Hour, Multiplier(5_124_095_576_030_431, i16::MIN))]
+    #[case::day(Day, Multiplier(213_503_982_334_601, i16::MIN))]
+    #[case::week(Week, Multiplier(30_500_568_904_943, i16::MIN))]
+    #[case::month(Month, Multiplier(7_014_504_553_087, i16::MIN))]
+    #[case::year(Year, Multiplier(584_542_046_090, i16::MIN))]
+    fn test_multiplier_multiplication_barely_no_panic(
+        #[case] time_unit: TimeUnit,
+        #[case] multiplier: Multiplier,
+    ) {
+        let _ = time_unit.multiplier() * multiplier;
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, Multiplier(u64::MAX, i16::MIN + 8))]
+    #[case::micro_second(MicroSecond, Multiplier(u64::MAX, i16::MIN + 4))]
+    #[case::milli_second(MilliSecond, Multiplier(u64::MAX, i16::MIN + 2))]
+    #[case::minute(Minute, Multiplier(307_445_734_561_825_860 + 1, i16::MIN))]
+    #[case::hour(Hour, Multiplier(5_124_095_576_030_431 + 1, i16::MIN))]
+    #[case::day(Day, Multiplier(213_503_982_334_601 + 1, i16::MIN))]
+    #[case::week(Week, Multiplier(30_500_568_904_943 + 1, i16::MIN))]
+    #[case::month(Month, Multiplier(7_014_504_553_087 + 1, i16::MIN))]
+    #[case::year(Year, Multiplier(584_542_046_090 + 1, i16::MIN))]
+    #[should_panic]
+    fn test_multiplier_multiplication_then_panic(
+        #[case] time_unit: TimeUnit,
+        #[case] multiplier: Multiplier,
+    ) {
+        let _ = time_unit.multiplier() * multiplier;
     }
 }
