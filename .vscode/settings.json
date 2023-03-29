@@ -54,6 +54,7 @@
     "pprof",
     "printenv",
     "profdata",
+    "refactorings",
     "Repr",
     "riscv",
     "rstest",
