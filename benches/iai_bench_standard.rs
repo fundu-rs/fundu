@@ -3,10 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{
-    DurationParser,
-    TimeUnit::{self, *},
-};
+use fundu::DurationParser;
+use fundu::TimeUnit::{self, *};
 use iai_callgrind::{black_box, main};
 
 #[inline(never)]
@@ -47,7 +45,9 @@ fn initialization_with_custom_time_units() -> DurationParser {
 }
 
 main!(
-    callgrind_args = "toggle-collect=__iai_setup::get_all_time_units";
+    callgrind_args =
+        "toggle-collect=iai_callgrind::black_box",
+        "toggle-collect=__iai_setup::get_all_time_units";
     functions =
         initialization_without_time_units,
         initialization_with_default_time_units,

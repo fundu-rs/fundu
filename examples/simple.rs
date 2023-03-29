@@ -9,8 +9,7 @@ use fundu::{DurationParser, TimeUnit};
 
 fn main() {
     let input = "100y";
-    let duration = DurationParser::without_time_units()
-        .time_unit(TimeUnit::Year)
+    let duration = DurationParser::with_time_units(&[TimeUnit::Year])
         .parse(input)
         .unwrap();
 

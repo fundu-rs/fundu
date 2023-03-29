@@ -8,6 +8,7 @@
     "ATTO",
     "Attos",
     "binstall",
+    "blazingly",
     "Cachegrind",
     "callgrind",
     "chrono",
@@ -16,6 +17,7 @@
     "codecov",
     "cuda",
     "dawidd",
+    "docsrs",
     "dtolnay",
     "eabi",
     "eabihf",
@@ -32,6 +34,8 @@
     "illumos",
     "imac",
     "imfinity",
+    "kilosecond",
+    "kiloseconds",
     "Lemire",
     "libfuzzer",
     "MILLI",
@@ -46,9 +50,11 @@
     "nresamples",
     "nsec",
     "nvptx",
+    "POSIX",
     "pprof",
     "printenv",
     "profdata",
+    "refactorings",
     "Repr",
     "riscv",
     "rstest",
@@ -61,6 +67,7 @@
     "sparcv",
     "stdlib",
     "struct",
+    "subsec",
     "Swatinem",
     "thumbv",
     "uefi",
@@ -75,5 +82,6 @@
     "деякі",
     "мілісекунда",
     "наносекунда"
-  ]
+  ],
+  "cmake.configureOnOpen": false
 }

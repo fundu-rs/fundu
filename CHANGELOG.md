@@ -24,6 +24,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2023-03-29
+
+### Added
+
+* `negative` feature: parse negative durations to a duration from the `time` crate
+* The number format is now customizable:
+    * allow one ore more delimiter between the number and the time unit by setting a `Delimiter`
+    * disable parsing an exponent
+    * disable parsing a fraction
+    * make numbers in front of time units and exponents optional
+* `DurationParser::builder` method and `DurationParserBuilder`
+* `CustomDurationParser` allows now creating completely new `CustomTimeUnit`s
+* `CustomDurationParser::builder` method and `CustomDurationParserBuilder`
+* An example for the `custom` feature
+
+### Changed
+
+* The minimum supported rust version changed from `1.60.0` to `1.61.0`
+* Some internal changes and refactorings improved the overall performance
+* Improve and enhance the `README` and public api documentation
+
+### Removed
+
+* `DurationParser::time_unit` and `DurationParser::time_units`:
+Use `DurationParser::with_time_units` or the `DurationParserBuilder` instead
+* `CustomDurationParser::get_current_time_units`
+
 ## [0.4.3] - 2023-03-21
 
 ### Changed

@@ -3,14 +3,17 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use crate::parse::ReprParser;
-use crate::time::TimeUnitsLike;
+use std::time::Duration;
+
+use super::config::Config;
+use crate::parse::Parser;
+use crate::time::{Multiplier, TimeUnitsLike};
+use crate::TimeUnit::*;
 use crate::{
-    ParseError, TimeUnit, TimeUnit::*, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
+    Delimiter, ParseError, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
-use std::time::Duration;
 
 /// Part of the `custom` feature with [`TimeUnit`] ids as defined in
 /// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
@@ -57,26 +60,21 @@ pub const DEFAULT_ALL_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
 type Identifiers<'a> = (LookupData, Vec<&'a str>);
 type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
 
-#[derive(Debug)]
-struct CustomTimeUnits<'a> {
-    min_length: usize,
-    max_length: usize,
-    time_units: [Identifiers<'a>; 10],
-}
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 struct LookupData {
     min_length: usize,
     max_length: usize,
     time_unit: TimeUnit,
+    multiplier: Multiplier,
 }
 
 impl LookupData {
-    fn new(time_unit: TimeUnit) -> Self {
+    fn new(time_unit: TimeUnit, multiplier: Multiplier) -> Self {
         Self {
             min_length: usize::MAX,
             max_length: 0,
             time_unit,
+            multiplier,
         }
     }
 
@@ -94,10 +92,148 @@ impl LookupData {
         let len = identifier.len();
         self.min_length <= len && self.max_length >= len
     }
+}
 
-    fn is_empty(&self) -> bool {
-        self.min_length == usize::MAX && self.max_length == 0
+/// A [`CustomTimeUnit`] is a completely customizable [`TimeUnit`] using an additional
+/// [`Multiplier`].
+///
+/// Custom time units have a base [`TimeUnit`] (which has an inherent [`Multiplier`]) and an
+/// optional [`Multiplier`] which acts as an additional [`Multiplier`] to the multiplier of the
+/// `base_unit`. Using a multiplier with `Multiplier(1, 0)` is equivalent to using no multiplier at
+/// all but see also the `Problems` section. A [`CustomTimeUnit`] also consists of identifiers which
+/// are used to identify the [`CustomTimeUnit`] during the parsing process.
+///
+/// To create a [`CustomTimeUnit`] representing two weeks there are multiple (almost countless)
+/// solutions. Just to show two very obvious examples:
+///
+/// ```rust
+/// use fundu::TimeUnit::*;
+/// use fundu::{CustomTimeUnit, Multiplier};
+///
+/// assert_ne!(
+///     (CustomTimeUnit::new(Week, &["fortnight", "fortnights"], Some(Multiplier(2, 0)))),
+///     (CustomTimeUnit::new(Day, &["fortnight", "fortnights"], Some(Multiplier(14, 0))))
+/// );
+/// ```
+///
+/// Both would actually be equal in the sense, that they would resolve to the same result when
+/// multiplying the `base_unit` with the `multiplier`, however they are treated as not equal and
+/// it's possible to choose freely between the definitions. Using both of the definitions in
+/// parallel within the [`CustomDurationParser`] would be possible and produces the desired
+/// result, although it does not provide any benefits.
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use fundu::TimeUnit::*;
+/// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
+///
+/// let parser = CustomDurationParser::builder()
+///     .custom_time_units(&[
+///         CustomTimeUnit::new(Week, &["fortnight", "fortnights"], Some(Multiplier(2, 0))),
+///         CustomTimeUnit::new(Day, &["fortnight", "fortnights"], Some(Multiplier(14, 0))),
+///     ])
+///     .build();
+///
+/// assert_eq!(
+///     parser.parse("1fortnight").unwrap(),
+///     Duration::new(1209600, 0)
+/// );
+/// ```
+///
+/// In summary, the best choice is to use the [`CustomTimeUnit`] with a `base_unit` having the
+/// lowest [`Multiplier`] but see also `Problems` below.
+///
+/// Equality of two [`CustomTimeUnit`] is defined as
+///
+/// ```ignore
+/// base_unit == other.base_unit && multiplier == other.multiplier
+/// ```
+///
+/// # Problems
+///
+/// For `base_unit`s other than `Second` there may occur an overflow (and panic) during the parsing
+/// process.  The Multiplier boundaries are chosen as high as possible but if the `base_unit`
+/// multiplier multiplied with `multiplier` exceeds `(u64::MAX, i16::MIN)` or `(u64::MAX, i16::MAX)`
+/// this multiplication overflows. By example, with `Multiplier(m, e)` two multipliers x, y are
+/// multiplied as follows : `m = x.m * y.m, e = x.e + y.e`:
+///
+/// If the `base_unit` is `Year`, which has a multiplier of `m = 31557600, e = 0`, then this
+/// restricts the `multiplier` to `m = u64::MAX / 31557600 = 584_542_046_090, e = 32767 or e =
+/// -32768`.
+///
+/// If the `base_unit` is `NanoSecond`, which has a multiplier of `m = 1, e = -9`, then this
+/// restricts the `multiplier` to `m = u64::MAX, e = -32768 + 9 = -32,759 or e = i16::MAX = 32767`.
+///
+/// The `base_unit`s are `Second`s based what results in the following table with limits for the
+/// `multiplier`:
+///
+/// | `base_unit`    | [`Multiplier`] | Limit m | Limit -e | Limit +e
+/// | --------------- | ----------:| -------:| --------:| ------:|
+/// | Nanosecond  | Multiplier(1, -9) | u64::MAX | -32,759 | i16::MAX
+/// | Microsecond | Multiplier(1, -6) | u64::MAX | -32,762 | i16::MAX
+/// | Millisecond | Multiplier(1, -3) | u64::MAX | -32,765 | i16::MAX
+/// | Second      | Multiplier(1, 0) | u64::MAX | i16::MIN | i16::MAX
+/// | Minute      | Multiplier(60, 0) | 307_445_734_561_825_860 | i16::MIN | i16::MAX
+/// | Hour        | Multiplier(3600, 0) | 5_124_095_576_030_431 | i16::MIN | i16::MAX
+/// | Day         | Multiplier(86400, 0) | 213_503_982_334_601 | i16::MIN | i16::MAX
+/// | Week        | Multiplier(604800, 0) | 30_500_568_904_943  | i16::MIN | i16::MAX
+/// | Month       | Multiplier(2629800, 0) | 7_014_504_553_087 | i16::MIN | i16::MAX
+/// | Year        | Multiplier(31557600, 0) | 584_542_046_090 | i16::MIN | i16::MAX
+#[derive(Debug, Eq, Clone, Copy)]
+pub struct CustomTimeUnit<'a> {
+    base_unit: TimeUnit,
+    multiplier: Multiplier,
+    identifiers: &'a [&'a str],
+}
+
+impl<'a> PartialEq for CustomTimeUnit<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.base_unit == other.base_unit && self.multiplier == other.multiplier
     }
+}
+
+impl<'a> CustomTimeUnit<'a> {
+    /// Create a new [`CustomTimeUnit`]
+    ///
+    /// See also the documentation for [`CustomTimeUnit`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
+    ///
+    /// let time_unit = CustomTimeUnit::new(Second, &["shake", "shakes"], Some(Multiplier(1, -8)));
+    /// let parser = CustomDurationParser::builder()
+    ///     .custom_time_unit(time_unit)
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1shake").unwrap(), Duration::new(0, 10));
+    /// ```
+    pub const fn new(
+        base_unit: TimeUnit,
+        identifiers: &'a [&'a str],
+        multiplier: Option<Multiplier>,
+    ) -> Self {
+        Self {
+            base_unit,
+            multiplier: match multiplier {
+                Some(m) => m,
+                None => Multiplier(1, 0),
+            },
+            identifiers,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct CustomTimeUnits<'a> {
+    min_length: usize,
+    max_length: usize,
+    time_units: Vec<Identifiers<'a>>,
 }
 
 impl<'a> CustomTimeUnits<'a> {
@@ -106,26 +242,22 @@ impl<'a> CustomTimeUnits<'a> {
     }
 
     fn with_time_units(units: &[IdentifiersSlice<'a>]) -> Self {
-        let capacity = units.iter().fold(0, |a, (_, v)| a.max(v.len()));
-        let mut time_units = Self::with_capacity(capacity);
+        let mut time_units = Self::with_capacity(units.len());
         time_units.add_time_units(units);
         time_units
     }
 
-    fn add_time_unit(&mut self, unit: IdentifiersSlice<'a>) {
-        let (time_unit, other) = unit;
-        if other.is_empty() {
-            return;
+    fn with_capacity(capacity: usize) -> Self {
+        Self {
+            min_length: usize::MAX,
+            max_length: 0,
+            time_units: Vec::with_capacity(capacity),
         }
-        let (data, ids) = self.lookup_mut(time_unit);
+    }
 
-        for &id in other.iter().filter(|&&id| !id.is_empty()) {
-            ids.push(id);
-            data.update(id);
-        }
-        let min_length = data.min_length;
-        let max_length = data.max_length;
-        self.update_lengths(min_length, max_length);
+    fn add_time_unit(&mut self, unit: IdentifiersSlice<'a>) {
+        let (time_unit, identifiers) = unit;
+        self.add_custom_time_unit(CustomTimeUnit::new(time_unit, identifiers, None));
     }
 
     fn add_time_units(&mut self, units: &[IdentifiersSlice<'a>]) {
@@ -133,27 +265,71 @@ impl<'a> CustomTimeUnits<'a> {
             self.add_time_unit(*unit);
         }
     }
-    fn with_capacity(capacity: usize) -> Self {
-        Self {
-            min_length: usize::MAX,
-            max_length: 0,
-            time_units: [
-                (LookupData::new(NanoSecond), Vec::with_capacity(capacity)),
-                (LookupData::new(MicroSecond), Vec::with_capacity(capacity)),
-                (LookupData::new(MilliSecond), Vec::with_capacity(capacity)),
-                (LookupData::new(Second), Vec::with_capacity(capacity)),
-                (LookupData::new(Minute), Vec::with_capacity(capacity)),
-                (LookupData::new(Hour), Vec::with_capacity(capacity)),
-                (LookupData::new(Day), Vec::with_capacity(capacity)),
-                (LookupData::new(Week), Vec::with_capacity(capacity)),
-                (LookupData::new(Month), Vec::with_capacity(capacity)),
-                (LookupData::new(Year), Vec::with_capacity(capacity)),
-            ],
+
+    fn add_custom_time_unit(&mut self, time_unit: CustomTimeUnit<'a>) {
+        if time_unit.identifiers.is_empty() {
+            return;
         }
+        let CustomTimeUnit {
+            base_unit,
+            multiplier,
+            identifiers,
+        } = time_unit;
+        let (min_length, max_length) = match self.lookup_mut(base_unit, multiplier) {
+            Some((data, ids)) => {
+                for &identifier in identifiers.iter().filter(|&&id| !id.is_empty()) {
+                    ids.push(identifier);
+                    data.update(identifier);
+                }
+                (data.min_length, data.max_length)
+            }
+            None => {
+                let mut data = LookupData::new(base_unit, multiplier);
+                let mut ids = Vec::with_capacity(identifiers.len());
+                for &identifier in identifiers.iter().filter(|&&id| !id.is_empty()) {
+                    ids.push(identifier);
+                    data.update(identifier);
+                }
+                if ids.is_empty() {
+                    return;
+                }
+                let lengths = (data.min_length, data.max_length);
+                self.time_units.push((data, ids));
+                lengths
+            }
+        };
+        self.update_lengths(min_length, max_length);
     }
 
-    fn lookup_mut(&'_ mut self, unit: TimeUnit) -> &'_ mut (LookupData, Vec<&'a str>) {
-        &mut self.time_units[unit as usize]
+    fn lookup_mut(
+        &'_ mut self,
+        unit: TimeUnit,
+        multiplier: Multiplier,
+    ) -> Option<&'_ mut (LookupData, Vec<&'a str>)> {
+        self.time_units
+            .iter_mut()
+            .find(|(data, _)| data.time_unit == unit && data.multiplier == multiplier)
+    }
+
+    #[allow(dead_code)]
+    fn lookup(
+        &self,
+        unit: TimeUnit,
+        multiplier: Multiplier,
+    ) -> Option<&(LookupData, Vec<&'a str>)> {
+        self.time_units
+            .iter()
+            .find(|(data, _)| data.time_unit == unit && data.multiplier == multiplier)
+    }
+
+    fn find_id(&self, id: &str) -> Option<(TimeUnit, Multiplier)> {
+        self.time_units.iter().find_map(|(data, v)| {
+            if data.check(id) && v.contains(&id) {
+                Some((data.time_unit, data.multiplier))
+            } else {
+                None
+            }
+        })
     }
 
     fn update_lengths(&mut self, min_length: usize, max_length: usize) {
@@ -164,83 +340,71 @@ impl<'a> CustomTimeUnits<'a> {
             self.max_length = max_length;
         }
     }
-
-    fn get_time_units(&self) -> Vec<TimeUnit> {
-        self.time_units
-            .iter()
-            .filter_map(|(data, _)| {
-                if !data.is_empty() {
-                    Some(data.time_unit)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
 }
 
 impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     fn is_empty(&self) -> bool {
-        self.time_units.iter().all(|(_, v)| v.is_empty())
+        self.time_units.is_empty()
     }
 
-    fn get(&self, identifier: &str) -> Option<TimeUnit> {
+    fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         let len = identifier.len();
         if self.min_length > len || self.max_length < len {
             return None;
         }
-        self.time_units.iter().find_map(|(data, v)| {
-            if data.check(identifier) && v.contains(&identifier) {
-                Some(data.time_unit)
-            } else {
-                None
-            }
-        })
+        self.find_id(identifier)
     }
 }
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
+///
+/// See also [`CustomDurationParser::with_time_units`]. See
+/// [`CustomDurationParser::custom_time_unit`] to define completely new time units.
+///
+/// # Problems
+///
+/// It's possible to choose identifiers very freely within the `utf-8` range. However, some
+/// identifiers interact badly with the parser and may lead to unexpected results if they
+/// start with:
+///
+/// * `e` or `E` which is also indicating an exponent. If
+/// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
+/// * `i` and in consequence `inf` or `infinity`. These are reserved words, the parser uses to
+/// detect infinite durations
+/// * ascii digits from `0` to `9`
+/// * decimal point `.` which is also indicating a fraction. If
+/// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur
+/// * `+`, `-` which are used for signs.
+/// * whitespace characters
+#[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParser<'a> {
     time_units: CustomTimeUnits<'a>,
-    default_unit: TimeUnit,
+    inner: Parser,
 }
 
 impl<'a> CustomDurationParser<'a> {
-    /// Create a new empty [`CustomDurationParser`].
+    /// Create a new empty [`CustomDurationParser`] without any time units.
     ///
-    /// Add time units as you like with [`CustomDurationParser::time_unit`] or multiple time units
-    /// at once with [`CustomDurationParser::time_units`]. Note there's also
-    /// [`CustomDurationParser::with_time_units`] which initializes the parser with a set time units
-    /// with custom `ids`. The default time unit can be changed with
-    /// [`CustomDurationParser::default_unit`].
+    /// There's also [`CustomDurationParser::with_time_units`] which initializes the parser with a
+    /// set time units with custom `ids`.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = CustomDurationParser::new();
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![]
-    /// );
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
-    ///     parser.parse("100.0").unwrap(),
+    ///     CustomDurationParser::new().parse("100.0").unwrap(),
     ///     Duration::new(100, 0)
-    /// );
-    ///
-    /// parser.default_unit(Minute);
-    /// assert_eq!(
-    ///     parser.parse("1.0e2").unwrap(),
-    ///     Duration::new(6000, 0)
     /// );
     /// ```
     pub fn new() -> Self {
         Self {
             time_units: CustomTimeUnits::new(),
-            default_unit: Default::default(),
+            inner: Parser::new(),
         }
     }
 
@@ -248,157 +412,190 @@ impl<'a> CustomDurationParser<'a> {
     /// [`TimeUnit`]s in `units`.
     ///
     /// Not all time units need to be defined, so if there is no intention to include a specific
-    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this library does not check
-    /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there are no
-    /// other limitations. There is also no check for duplicate `ids`, and empty `ids` are ignored.
-    /// Note the ids for time units are case sensitive.
+    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this method does not check
+    /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there
+    /// are no other hard limitations but see also the `Problems` section in
+    /// [`CustomDurationParser`]. There is also no check for duplicate `ids` but empty `ids`
+    /// are ignored. Note the ids for time units are case sensitive.
     ///
     /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
-    /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the
-    ///   [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
+    /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
     ///   documentation
     /// * [`DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default ids as
     ///   used the standard crate by [`crate::DurationParser`]
     ///
-    /// # Security
-    ///
-    /// If there is the intention to expose the defining of [`TimeUnit`]s to an untrusted source,
-    /// you may be good advised to limit the possible characters to something safer like
-    /// [`char::is_alphabetic`].
-    ///
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
-    /// let mut parser = CustomDurationParser::with_time_units(
-    ///     &[(Second, &["s"]), (Minute, &["Min"]), (Hour, &["ώρα"])]
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[
+    ///     (Second, &["s"]),
+    ///     (Minute, &["Min"]),
+    ///     (Hour, &["ώρα"]),
+    /// ]);
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("s"),
+    ///     Some((Second, Multiplier(1, 0)))
     /// );
     /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![Second, Minute, Hour]
+    ///     parser.get_time_unit_by_id("Min"),
+    ///     Some((Minute, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("ώρα"),
+    ///     Some((Hour, Multiplier(1, 0)))
     /// );
     ///
     /// assert!(parser.parse("42.0min").is_err()); // Note the small letter `m` instead of `M`
     ///
-    /// assert_eq!(
-    ///     parser.parse("42e-1ώρα").unwrap(),
-    ///     Duration::new(15120, 0)
-    /// );
+    /// assert_eq!(parser.parse("42e-1ώρα").unwrap(), Duration::new(15120, 0));
     /// ```
     pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
-            default_unit: Default::default(),
+            inner: Parser::new(),
         }
     }
 
-    /// Set the default [`TimeUnit`] to `unit`.
+    /// Use the [`CustomDurationParserBuilder`] to construct a [`CustomDurationParser`].
     ///
-    /// The default time unit is applied when no time unit was given in the input string. If the
-    /// default time unit is not set with this method the parser defaults to [`TimeUnit::Second`].
+    /// The [`CustomDurationParserBuilder`] is more ergonomic in some use cases than using
+    /// [`CustomDurationParser`] directly. Using this method is the same like invoking
+    /// [`CustomDurationParserBuilder::default`].
+    ///
+    /// See [`CustomDurationParserBuilder`] for more details.
     ///
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
     ///
+    /// use fundu::DurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// let parser = DurationParser::builder()
+    ///     .all_time_units()
+    ///     .default_unit(MicroSecond)
+    ///     .allow_delimiter(|b| b == b' ')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+    /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
+    ///
+    /// // instead of
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser
+    ///     .default_unit(MicroSecond)
+    ///     .allow_delimiter(Some(|b| b == b' '));
+    ///
+    /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+    /// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
+    /// ```
+    pub const fn builder() -> CustomDurationParserBuilder<'a> {
+        CustomDurationParserBuilder::new()
+    }
+
+    /// Add a custom time unit to the current set of [`TimeUnit`]s.
+    ///
+    /// Custom time units have a base [`TimeUnit`] and a [`Multiplier`] in addition to their
+    /// identifiers.
+    ///
+    /// # Panics
+    ///
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
+    ///
+    /// let mut parser = CustomDurationParser::new();
+    /// parser
+    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///         Week,
+    ///         &["fortnight", "fortnights"],
+    ///         Some(Multiplier(2, 0)),
+    ///     ))
+    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///         Second,
+    ///         &["kilosecond", "kiloseconds", "kilos"],
+    ///         Some(Multiplier(1000, 0)),
+    ///     ))
+    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///         Second,
+    ///         &["shakes"],
+    ///         Some(Multiplier(1, -8)),
+    ///     ));
     /// assert_eq!(
-    ///     CustomDurationParser::new().default_unit(NanoSecond).parse("42").unwrap(),
-    ///     Duration::new(0, 42)
+    ///     parser.parse("1fortnights").unwrap(),
+    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
-    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.default_unit = unit;
+    ///
+    /// The `base_unit` is only used to calculate the final duration and does not need to be
+    /// unique in the set of time units. It's even possible to define an own time unit for
+    /// example for a definition of a [`TimeUnit::Year`] either in addition or as a
+    /// replacement of the year definition of this crate (Julian Year = `365.25` days).
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier, DEFAULT_TIME_UNITS};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// // The common year is usually defined as 365 days
+    /// parser.custom_time_unit(CustomTimeUnit::new(
+    ///     Day,
+    ///     &["y", "year", "years"],
+    ///     Some(Multiplier(356, 0)),
+    /// ));
+    /// assert_eq!(
+    ///     parser.parse("1year").unwrap(),
+    ///     Duration::new(356 * 24 * 60 * 60, 0),
+    /// );
+    /// ```
+    pub fn custom_time_unit(&mut self, time_unit: CustomTimeUnit<'a>) -> &mut Self {
+        self.time_units.add_custom_time_unit(time_unit);
         self
     }
 
-    /// Return the currently defined set of [`TimeUnit`].
+    /// Add multiple [`CustomTimeUnit`]s at once.
     ///
-    /// # Examples
+    /// See also [`CustomDurationParser::custom_time_unit`]
+    ///
+    /// # Example
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
+    ///
+    /// const CUSTOM_TIME_UNITS: [CustomTimeUnit; 2] = [
+    ///     CustomTimeUnit::new(Week, &["fortnight", "fortnights"], Some(Multiplier(2, 0))),
+    ///     CustomTimeUnit::new(Second, &["shake", "shakes"], Some(Multiplier(1, -8))),
+    /// ];
     ///
     /// let mut parser = CustomDurationParser::new();
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![]
-    /// );
+    /// parser.custom_time_units(&CUSTOM_TIME_UNITS);
     ///
     /// assert_eq!(
-    ///     parser.time_unit(NanoSecond, &["ns"]).get_current_time_units(),
-    ///     vec![NanoSecond]
-    /// );
-    pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
-        self.time_units.get_time_units()
-    }
-
-    /// Add a custom [`TimeUnit`] with the specified `identifier`s to the current set of time units.
-    ///
-    /// This method can be called multiple times for the same [`TimeUnit`] and just appends the
-    /// `ids` to the existing set.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
-    /// use std::time::Duration;
-    ///
-    /// let mut parser = CustomDurationParser::new();;
-    /// parser.time_unit(Minute, &["minutes", "λεπτό"]);
-    ///
-    /// assert_eq!(
-    ///     parser.parse("42minutes").unwrap(),
-    ///     Duration::new(2520, 0)
-    /// );
-    ///
-    /// assert_eq!(
-    ///     parser.parse("42λεπτό").unwrap(),
-    ///     Duration::new(2520, 0)
-    /// );
-    ///
-    /// assert!(parser.parse("42Minutes").is_err());
-    ///
-    /// parser.time_unit(Minute, &["Minutes"]);
-    ///
-    /// assert_eq!(
-    ///     parser.parse("42Minutes").unwrap(),
-    ///     Duration::new(2520, 0)
+    ///     parser.parse("1fortnight").unwrap(),
+    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
-    pub fn time_unit(&mut self, unit: TimeUnit, identifiers: &'a [&'a str]) -> &mut Self {
-        self.time_units.add_time_unit((unit, identifiers));
-        self
-    }
-
-    /// Add multiple [`TimeUnit`]s to the current set of time units.
-    ///
-    /// This method calls [`CustomDurationParser::time_unit`] for every [`TimeUnit`] found in
-    /// `units`. See [`CustomDurationParser::with_time_units`] for thorough documentation of valid
-    /// `identifiers`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
-    /// use std::time::Duration;
-    ///
-    /// let mut parser = CustomDurationParser::new();
-    /// assert_eq!(
-    ///     parser.time_units(
-    ///         &[(MicroSecond, &["µ", "Ms"]), (Second, &["s", "seconds"])]
-    ///     )
-    ///     .parse("1µ")
-    ///     .unwrap(),
-    ///     Duration::new(0, 1000),
-    /// );
-    /// ```
-    pub fn time_units(&mut self, units: &'a [IdentifiersSlice]) -> &mut Self {
-        self.time_units.add_time_units(units);
+    pub fn custom_time_units(&mut self, time_units: &[CustomTimeUnit<'a>]) -> &mut Self {
+        for time_unit in time_units {
+            self.custom_time_unit(*time_unit);
+        }
         self
     }
 
@@ -410,18 +607,226 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, TimeUnit::*};
     /// use std::time::Duration;
+    ///
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     CustomDurationParser::new().parse("1.2e-1").unwrap(),
     ///     Duration::new(0, 120_000_000),
     /// );
     /// ```
-    #[inline(never)]
+    #[inline]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        let mut parser = ReprParser::new(source, self.default_unit, &self.time_units);
-        parser.parse().and_then(|mut repr| repr.parse())
+        self.inner.parse(source, &self.time_units)
+    }
+
+    /// Parse a source string into a [`time::Duration`] which can be negative.
+    ///
+    /// This method is only available when activating the `negative` feature and saturates at
+    /// [`time::Duration::MIN`] for parsed negative durations and at [`time::Duration::MAX`] for
+    /// positive durations.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// assert_eq!(
+    ///     CustomDurationParser::new()
+    ///         .parse_negative("-10.2e-1")
+    ///         .unwrap(),
+    ///     time::Duration::new(-1, -20_000_000),
+    /// );
+    /// assert_eq!(
+    ///     CustomDurationParser::new()
+    ///         .parse_negative("1.2e-1")
+    ///         .unwrap(),
+    ///     time::Duration::new(0, 120_000_000),
+    /// );
+    /// ```
+    #[cfg(feature = "negative")]
+    #[inline]
+    pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
+        self.inner.parse_negative(source, &self.time_units)
+    }
+
+    /// Set the default [`TimeUnit`] to `unit`.
+    ///
+    /// The default time unit is applied when no time unit was given in the input string. If the
+    /// default time unit is not set with this method the parser defaults to [`TimeUnit::Second`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::CustomDurationParser;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// assert_eq!(
+    ///     CustomDurationParser::new()
+    ///         .default_unit(NanoSecond)
+    ///         .parse("42")
+    ///         .unwrap(),
+    ///     Duration::new(0, 42)
+    /// );
+    /// ```
+    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
+        self.inner.config.default_unit = unit;
+        self
+    }
+
+    /// If `Some`, allow one or more [`Delimiter`] between the number and the [`TimeUnit`].
+    ///
+    /// See also [`crate::DurationParser::allow_delimiter`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, ParseError};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
+    /// assert_eq!(
+    ///     parser.parse("123 ns"),
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: ' ns'".to_string()
+    ///     ))
+    /// );
+    ///
+    /// parser.allow_delimiter(Some(|byte| byte == b' '));
+    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
+    ///
+    /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
+    /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::new(0, 123)));
+    /// ```
+    pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.allow_delimiter = delimiter;
+        self
+    }
+
+    /// Disable parsing the exponent.
+    ///
+    /// See also [`crate::DurationParser::disable_exponent`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// parser.disable_exponent(true);
+    /// assert_eq!(
+    ///     parser.parse("123e+1"),
+    ///     Err(ParseError::Syntax(3, "No exponent allowed".to_string()))
+    /// );
+    /// ```
+    pub fn disable_exponent(&mut self, value: bool) -> &mut Self {
+        self.inner.config.disable_exponent = value;
+        self
+    }
+
+    /// Disable parsing a fraction in the source string.
+    ///
+    /// See also [`crate::DurationParser::disable_fraction`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, ParseError};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
+    /// parser.disable_fraction(true);
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123.456"),
+    ///     Err(ParseError::Syntax(3, "No fraction allowed".to_string()))
+    /// );
+    ///
+    /// assert_eq!(parser.parse("123e-2"), Ok(Duration::new(1, 230_000_000)));
+    ///
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::new(0, 123)));
+    /// ```
+    pub fn disable_fraction(&mut self, value: bool) -> &mut Self {
+        self.inner.config.disable_fraction = value;
+        self
+    }
+
+    /// This setting makes a number in the source string optional.
+    ///
+    /// See also [`crate::DurationParser::number_is_optional`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// parser.number_is_optional(true);
+    ///
+    /// for input in &["ns", "e-9", "e-3Ms"] {
+    ///     assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
+    /// }
+    /// ```
+    pub fn number_is_optional(&mut self, value: bool) -> &mut Self {
+        self.inner.config.number_is_optional = value;
+        self
+    }
+
+    /// Try to find the [`TimeUnit`] with it's associate [`Multiplier`] by id
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
+    ///
+    /// let parser =
+    ///     CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"]), (MicroSecond, &["Ms"])]);
+    ///
+    /// assert_eq!(parser.get_time_unit_by_id("does_not_exist"), None);
+    ///
+    /// for (time_unit, id) in &[(NanoSecond, "ns"), (MicroSecond, "Ms")] {
+    ///     assert_eq!(
+    ///         parser.get_time_unit_by_id(id),
+    ///         Some((*time_unit, Multiplier(1, 0)))
+    ///     );
+    /// }
+    /// ```
+    pub fn get_time_unit_by_id(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+        self.time_units.get(identifier)
+    }
+
+    /// Return true if there are haven't been any time units added, yet.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Multiplier};
+    ///
+    /// let parser = CustomDurationParser::new();
+    /// assert!(parser.is_empty())
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.time_units.is_empty()
     }
 }
 
@@ -431,38 +836,381 @@ impl<'a> Default for CustomDurationParser<'a> {
     }
 }
 
+/// Like [`crate::DurationParserBuilder`] for [`crate::DurationParser`], this is a builder for a
+/// [`CustomDurationParser`].
+///
+/// # Examples
+///
+/// ```rust
+/// use std::time::Duration;
+///
+/// use fundu::TimeUnit::*;
+/// use fundu::{CustomDurationParser, CustomDurationParserBuilder};
+///
+/// let parser = CustomDurationParserBuilder::new()
+///     .time_units(&[(NanoSecond, &["ns"])])
+///     .default_unit(MicroSecond)
+///     .allow_delimiter(|byte| byte == b' ')
+///     .build();
+///
+/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+/// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
+///
+/// // instead of
+///
+/// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
+/// parser
+///     .default_unit(MicroSecond)
+///     .allow_delimiter(Some(|byte| byte == b' '));
+///
+/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
+/// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
+/// ```
+#[derive(Debug, PartialEq, Eq)]
+pub struct CustomDurationParserBuilder<'a> {
+    config: Config,
+    time_units: Option<&'a [IdentifiersSlice<'a>]>,
+    custom_time_units: Vec<CustomTimeUnit<'a>>,
+}
+
+impl<'a> Default for CustomDurationParserBuilder<'a> {
+    /// Construct a new [`CustomDurationParserBuilder`] without any time units.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<'a> CustomDurationParserBuilder<'a> {
+    /// Construct a new [`CustomDurationParserBuilder`].
+    ///
+    /// Per default there are no time units configured in the builder. Use
+    /// [`CustomDurationParserBuilder::time_units`] to add time units.
+    ///
+    /// Unlike its counterpart [`crate::DurationParserBuilder`], this builder is not reusable and
+    /// [`CustomDurationParserBuilder::build`] consumes this builder. This is due to the more
+    /// complicated structure of custom time units and to keep the building process as performant
+    /// as possible.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, CustomDurationParserBuilder};
+    ///
+    /// assert_eq!(
+    ///     CustomDurationParserBuilder::new().build(),
+    ///     CustomDurationParser::new()
+    /// );
+    /// ```
+    pub const fn new() -> Self {
+        Self {
+            config: Config::new(),
+            time_units: None,
+            custom_time_units: vec![],
+        }
+    }
+
+    /// Let's the [`CustomDurationParserBuilder`] build the [`CustomDurationParser`] with a set of
+    /// time units.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, Multiplier};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&[
+    ///         (NanoSecond, &["ns"]),
+    ///         (Second, &["s", "sec", "secs"]),
+    ///         (Year, &["year"]),
+    ///     ])
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("ns"),
+    ///     Some((NanoSecond, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("s"),
+    ///     Some((Second, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.get_time_unit_by_id("year"),
+    ///     Some((Year, Multiplier(1, 0)))
+    /// );
+    /// ```
+    pub fn time_units(mut self, time_units: &'a [IdentifiersSlice<'a>]) -> Self {
+        self.time_units = Some(time_units);
+        self
+    }
+
+    /// Add a custom time unit to the current set of [`TimeUnit`]s.
+    ///
+    /// See also [`CustomDurationParser`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Multiplier};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///         Week,
+    ///         &["fortnight", "fortnights"],
+    ///         Some(Multiplier(2, 0)),
+    ///     ))
+    ///     .build();
+    /// assert_eq!(
+    ///     parser.parse("1fortnight").unwrap(),
+    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
+    /// );
+    /// ```
+    pub fn custom_time_unit(mut self, time_unit: CustomTimeUnit<'a>) -> Self {
+        self.custom_time_units.push(time_unit);
+        self
+    }
+
+    /// Add multiple [`CustomTimeUnit`]s at once.
+    ///
+    /// See also [`CustomDurationParser::custom_time_units`]
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Multiplier};
+    ///
+    /// const CUSTOM_TIME_UNITS: [CustomTimeUnit; 2] = [
+    ///     CustomTimeUnit::new(Week, &["fortnight", "fortnights"], Some(Multiplier(2, 0))),
+    ///     CustomTimeUnit::new(Second, &["shake", "shakes"], Some(Multiplier(1, -8))),
+    /// ];
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .custom_time_units(&CUSTOM_TIME_UNITS)
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1fortnight").unwrap(),
+    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
+    /// );
+    /// ```
+    pub fn custom_time_units(mut self, time_units: &[CustomTimeUnit<'a>]) -> Self {
+        for unit in time_units {
+            self.custom_time_units.push(*unit);
+        }
+        self
+    }
+
+    /// Set the default time unit to a [`TimeUnit`] different than [`TimeUnit::Second`]
+    ///
+    /// See also [`crate::DurationParser::default_unit`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::CustomDurationParserBuilder;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// assert_eq!(
+    ///     CustomDurationParserBuilder::new()
+    ///         .default_unit(NanoSecond)
+    ///         .build()
+    ///         .parse("42")
+    ///         .unwrap(),
+    ///     Duration::new(0, 42)
+    /// );
+    /// ```
+    pub fn default_unit(mut self, unit: TimeUnit) -> Self {
+        self.config.default_unit = unit;
+        self
+    }
+
+    /// Allow one or more delimiters between the number and the [`TimeUnit`].
+    ///
+    /// See also [`crate::DurationParser::allow_delimiter`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, ParseError};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&[(NanoSecond, &["ns"])])
+    ///     .allow_delimiter(|byte| byte == b' ')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
+    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    /// ```
+    pub fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.allow_delimiter = Some(delimiter);
+        self
+    }
+
+    /// Disable parsing an exponent.
+    ///
+    /// See also [`crate::DurationParser::disable_exponent`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, ParseError};
+    ///
+    /// assert_eq!(
+    ///     CustomDurationParserBuilder::new()
+    ///         .disable_exponent()
+    ///         .build()
+    ///         .parse("123e+1"),
+    ///     Err(ParseError::Syntax(3, "No exponent allowed".to_string()))
+    /// );
+    /// ```
+    pub fn disable_exponent(mut self) -> Self {
+        self.config.disable_exponent = true;
+        self
+    }
+
+    /// Disable parsing a fraction in the source string.
+    ///
+    /// See also [`crate::DurationParser::disable_fraction`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, ParseError};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&[(NanoSecond, &["ns"])])
+    ///     .disable_fraction()
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("123.456"),
+    ///     Err(ParseError::Syntax(3, "No fraction allowed".to_string()))
+    /// );
+    ///
+    /// assert_eq!(parser.parse("123e-2"), Ok(Duration::new(1, 230_000_000)));
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::new(0, 123)));
+    /// ```
+    pub fn disable_fraction(mut self) -> Self {
+        self.config.disable_fraction = true;
+        self
+    }
+
+    /// This setting makes a number in the source string optional.
+    ///
+    /// See also [`crate::DurationParser::number_is_optional`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .number_is_optional()
+    ///     .build();
+    ///
+    /// for input in &[".001e-6s", "ns", "e-9", "e-3Ms"] {
+    ///     assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
+    /// }
+    /// ```
+    pub fn number_is_optional(mut self) -> Self {
+        self.config.number_is_optional = true;
+        self
+    }
+
+    /// Finally, build the [`CustomDurationParser`] from this builder.
+    ///
+    /// Note this method is meant as a one-off builder method and can therefore only be used once
+    /// on each [`CustomDurationParserBuilder`]. However, the parser built with this method
+    /// can be used multiple times.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::CustomDurationParserBuilder;
+    /// use fundu::TimeUnit::*;
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&[(Minute, &["min"]), (Hour, &["h", "hr"])])
+    ///     .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
+    ///     .build();
+    ///
+    /// for input in &["60 min", "1h", "1\t\n hr"] {
+    ///     assert_eq!(parser.parse(input).unwrap(), Duration::new(60 * 60, 0));
+    /// }
+    /// ```
+    pub fn build(self) -> CustomDurationParser<'a> {
+        let parser = Parser::with_config(self.config);
+        let mut parser = match &self.time_units {
+            Some(time_units) => CustomDurationParser {
+                time_units: CustomTimeUnits::with_time_units(time_units),
+                inner: parser,
+            },
+            None => CustomDurationParser {
+                time_units: CustomTimeUnits::with_capacity(self.custom_time_units.len()),
+                inner: parser,
+            },
+        };
+        parser.custom_time_units(&self.custom_time_units);
+        parser
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
 
-    const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
+    use super::*;
+    #[cfg(feature = "negative")]
+    use crate::builder::config::Config;
+
+    const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;
+
+    fn make_lookup_result(
+        min_length: usize,
+        max_length: usize,
+        time_unit: TimeUnit,
+        multiplier: Multiplier,
+        identifiers: Vec<&str>,
+    ) -> (LookupData, Vec<&str>) {
+        (
+            LookupData {
+                min_length,
+                max_length,
+                time_unit,
+                multiplier,
+            },
+            identifiers,
+        )
+    }
 
     #[test]
     fn test_custom_time_units_init_new() {
         let custom = CustomTimeUnits::new();
-        assert_eq!(custom.time_units.len(), 10);
-        assert_eq!(
-            custom
-                .time_units
-                .iter()
-                .map(|(data, _)| data.time_unit)
-                .collect::<Vec<TimeUnit>>(),
-            vec![
-                NanoSecond,
-                MicroSecond,
-                MilliSecond,
-                Second,
-                Minute,
-                Hour,
-                Day,
-                Week,
-                Month,
-                Year
-            ]
-        );
-        assert!(custom.time_units.iter().all(|p| p.1.is_empty()));
+        assert!(custom.time_units.is_empty());
         assert!(custom.is_empty());
     }
 
@@ -493,43 +1241,63 @@ mod tests {
         #[case] min_length: usize,
         #[case] max_length: usize,
     ) {
-        let mut custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
-
+        let custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
         assert!(!custom.is_empty());
         assert_eq!(
-            custom.lookup_mut(time_unit),
-            &(
-                LookupData {
-                    min_length,
-                    max_length,
-                    time_unit
-                },
+            custom.lookup(time_unit, Multiplier::default()),
+            Some(&make_lookup_result(
+                min_length,
+                max_length,
+                time_unit,
+                Multiplier::default(),
                 Vec::from(ids)
-            )
+            ))
         );
-        assert_eq!(custom.get_time_units(), vec![time_unit]);
     }
 
     #[test]
     fn test_custom_time_units_init_with_time_units_when_multiple_equal_ids() {
         let custom = CustomTimeUnits::with_time_units(&[(NanoSecond, &["same", "same"])]);
         assert!(!custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![NanoSecond]);
-        assert_eq!(custom.get("same"), Some(NanoSecond));
+        assert_eq!(
+            custom.lookup(NanoSecond, Multiplier::default()),
+            Some(&make_lookup_result(
+                4,
+                4,
+                NanoSecond,
+                Multiplier::default(),
+                vec!["same", "same"]
+            ))
+        );
+        assert_eq!(
+            custom.get("same"),
+            Some((NanoSecond, Multiplier::default()))
+        );
     }
 
     #[test]
     fn test_custom_time_units_when_add_time_unit() {
         let mut custom = CustomTimeUnits::new();
         custom.add_time_unit((MicroSecond, &["some", "ids"]));
-        assert!(custom
-            .time_units
-            .iter()
-            .filter(|(data, _)| data.time_unit != MicroSecond)
-            .all(|(_, v)| v.is_empty()));
-        assert_eq!(custom.lookup_mut(MicroSecond).1, vec!["some", "ids"]);
-        assert_eq!(custom.get("some"), Some(MicroSecond));
-        assert_eq!(custom.get("ids"), Some(MicroSecond));
+        assert!(
+            custom
+                .time_units
+                .iter()
+                .filter(|(data, _)| data.time_unit != MicroSecond)
+                .all(|(_, v)| v.is_empty())
+        );
+        assert_eq!(
+            custom.lookup(MicroSecond, Multiplier::default()).unwrap().1,
+            vec!["some", "ids"]
+        );
+        assert_eq!(
+            custom.get("some"),
+            Some((MicroSecond, Multiplier::default()))
+        );
+        assert_eq!(
+            custom.get("ids"),
+            Some((MicroSecond, Multiplier::default()))
+        );
         assert_eq!(custom.get("does not exist"), None);
         assert!(!custom.is_empty());
     }
@@ -539,7 +1307,7 @@ mod tests {
         let mut custom = CustomTimeUnits::new();
         custom.add_time_unit((MicroSecond, &[]));
         assert!(custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![]);
+        assert_eq!(custom.lookup(MicroSecond, Multiplier::default()), None);
     }
 
     #[test]
@@ -547,15 +1315,181 @@ mod tests {
         let mut custom = CustomTimeUnits::new();
         custom.add_time_unit((MicroSecond, &[""]));
         assert!(custom.is_empty());
-        assert_eq!(custom.get_time_units(), vec![]);
+        assert_eq!(custom.lookup(MicroSecond, Multiplier::default()), None);
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_with_empty_id_then_not_added() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(CustomTimeUnit::new(Second, &[""], Some(Multiplier(2, 0))));
+        assert!(custom.is_empty());
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(CustomTimeUnit::new(
+            Second,
+            &["sec"],
+            Some(Multiplier(2, 0)),
+        ));
+        assert!(!custom.is_empty());
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                3,
+                3,
+                Second,
+                Multiplier(2, 0),
+                vec!["sec"]
+            ))
+        );
+        assert_eq!(custom.get("sec"), Some((Second, Multiplier(2, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_multiple_custom_time_unit() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(CustomTimeUnit::new(
+            Second,
+            &["sec"],
+            Some(Multiplier(1, 0)),
+        ));
+        custom.add_custom_time_unit(CustomTimeUnit::new(
+            Second,
+            &["secs"],
+            Some(Multiplier(2, 0)),
+        ));
+        assert_eq!(
+            custom.lookup(Second, Multiplier::default()),
+            Some(&make_lookup_result(
+                3,
+                3,
+                Second,
+                Multiplier::default(),
+                vec!["sec"]
+            ))
+        );
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                4,
+                4,
+                Second,
+                Multiplier(2, 0),
+                vec!["secs"]
+            ))
+        );
+        assert_eq!(custom.get("sec"), Some((Second, Multiplier(1, 0))));
+        assert_eq!(custom.get("secs"), Some((Second, Multiplier(2, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_already_exists() {
+        let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
+        custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["ss"], Some(Multiplier(2, 0))));
+        assert_eq!(
+            custom.lookup(Second, Multiplier::default()),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier::default(),
+                vec!["s"]
+            ))
+        );
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                2,
+                2,
+                Second,
+                Multiplier(2, 0),
+                vec!["ss"]
+            ))
+        );
+        assert_eq!(custom.get("s"), Some((Second, Multiplier(1, 0))));
+        assert_eq!(custom.get("ss"), Some((Second, Multiplier(2, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_with_same_id() {
+        let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
+        custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
+        assert_eq!(
+            custom.lookup(Second, Multiplier::default()),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier::default(),
+                vec!["s"]
+            ))
+        );
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier(2, 0),
+                vec!["s"]
+            ))
+        );
+        assert_eq!(custom.get("s"), Some((Second, Multiplier(1, 0))));
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_identifiers_is_empty() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(CustomTimeUnit::new(Second, &[], Some(Multiplier(2, 0))));
+        assert!(custom.is_empty());
+        assert_eq!(custom.lookup(Second, Multiplier(2, 0)), None);
+    }
+
+    #[test]
+    fn test_custom_time_units_adding_custom_time_unit_when_adding_same_unit_twice() {
+        let mut custom = CustomTimeUnits::new();
+        custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
+        custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
+        assert_eq!(
+            custom.lookup(Second, Multiplier(2, 0)),
+            Some(&make_lookup_result(
+                1,
+                1,
+                Second,
+                Multiplier(2, 0),
+                vec!["s", "s"]
+            ))
+        );
+    }
+
+    #[rstest]
+    #[case::none_and_default_multiplier_when_same_ids(CustomTimeUnit::new(Second, &["s"], None), CustomTimeUnit::new(Second, &["s"], Some(Multiplier::default())))]
+    #[case::none_and_default_multiplier_when_different_ids(CustomTimeUnit::new(Second, &["s"], None), CustomTimeUnit::new(Second, &["secs"], Some(Multiplier::default())))]
+    #[case::same_multipliers(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2,0))), CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2,0))))]
+    fn test_custom_time_unit_equality_when_equal(
+        #[case] time_unit: CustomTimeUnit,
+        #[case] other: CustomTimeUnit,
+    ) {
+        assert_eq!(time_unit, other);
+    }
+
+    #[rstest]
+    #[case::different_time_units(CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1,0))), CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0))))]
+    #[case::different_multipliers(CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1000,0))), CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0))))]
+    fn test_custom_time_unit_equality_when_not_equal(
+        #[case] time_unit: CustomTimeUnit,
+        #[case] other: CustomTimeUnit,
+    ) {
+        assert_ne!(time_unit, other);
     }
 
     #[test]
     fn test_custom_duration_parser_init_new() {
         let parser = CustomDurationParser::new();
-        assert_eq!(parser.default_unit, Second);
+        assert_eq!(parser.inner.config.default_unit, Second);
         assert!(parser.time_units.is_empty());
-        assert_eq!(parser.get_current_time_units(), vec![]);
         assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
         assert_eq!(
             parser.parse("1.0s"),
@@ -569,7 +1503,7 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_init_with_time_units() {
         let parser = CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS);
-        assert_eq!(parser.default_unit, Second);
+        assert_eq!(parser.inner.config.default_unit, Second);
         assert_eq!(
             Vec::from(parser.time_units.time_units.as_slice()),
             DEFAULT_ALL_TIME_UNITS
@@ -578,18 +1512,12 @@ mod tests {
                     LookupData {
                         min_length: v[0].len(),
                         max_length: v[0].len(),
-                        time_unit: *t
+                        time_unit: *t,
+                        multiplier: Multiplier::default()
                     },
                     Vec::from(*v)
                 ))
                 .collect::<Vec<(LookupData, Vec<&str>)>>()
-        );
-        assert_eq!(
-            parser.get_current_time_units(),
-            DEFAULT_ALL_TIME_UNITS
-                .iter()
-                .map(|(t, _)| *t)
-                .collect::<Vec<TimeUnit>>()
         );
         assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
     }
@@ -598,47 +1526,25 @@ mod tests {
     fn test_custom_duration_parser_init_default() {
         let parser = CustomDurationParser::default();
         assert!(parser.time_units.is_empty());
-        assert_eq!(parser.get_current_time_units(), vec![]);
     }
 
     #[test]
-    fn test_custom_duration_parser_when_add_time_unit() {
+    fn test_custom_duration_parser_when_add_custom_time_units() {
         let mut parser = CustomDurationParser::new();
-        parser.time_unit(NanoSecond, &["nanos"]);
-        assert!(!parser.time_units.is_empty());
+        parser.custom_time_unit(CustomTimeUnit::new(
+            Year,
+            &["century", "centuries"],
+            Some(Multiplier(100, 0)),
+        ));
         assert_eq!(
-            Vec::from_iter(parser.time_units.time_units.iter().filter_map(|(d, v)| {
-                if !v.is_empty() {
-                    Some((d.time_unit, v))
-                } else {
-                    None
-                }
-            })),
-            vec![(NanoSecond, &vec!["nanos"])]
-        );
-        assert_eq!(parser.get_current_time_units(), vec![NanoSecond]);
-    }
-
-    #[test]
-    fn test_custom_duration_parser_when_add_time_units() {
-        let mut parser = CustomDurationParser::new();
-        parser.time_units(&[(NanoSecond, &["ns", "nanos"]), (MilliSecond, &["ms"])]);
-        assert_eq!(
-            Vec::from_iter(parser.time_units.time_units.iter().filter_map(|(d, v)| {
-                if !v.is_empty() {
-                    Some((d.time_unit, v))
-                } else {
-                    None
-                }
-            })),
-            vec![
-                (NanoSecond, &vec!["ns", "nanos"]),
-                (MilliSecond, &vec!["ms"])
-            ]
-        );
-        assert_eq!(
-            parser.get_current_time_units(),
-            vec![NanoSecond, MilliSecond]
+            parser.time_units.lookup(Year, Multiplier(100, 0)),
+            Some(&make_lookup_result(
+                7,
+                9,
+                Year,
+                Multiplier(100, 0),
+                vec!["century", "centuries"]
+            ))
         );
     }
 
@@ -647,7 +1553,7 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.default_unit(NanoSecond);
 
-        assert_eq!(parser.default_unit, NanoSecond);
+        assert_eq!(parser.inner.config.default_unit, NanoSecond);
         assert_eq!(parser.parse("1"), Ok(Duration::new(0, 1)));
     }
 
@@ -676,6 +1582,213 @@ mod tests {
         assert_eq!(
             parser.parse("1мілісекунда"),
             Ok(Duration::new(0, 1_000_000))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_allow_spaces() {
+        let mut parser = CustomDurationParser::new();
+        parser.allow_delimiter(Some(|b| b == b' '));
+        assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_disable_fraction() {
+        let mut parser = CustomDurationParser::new();
+        parser.disable_fraction(true);
+        assert!(parser.inner.config.disable_fraction);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_disable_exponent() {
+        let mut parser = CustomDurationParser::new();
+        parser.disable_exponent(true);
+        assert!(parser.inner.config.disable_exponent);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_number_is_optional() {
+        let mut parser = CustomDurationParser::new();
+        parser.number_is_optional(true);
+        assert!(parser.inner.config.number_is_optional);
+    }
+
+    #[cfg(feature = "negative")]
+    #[test]
+    fn test_custom_duration_parser_parse_negative_calls_parser() {
+        let parser = CustomDurationParser::new();
+        assert_eq!(parser.inner.config, Config::new());
+        assert_eq!(
+            parser.parse_negative("1s"),
+            Err(ParseError::TimeUnit(
+                1,
+                "No time units allowed but found: 's'".to_string()
+            ))
+        );
+        assert_eq!(
+            parser.parse_negative("-1.0e0"),
+            Ok(time::Duration::new(-1, 0))
+        )
+    }
+
+    #[test]
+    fn test_custom_duration_parser_method_builder() {
+        assert_eq!(
+            CustomDurationParser::builder(),
+            CustomDurationParserBuilder::new()
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_adding_custom_time_units() {
+        let time_units = [
+            CustomTimeUnit::new(Second, &["sec"], Some(Multiplier(1, 0))),
+            CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2, 0))),
+        ];
+        let mut custom = CustomDurationParser::new();
+        custom.custom_time_units(&time_units);
+        assert_eq!(
+            custom.get_time_unit_by_id("sec"),
+            Some((Second, Multiplier(1, 0)))
+        );
+        assert_eq!(
+            custom.get_time_unit_by_id("secs"),
+            Some((Second, Multiplier(2, 0)))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_calling_custom_time_units_with_empty_collection() {
+        let mut custom = CustomDurationParser::new();
+        assert!(custom.is_empty());
+
+        custom.custom_time_units(&[]);
+        assert!(custom.is_empty());
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_default() {
+        assert_eq!(
+            CustomDurationParserBuilder::default(),
+            CustomDurationParserBuilder::new()
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_new() {
+        let builder = CustomDurationParserBuilder::new();
+        assert_eq!(builder.config, Config::new());
+        assert!(builder.time_units.is_none());
+        assert!(builder.custom_time_units.is_empty());
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_default_unit() {
+        let mut expected = Config::new();
+        expected.default_unit = MicroSecond;
+
+        let builder = CustomDurationParserBuilder::new().default_unit(MicroSecond);
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_allow_delimiter() {
+        let builder = CustomDurationParserBuilder::new().allow_delimiter(|byte| byte == b' ');
+        assert!(builder.config.allow_delimiter.unwrap()(b' '));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_disable_exponent() {
+        let mut expected = Config::new();
+        expected.disable_exponent = true;
+
+        let builder = CustomDurationParserBuilder::new().disable_exponent();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_disable_fraction() {
+        let mut expected = Config::new();
+        expected.disable_fraction = true;
+
+        let builder = CustomDurationParserBuilder::new().disable_fraction();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_number_is_optional() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+
+        let builder = CustomDurationParserBuilder::new().number_is_optional();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_build_with_regular_time_units() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+        let parser = CustomDurationParserBuilder::new()
+            .time_units(&[(Second, &["s", "secs"])])
+            .custom_time_unit(CustomTimeUnit::new(Hour, &["h"], Some(Multiplier(3, 0))))
+            .custom_time_units(&[
+                CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),
+                CustomTimeUnit::new(Day, &["d"], Some(Multiplier(4, 0))),
+            ])
+            .number_is_optional()
+            .build();
+        assert_eq!(parser.inner.config, expected);
+        assert!(!parser.is_empty());
+        assert_eq!(
+            parser.get_time_unit_by_id("s"),
+            Some((Second, Multiplier(1, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("secs"),
+            Some((Second, Multiplier(1, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("h"),
+            Some((Hour, Multiplier(3, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("m"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("min"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("d"),
+            Some((Day, Multiplier(4, 0)))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_build_without_regular_time_units() {
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+        let parser = CustomDurationParserBuilder::new()
+            .custom_time_units(&[
+                CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),
+                CustomTimeUnit::new(Day, &["d"], Some(Multiplier(4, 0))),
+            ])
+            .number_is_optional()
+            .build();
+        assert_eq!(parser.inner.config, expected);
+        assert!(!parser.is_empty());
+        assert_eq!(
+            parser.get_time_unit_by_id("m"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("min"),
+            Some((Minute, Multiplier(2, 0)))
+        );
+        assert_eq!(
+            parser.get_time_unit_by_id("d"),
+            Some((Day, Multiplier(4, 0)))
         );
     }
 }

@@ -39,19 +39,19 @@ fn benchmark_parsing(criterion: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("default time units", input),
             input,
-            |b, input| b.iter(|| black_box(&default_parser).parse(input)),
+            |b, input| b.iter(|| black_box(&default_parser).parse(input).unwrap()),
         );
         group.bench_with_input(
             BenchmarkId::new("systemd time units", input),
             input,
-            |b, input| b.iter(|| black_box(&systemd_parser).parse(input)),
+            |b, input| b.iter(|| black_box(&systemd_parser).parse(input).unwrap()),
         );
     }
     let input = "1years";
     group.bench_with_input(
         BenchmarkId::new("systemd time units", input),
         input,
-        |b, input| b.iter(|| black_box(&systemd_parser).parse(input)),
+        |b, input| b.iter(|| black_box(&systemd_parser).parse(input).unwrap()),
     );
     group.finish();
 }

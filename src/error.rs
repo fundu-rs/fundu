@@ -59,10 +59,30 @@ impl Display for ParseError {
     }
 }
 
+#[derive(Debug)]
+pub(crate) enum TryFromDurationError {
+    NegativeNumber,
+    #[allow(dead_code)]
+    PositiveOverflow,
+    #[allow(dead_code)]
+    NegativeOverflow,
+}
+
+impl From<TryFromDurationError> for ParseError {
+    fn from(error: TryFromDurationError) -> Self {
+        match error {
+            TryFromDurationError::NegativeNumber => ParseError::NegativeNumber,
+            TryFromDurationError::PositiveOverflow => ParseError::Overflow,
+            TryFromDurationError::NegativeOverflow => ParseError::Overflow,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
+
+    use super::*;
 
     #[rstest]
     #[case::syntax_error(
@@ -90,5 +110,13 @@ mod tests {
     #[case::empty(ParseError::Empty, "Empty input")]
     fn test_error_messages(#[case] error: ParseError, #[case] expected: &str) {
         assert_eq!(error.to_string(), expected);
+    }
+
+    #[rstest]
+    #[case::negative_overflow(TryFromDurationError::NegativeOverflow, ParseError::Overflow)]
+    #[case::positive_overflow(TryFromDurationError::PositiveOverflow, ParseError::Overflow)]
+    #[case::negative_number(TryFromDurationError::NegativeNumber, ParseError::NegativeNumber)]
+    fn test_from_for_parse_error(#[case] from: TryFromDurationError, #[case] expected: ParseError) {
+        assert_eq!(ParseError::from(from), expected);
     }
 }
