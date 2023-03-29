@@ -88,7 +88,7 @@ Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 
 ```toml
 [dependencies]
-fundu = "0.4.3"
+fundu = "0.5.0"
 ```
 
 fundu is split into two main features, `standard` (providing `DurationParser` and `parse_duration`)
@@ -99,7 +99,7 @@ of the parsers is needed. To include only the `CustomDurationParser` add the fol
 
 ```toml
 [dependencies]
-fundu = { version = "0.4.3", default-features = false, features = ["custom"] }
+fundu = { version = "0.5.0", default-features = false, features = ["custom"] }
 ```
 
 Activating the `negative` feature allows parsing negative numbers to negative [`time::Duration`]s.
