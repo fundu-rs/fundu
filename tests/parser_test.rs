@@ -7,7 +7,8 @@ use std::time::Duration;
 
 use fundu::TimeUnit::*;
 use fundu::{
-    parse_duration, CustomDurationParser, DurationParser, ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
+    parse_duration, CustomDurationParser, CustomDurationParserBuilder, DurationParser, ParseError,
+    TimeUnit, SYSTEMD_TIME_UNITS,
 };
 use rstest::rstest;
 #[cfg(feature = "negative")]
@@ -166,13 +167,16 @@ fn test_parse_duration_when_arguments_are_infinity_values(#[case] source: &str) 
 }
 
 #[rstest]
-#[case::negative_infinity_short("-inf")]
-#[case::negative_infinity_long("-infinity")]
-#[case::infinity_long_trailing_invalid("infinityINVALID")]
-#[case::incomplete_infinity("infin")]
-#[case::infinity_with_number("inf1.0")]
-fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(#[case] source: &str) {
-    assert!(parse_duration(source).is_err());
+#[case::negative_infinity_short("-inf", ParseError::NegativeNumber)]
+#[case::negative_infinity_long("-infinity", ParseError::NegativeNumber)]
+#[case::infinity_long_trailing_invalid("infinityINVALID", ParseError::Syntax(8, "Expected end of input but found 'I'".to_string()))]
+#[case::incomplete_infinity("infin", ParseError::Syntax(5, "Error parsing infinity: Premature end of input".to_string()))]
+#[case::infinity_with_number("inf1.0", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
+fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(
+    #[case] source: &str,
+    #[case] expected: ParseError,
+) {
+    assert_eq!(parse_duration(source), Err(expected));
 }
 
 #[rstest]
@@ -309,6 +313,26 @@ fn test_parser_when_disable_exponent(
     assert_eq!(
         DurationParser::with_all_time_units()
             .disable_exponent(true)
+            .parse(input),
+        expected
+    );
+}
+
+#[rstest]
+#[case::whole_with_exponent("i", Err(ParseError::Syntax(0, "Invalid input: 'i'".to_string())))]
+#[case::whole_with_exponent("in", Err(ParseError::Syntax(0, "Invalid input: 'in'".to_string())))]
+#[case::whole_with_exponent("inf", Err(ParseError::Syntax(0, "Invalid input: 'inf'".to_string())))]
+#[case::whole_with_exponent("+inf", Err(ParseError::Syntax(1, "Invalid input: 'inf'".to_string())))]
+#[case::whole_with_exponent("-inf", Err(ParseError::Syntax(1, "Invalid input: 'inf'".to_string())))]
+#[case::whole_with_exponent("infi", Err(ParseError::Syntax(0, "Invalid input: 'infi'".to_string())))]
+#[case::whole_with_exponent("infinity", Err(ParseError::Syntax(0, "Invalid input: 'infinity'".to_string())))]
+fn test_parser_when_disable_infinity(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .disable_infinity(true)
             .parse(input),
         expected
     );
@@ -458,4 +482,28 @@ fn test_parse_negative(#[case] source: &str, #[case] expected: NegativeDuration)
             .unwrap(),
         expected
     );
+}
+
+#[rstest]
+#[case::i_without_number("i", "i")]
+#[case::big_i_without_number("I", "I")]
+#[case::simple_plus_i("i", "+i")]
+#[case::simple_i_one("i", "1i")]
+#[case::simple_i_with_fraction("i", "1.0i")]
+#[case::simple_i_with_exponent("i", "1.0e0i")]
+#[case::simple_inf("inf", "inf")]
+#[case::infi("infi", "infi")]
+#[case::infinity("infinity", "infinity")]
+#[case::one_infinity("infinity", "1infinity")]
+fn test_custom_parser_when_disable_infinity_then_no_problems_with_infinity_like_ids(
+    #[case] id: &str,
+    #[case] input: &str,
+) {
+    let time_units: &[(TimeUnit, &[&str])] = &[(NanoSecond, &[id])];
+    let parser = CustomDurationParserBuilder::new()
+        .disable_infinity()
+        .number_is_optional()
+        .time_units(time_units)
+        .build();
+    assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
 }
