@@ -515,6 +515,36 @@ impl DurationParser {
         self
     }
 
+    /// If true, disable parsing infinity
+    ///
+    /// This setting will disable parsing infinity values like (`inf` or `infinity`).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{DurationParser, ParseError};
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.disable_infinity(true);
+    ///
+    /// assert_eq!(
+    ///     parser.parse("inf"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("infinity"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("+inf"),
+    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    /// );
+    /// ```
+    pub fn disable_infinity(&mut self, value: bool) -> &mut Self {
+        self.inner.config.disable_infinity = value;
+        self
+    }
+
     /// If true, this setting makes a number in the source string optional.
     ///
     /// If no number is present, then `1` is assumed. If a number is present then it must still
@@ -889,6 +919,38 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    /// Disable parsing infinity values
+    ///
+    /// See also [`DurationParser::disable_infinity`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{DurationParserBuilder, ParseError};
+    ///
+    /// let parser = DurationParserBuilder::new().disable_infinity().build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("inf"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("infinity"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("+inf"),
+    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    /// );
+    /// ```
+    pub fn disable_infinity(&mut self) -> &mut Self {
+        self.config.disable_infinity = true;
+        self
+    }
+
     /// This setting makes a number in the source string optional.
     ///
     /// See also [`DurationParser::number_is_optional`].
@@ -1193,6 +1255,17 @@ mod tests {
         assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
     }
 
+    #[test]
+    fn test_duration_parser_setting_disable_infinity() {
+        let mut expected = Config::new();
+        expected.disable_infinity = true;
+        let mut parser = DurationParser::new();
+
+        parser.disable_infinity(true);
+
+        assert_eq!(parser.inner.config, expected);
+    }
+
     #[cfg(feature = "negative")]
     #[test]
     fn test_duration_parser_parse_negative_calls_parser() {
@@ -1292,6 +1365,17 @@ mod tests {
 
         let mut builder = DurationParserBuilder::new();
         builder.disable_exponent();
+
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_disable_infinity() {
+        let mut expected = Config::new();
+        expected.disable_infinity = true;
+
+        let mut builder = DurationParserBuilder::new();
+        builder.disable_infinity();
 
         assert_eq!(builder.config, expected);
     }

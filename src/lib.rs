@@ -101,8 +101,8 @@
 //!
 //! * The `TimeUnit` rule is based on the default identifiers as defined in the table above. They
 //!   can also be completely customized with the [`CustomDurationParser`].
-//! * Negative values, including negative infinity are not allowed. For exceptions see the next
-//!   point.
+//! * Negative values, including negative infinity are not allowed as long as the `negative` feature
+//! is not activated. For exceptions see the next point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
 //! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`

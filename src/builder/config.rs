@@ -52,6 +52,7 @@ pub(crate) struct Config {
     pub(crate) default_multiplier: Multiplier,
     pub(crate) disable_exponent: bool,
     pub(crate) disable_fraction: bool,
+    pub(crate) disable_infinity: bool,
     pub(crate) number_is_optional: bool,
     pub(crate) max_exponent: i16,
     pub(crate) min_exponent: i16,
@@ -74,6 +75,7 @@ impl Config {
             number_is_optional: false,
             max_exponent: i16::MAX,
             min_exponent: i16::MIN,
+            disable_infinity: false,
         }
     }
 }

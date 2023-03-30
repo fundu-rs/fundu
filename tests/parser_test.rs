@@ -233,21 +233,6 @@ fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expe
 }
 
 #[rstest]
-#[case::without_spaces("123ns", Duration::new(0, 123))]
-#[case::single_space("123 ns", Duration::new(0, 123))]
-#[case::multiple_spaces("123      ns", Duration::new(0, 123))]
-#[case::space_at_end_when_no_time_unit("123 ", Duration::new(123, 0))]
-fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
-    assert_eq!(
-        DurationParser::with_all_time_units()
-            .allow_delimiter(Some(|b| b == b' '))
-            .parse(input)
-            .unwrap(),
-        expected
-    );
-}
-
-#[rstest]
 #[case::without_delimiter("123ns", |b : u8| b.is_ascii_whitespace(),  Duration::new(0, 123))]
 #[case::all_rust_whitespace("123 \t\n\x0C\rns", |b : u8| b.is_ascii_whitespace(),  Duration::new(0, 123))]
 fn test_parser_when_allow_delimiter(
@@ -258,6 +243,21 @@ fn test_parser_when_allow_delimiter(
     assert_eq!(
         DurationParser::with_all_time_units()
             .allow_delimiter(Some(delimiter))
+            .parse(input)
+            .unwrap(),
+        expected
+    );
+}
+
+#[rstest]
+#[case::without_spaces("123ns", Duration::new(0, 123))]
+#[case::single_space("123 ns", Duration::new(0, 123))]
+#[case::multiple_spaces("123      ns", Duration::new(0, 123))]
+#[case::space_at_end_when_no_time_unit("123 ", Duration::new(123, 0))]
+fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .allow_delimiter(Some(|b| b == b' '))
             .parse(input)
             .unwrap(),
         expected

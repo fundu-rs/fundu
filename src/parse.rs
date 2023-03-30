@@ -464,6 +464,7 @@ impl<'a> ReprParser<'a> {
             min_exponent,
             number_is_optional,
             allow_delimiter,
+            disable_infinity,
         } = *self.config;
 
         let mut duration_repr = DurationRepr {
@@ -498,10 +499,11 @@ impl<'a> ReprParser<'a> {
             }
             Some(byte) if *byte == b'.' => {}
             Some(_)
-                if self
-                    .input
-                    .get(self.current_pos..self.current_pos + 3)
-                    .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"inf")) =>
+                if !disable_infinity
+                    && self
+                        .input
+                        .get(self.current_pos..self.current_pos + 3)
+                        .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"inf")) =>
             {
                 // SAFETY: We just checked that there are at least 3 bytes
                 unsafe { self.advance_by(3) }

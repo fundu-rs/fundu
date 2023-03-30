@@ -367,13 +367,14 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
 /// identifiers interact badly with the parser and may lead to unexpected results if they
 /// start with:
 ///
-/// * `e` or `E` which is also indicating an exponent. If
-/// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
-/// * `inf` or `infinity`. These are reserved words
+/// * `e` or `E` which is also indicating an exponent. If [`CustomDurationParser::disable_exponent`]
+/// is set to true this problem does not occur.
+/// * `inf` and in consequence `infinity` (lowercase and uppercase). These are reserved words as
+/// long as [`CustomDurationParser::disable_infinity`] isn't set to true.
 /// * ascii digits from `0` to `9`
-/// * decimal point `.` which is also indicating a fraction. If
-/// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur
-/// * `+`, `-` which are used for signs.
+/// * `.` which is also indicating a fraction. If [`CustomDurationParser::disable_fraction`] is set
+/// to true, this problem does not occur
+/// * `+`, `-` which are in use for signs.
 /// * whitespace characters
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParser<'a> {
@@ -763,6 +764,36 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// If true, disable parsing infinity
+    ///
+    /// See also [`DurationParser::disable_infinity`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParser, ParseError};
+    ///
+    /// let mut parser = CustomDurationParser::new();
+    /// parser.disable_infinity(true);
+    ///
+    /// assert_eq!(
+    ///     parser.parse("inf"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("infinity"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("+inf"),
+    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    /// );
+    /// ```
+    pub fn disable_infinity(&mut self, value: bool) -> &mut Self {
+        self.inner.config.disable_infinity = value;
+        self
+    }
+
     /// This setting makes a number in the source string optional.
     ///
     /// See also [`crate::DurationParser::number_is_optional`].
@@ -1108,6 +1139,37 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```
     pub fn disable_fraction(mut self) -> Self {
         self.config.disable_fraction = true;
+        self
+    }
+
+    /// Disable parsing infinity values
+    ///
+    /// See also [`DurationParser::disable_infinity`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParserBuilder, ParseError};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .disable_infinity()
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("inf"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("infinity"),
+    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("+inf"),
+    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    /// );
+    /// ```
+    pub fn disable_infinity(mut self) -> Self {
+        self.config.disable_infinity = true;
         self
     }
 
@@ -1606,6 +1668,13 @@ mod tests {
     }
 
     #[test]
+    fn test_custom_duration_parser_setting_disable_infinity() {
+        let mut parser = CustomDurationParser::new();
+        parser.disable_infinity(true);
+        assert!(parser.inner.config.disable_infinity);
+    }
+
+    #[test]
     fn test_custom_duration_parser_setting_number_is_optional() {
         let mut parser = CustomDurationParser::new();
         parser.number_is_optional(true);
@@ -1711,6 +1780,15 @@ mod tests {
         expected.disable_fraction = true;
 
         let builder = CustomDurationParserBuilder::new().disable_fraction();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_disable_infinity() {
+        let mut expected = Config::new();
+        expected.disable_infinity = true;
+
+        let builder = CustomDurationParserBuilder::new().disable_infinity();
         assert_eq!(builder.config, expected);
     }
 
