@@ -24,6 +24,13 @@ use crate::TimeUnit;
 /// whitespace.
 /// ```
 ///
+/// # Problems
+///
+/// The delimiter takes a `u8` as input, but matching any non-ascii (`0x80 - 0xff`) bytes may lead
+/// to serious problems if the input string contains multi-byte utf-8 characters. It's always a good
+/// idea to consider this, especially, if the input for the parser comes from an untrusted source.
+/// So, as a general rule of thumb, don't match any byte within the `0x80 - 0xff` range.
+///
 /// # Examples
 ///
 /// ```rust
@@ -56,6 +63,7 @@ pub(crate) struct Config {
     pub(crate) number_is_optional: bool,
     pub(crate) max_exponent: i16,
     pub(crate) min_exponent: i16,
+    pub(crate) multiple: Option<Delimiter>,
 }
 
 impl Default for Config {
@@ -76,6 +84,7 @@ impl Config {
             max_exponent: i16::MAX,
             min_exponent: i16::MIN,
             disable_infinity: false,
+            multiple: None,
         }
     }
 }

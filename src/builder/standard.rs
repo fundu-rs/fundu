@@ -425,7 +425,7 @@ impl DurationParser {
     /// A [`Delimiter`] is defined as closure taking a byte and returning true if the delimiter
     /// matched. Per default no delimiter is allowed between the number and the [`TimeUnit`]. Note
     /// this setting implicitly allows the delimiter at the end of the string, but only if no time
-    /// unit was present. As usual the default time is assumed.
+    /// unit was present. As usual the default time unit is assumed.
     ///
     /// # Examples
     ///
@@ -558,6 +558,72 @@ impl DurationParser {
     /// ```
     pub fn number_is_optional(&mut self, value: bool) -> &mut Self {
         self.inner.config.number_is_optional = value;
+        self
+    }
+
+    /// If set to some [`Delimiter`], parse possibly multiple durations and sum them up.
+    ///
+    /// If [`Delimiter`] is set to `None`, this functionality is disabled. The [`Delimiter`] may or
+    /// may not occur to separate the durations. If the delimiter does not occur the next duration
+    /// is recognized by a leading digit.
+    ///
+    /// Like a single duration, the summed up durations saturate at [`Duration::MAX`]. Parsing
+    /// multiple durations is short-circuiting and parsing stops after the first [`ParseError`]
+    /// was encountered. Note that parsing doesn't stop when reaching [`Duration::MAX`], so any
+    /// [`ParseError`]s later in the input string are still reported.
+    ///
+    /// # Usage together with number format customizations
+    ///
+    /// The number format and other aspects can be customized as usual via the methods within this
+    /// struct and have the known effect. However, there are some interesting constellations:
+    ///
+    /// If [`DurationParser::allow_delimiter`] is set to some delimiter, the [`Delimiter`] of this
+    /// method and the [`Delimiter`] of the `allow_delimiter` method can be equal either in parts or
+    /// in a whole without having side-effects on each other. But, if simultaneously
+    /// [`DurationParser::number_is_optional`] is set to true, then the resulting [`Duration`] will
+    /// differ:
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::DurationParser;
+    ///
+    /// let delimiter = |byte| matches!(byte, b' ' | b'\t');
+    /// let mut parser = DurationParser::new();
+    /// parser
+    ///     .parse_multiple(Some(delimiter))
+    ///     .number_is_optional(true);
+    ///
+    /// // Here, the parser parses `1`, `s`, `1` and then `ns` separately
+    /// assert_eq!(parser.parse("1 s 1 ns"), Ok(Duration::new(3, 1)));
+    ///
+    /// // Here, the parser parses `1 s` and then `1 ns`.
+    /// parser.allow_delimiter(Some(delimiter));
+    /// assert_eq!(parser.parse("1 s 1 ns"), Ok(Duration::new(1, 1)));
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::DurationParser;
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')));
+    ///
+    /// assert_eq!(parser.parse("1.5h 2e+2ns"), Ok(Duration::new(5400, 200)));
+    /// assert_eq!(parser.parse("55s500ms"), Ok(Duration::new(55, 500_000_000)));
+    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::new(2, 0)));
+    /// assert_eq!(parser.parse("1.   .1"), Ok(Duration::new(1, 100_000_000)));
+    /// assert_eq!(parser.parse("2h"), Ok(Duration::new(2 * 60 * 60, 0)));
+    /// assert_eq!(
+    ///     parser.parse("300ms20s 5d"),
+    ///     Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
+    /// );
+    /// ```
+    pub fn parse_multiple(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.multiple = delimiter;
         self
     }
 
@@ -958,6 +1024,37 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    /// Parse possibly multiple durations and sum them up.
+    ///
+    /// See also [`DurationParser::parse_multiple`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::DurationParserBuilder;
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .default_time_units()
+    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'))
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1.5h 2e+2ns"), Ok(Duration::new(5400, 200)));
+    /// assert_eq!(parser.parse("55s500ms"), Ok(Duration::new(55, 500_000_000)));
+    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::new(2, 0)));
+    /// assert_eq!(parser.parse("1.   .1"), Ok(Duration::new(1, 100_000_000)));
+    /// assert_eq!(parser.parse("2h"), Ok(Duration::new(2 * 60 * 60, 0)));
+    /// assert_eq!(
+    ///     parser.parse("300ms20s 5d"),
+    ///     Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
+    /// );
+    /// ```
+    pub fn parse_multiple(&mut self, delimiter: Delimiter) -> &mut Self {
+        self.config.multiple = Some(delimiter);
+        self
+    }
+
     /// Finally, build the [`DurationParser`] from this builder.
     ///
     /// # Examples
@@ -1247,6 +1344,18 @@ mod tests {
         assert_eq!(parser.inner.config, expected);
     }
 
+    #[test]
+    fn test_duration_parser_setting_parse_multiple() {
+        let delimiter = |byte: u8| byte.is_ascii_whitespace();
+        let mut expected = Config::new();
+        expected.multiple = Some(delimiter);
+
+        let mut parser = DurationParser::new();
+        parser.parse_multiple(Some(delimiter));
+
+        assert_eq!(parser.inner.config, expected);
+    }
+
     #[cfg(feature = "negative")]
     #[test]
     fn test_duration_parser_parse_negative_calls_parser() {
@@ -1368,6 +1477,18 @@ mod tests {
 
         let mut builder = DurationParserBuilder::new();
         builder.number_is_optional();
+
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_parse_multiple() {
+        let delimiter = |byte: u8| byte.is_ascii_whitespace();
+        let mut expected = Config::new();
+        expected.multiple = Some(delimiter);
+
+        let mut builder = DurationParserBuilder::new();
+        builder.parse_multiple(delimiter);
 
         assert_eq!(builder.config, expected);
     }

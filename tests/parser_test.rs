@@ -38,12 +38,14 @@ const MONTH: u64 = YEAR / 12;
 #[case::negative_number_2("-.00000003e-2")]
 #[case::negative_large_input_with_high_exponent("-088888888888888888888888818288833333333333333333333333333333333333333333333388888888888888888880000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001616564957e-1027")]
 fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
-    let result = parse_duration(source);
-    // cov:excl-start
-    assert!(
-        result.is_err(),
-        "Expected an error but result was: {result:?}"
-    ); // cov:excl-stop
+    let parser = DurationParser::builder().default_time_units().build();
+    assert!(parser.parse(source).is_err());
+
+    let parser = DurationParser::builder()
+        .default_time_units()
+        .parse_multiple(|byte| byte.is_ascii_whitespace())
+        .build();
+    assert!(parser.parse(source).is_err());
 }
 
 #[rstest]
@@ -69,8 +71,14 @@ fn test_parse_duration_when_simple_arguments_are_valid(
     #[case] source: &str,
     #[case] expected: Duration,
 ) {
-    let duration = parse_duration(source).unwrap();
-    assert_eq!(duration, expected);
+    let parser = DurationParser::builder().default_time_units().build();
+    assert_eq!(parser.parse(source), Ok(expected));
+
+    let parser = DurationParser::builder()
+        .default_time_units()
+        .parse_multiple(|byte| byte.is_ascii_whitespace()) // cov:excl-line
+        .build();
+    assert_eq!(parser.parse(source), Ok(expected));
 }
 
 #[rstest]
@@ -273,7 +281,7 @@ fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration
 #[case::just_exponent("e1", Ok(Duration::new(10, 0)))]
 #[case::sign_and_exponent("+e1", Ok(Duration::new(10, 0)))]
 #[case::exponent_with_time_unit("e9ns", Ok(Duration::new(1, 0)))]
-#[case::just_point(".", Err(ParseError::Syntax(1, "Either the whole number part or the fraction must be present".to_string())))]
+#[case::just_point(".", Err(ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string())))]
 fn test_parser_when_number_is_optional(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
@@ -420,6 +428,120 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 }
 
 #[rstest]
+#[case::zero_zero("0 0", Duration::ZERO)]
+#[case::many_whitespace("0 \t\n\r  0", Duration::ZERO)]
+#[case::zero_one("0 1", Duration::new(1, 0))]
+#[case::one_one("1 0", Duration::new(1, 0))]
+#[case::one_one("1 1", Duration::new(2, 0))]
+#[case::two_with_time_units("1ns 1ns", Duration::new(0, 2))]
+#[case::two_with_time_units_without_delimiter("1ns1ns", Duration::new(0, 2))]
+#[case::two_with_fraction_exponent_time_units("1.123e9ns 1.987e9ns", Duration::new(3, 110_000_000))]
+#[case::two_when_saturing(&format!("{0}s {0}s", u64::MAX), Duration::MAX)]
+#[case::multiple_mixed("1ns 1.001Ms1e1ms 9 .9 3m6h", Duration::new(21789, 910_001_002))]
+#[case::single_infinity_short("inf", Duration::MAX)]
+#[case::single_infinity_long("infinity", Duration::MAX)]
+#[case::multiple_infinity_short("inf inf", Duration::MAX)]
+#[case::multiple_infinity_long("infinity infinity", Duration::MAX)]
+#[case::multiple_infinity_mixed_short_then_long("inf infinity", Duration::MAX)]
+#[case::multiple_infinity_mixed_long_then_short("infinity inf", Duration::MAX)]
+fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected: Duration) {
+    let parser = DurationParser::builder()
+        .all_time_units()
+        .parse_multiple(|byte| byte.is_ascii_whitespace())
+        .build();
+    assert_eq!(parser.parse(input), Ok(expected))
+}
+
+#[rstest]
+#[case::empty("", ParseError::Empty)]
+#[case::only_whitespace(" \t\n", ParseError::Syntax(0, "Invalid input: ' \t\n'".to_string()))]
+#[case::just_point(".", ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string()))]
+#[case::two_points("1..1", ParseError::TimeUnit(3, "Invalid time unit: '.'".to_string()))]
+#[case::just_time_unit("ns", ParseError::Syntax(0, "Invalid input: 'ns'".to_string()))]
+#[case::valid_then_invalid("1 a", ParseError::Syntax(2, "Invalid input: 'a'".to_string()))]
+#[case::end_with_space("1 1 ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
+#[case::invalid_then_valid("a 1", ParseError::Syntax(0, "Invalid input: 'a 1'".to_string()))]
+#[case::multiple_invalid("a a", ParseError::Syntax(0, "Invalid input: 'a a'".to_string()))]
+#[case::infinity_then_space("inf ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
+#[case::infinity_short_then_number("inf1", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
+#[case::infinity_long_then_number("infinity1", ParseError::Syntax(8, "Error parsing infinity: Expected a delimiter but found '1'".to_string()))]
+fn test_parser_when_setting_parse_multiple_then_error(
+    #[case] input: &str,
+    #[case] expected: ParseError,
+) {
+    let parser = DurationParser::builder()
+        .all_time_units()
+        .parse_multiple(|byte| byte.is_ascii_whitespace())
+        .build();
+    assert_eq!(parser.parse(input), Err(expected))
+}
+
+#[test]
+fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter() {
+    let delimiter = |byte: u8| byte == b' ';
+    let parser = DurationParser::builder()
+        .all_time_units()
+        .parse_multiple(delimiter)
+        .number_is_optional()
+        .allow_delimiter(delimiter)
+        .build();
+    assert_eq!(parser.parse("1 ns 1 s"), Ok(Duration::new(1, 1)))
+}
+
+#[test]
+fn test_parser_when_parse_multiple_number_is_optional_not_allow_delimiter() {
+    let delimiter = |byte: u8| byte == b' ';
+    let parser = DurationParser::builder()
+        .all_time_units()
+        .parse_multiple(delimiter)
+        .number_is_optional()
+        .build();
+    assert_eq!(parser.parse("1 ns 1 s"), Ok(Duration::new(3, 1)))
+}
+
+#[test]
+fn test_parser_when_parse_multiple_with_invalid_delimiter() {
+    let delimiter = |byte: u8| byte == 0xb5;
+    let parser = CustomDurationParser::builder()
+        .time_units(&[(MicroSecond, &["µ"])])
+        .parse_multiple(delimiter)
+        .build();
+
+    // The delimiter will split the multibyte µ and produces invalid utf-8
+    // µ = 0xc2 0xb5
+    assert_eq!(
+        parser.parse("1µ"),
+        Err(ParseError::TimeUnit(
+            1,
+            "Invalid utf-8 when applying the delimiter".to_string()
+        ))
+    )
+}
+
+#[rstest]
+#[case::only_numbers("1 1", Ok(Duration::new(2, 0)))]
+#[case::with_time_units("1ns 1ns", Err(ParseError::Syntax(1, "Invalid input: 'ns 1ns'".to_string())))]
+#[case::number_then_with_time_unit("1 1ns", Err(ParseError::Syntax(3, "Invalid input: 'ns'".to_string())))]
+fn test_parser_when_parse_multiple_without_time_units(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    let delimiter = |byte: u8| byte == b' ';
+    let parser = DurationParser::builder().parse_multiple(delimiter).build();
+    assert_eq!(parser.parse(input), expected);
+}
+
+#[test]
+fn test_parser_when_parse_multiple_without_time_units_default_unit_is_not_seconds() {
+    let delimiter = |byte: u8| byte == b' ';
+    let parser = DurationParser::builder()
+        .parse_multiple(delimiter)
+        .default_unit(NanoSecond)
+        .build();
+    assert_eq!(parser.parse("1 1"), Ok(Duration::new(0, 2)));
+}
+
+#[rstest]
 #[case::nano_second(&["ns", "nsec"], Duration::new(0, 1))]
 #[case::micro_second(&["us", "µs", "usec"], Duration::new(0, 1000))]
 #[case::milli_second(&["ms", "msec"], Duration::new(0, 1_000_000))]
@@ -479,6 +601,35 @@ fn test_parse_negative(#[case] source: &str, #[case] expected: NegativeDuration)
     assert_eq!(
         DurationParser::with_all_time_units()
             .parse_negative(source)
+            .unwrap(),
+        expected
+    );
+}
+
+#[cfg(feature = "negative")]
+#[rstest]
+#[case::simple_zero("0", NegativeDuration::ZERO)]
+#[case::two_zero("0 0", NegativeDuration::ZERO)]
+#[case::two_one("1 1", NegativeDuration::new(2, 0))]
+#[case::negative_and_positive_then_zero("-1 1", NegativeDuration::ZERO)]
+#[case::two_negative("-1 -1", NegativeDuration::new(-2, 0))]
+#[case::two_negative_with_time_units("-1ns -1s", NegativeDuration::new(-1, -1))]
+#[case::negative_and_positive_with_time_units("1ns -1s", NegativeDuration::new(-1, 1))]
+#[case::two_negative_mixed("-1.1ms -1e-9s", NegativeDuration::new(0, -1_100_001))]
+#[case::two_negative_saturate_negative(&format!("{}s -1s", i64::MIN), NegativeDuration::MIN)]
+#[case::two_positive_saturate_positive(&format!("{}s 1s", i64::MAX), NegativeDuration::MAX)]
+#[case::negative_infinity_short("-inf", NegativeDuration::MIN)]
+#[case::two_negative_infinity_short_then_saturate("-inf -inf", NegativeDuration::MIN)]
+#[case::negative_infinity_long("-infinity", NegativeDuration::MIN)]
+#[case::two_negative_infinity_long_then_saturate("-infinity -infinity", NegativeDuration::MIN)]
+#[case::negative_infinity_and_positive_infinity_no_error("-inf +inf", NegativeDuration::new(-1, 0))]
+fn test_parse_negative_when_multiple(#[case] input: &str, #[case] expected: NegativeDuration) {
+    assert_eq!(
+        DurationParser::builder()
+            .all_time_units()
+            .parse_multiple(|byte| byte.is_ascii_whitespace())
+            .build()
+            .parse_negative(input)
             .unwrap(),
         expected
     );

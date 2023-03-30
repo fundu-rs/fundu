@@ -811,6 +811,35 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// If set to some [`Delimiter`], parse possibly multiple durations and sum them up.
+    ///
+    /// See also [`crate::DurationParser::parse_multiple`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')));
+    ///
+    /// assert_eq!(parser.parse("1.5h 2e+2ns"), Ok(Duration::new(5400, 200)));
+    /// assert_eq!(parser.parse("55s500ms"), Ok(Duration::new(55, 500_000_000)));
+    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::new(2, 0)));
+    /// assert_eq!(parser.parse("1.   .1"), Ok(Duration::new(1, 100_000_000)));
+    /// assert_eq!(parser.parse("2h"), Ok(Duration::new(2 * 60 * 60, 0)));
+    /// assert_eq!(
+    ///     parser.parse("300ms20s 5d"),
+    ///     Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
+    /// );
+    /// ```
+    pub fn parse_multiple(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.multiple = delimiter;
+        self
+    }
+
     /// Try to find the [`TimeUnit`] with it's associate [`Multiplier`] by id
     ///
     /// # Examples
@@ -1182,6 +1211,37 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```
     pub fn number_is_optional(mut self) -> Self {
         self.config.number_is_optional = true;
+        self
+    }
+
+    /// Parse possibly multiple durations and sum them up.
+    ///
+    /// See also [`crate::DurationParser::parse_multiple`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::time::Duration;
+    ///
+    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'))
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1.5h 2e+2ns"), Ok(Duration::new(5400, 200)));
+    /// assert_eq!(parser.parse("55s500ms"), Ok(Duration::new(55, 500_000_000)));
+    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::new(2, 0)));
+    /// assert_eq!(parser.parse("1.   .1"), Ok(Duration::new(1, 100_000_000)));
+    /// assert_eq!(parser.parse("2h"), Ok(Duration::new(2 * 60 * 60, 0)));
+    /// assert_eq!(
+    ///     parser.parse("300ms20s 5d"),
+    ///     Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
+    /// );
+    /// ```
+    pub fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
+        self.config.multiple = Some(delimiter);
         self
     }
 
@@ -1667,6 +1727,18 @@ mod tests {
         assert!(parser.inner.config.number_is_optional);
     }
 
+    #[test]
+    fn test_custom_duration_parser_setting_parse_multiple() {
+        let delimiter = |byte: u8| byte.is_ascii_whitespace();
+        let mut expected = Config::new();
+        expected.multiple = Some(delimiter);
+
+        let mut parser = CustomDurationParser::new();
+        parser.parse_multiple(Some(delimiter));
+
+        assert_eq!(parser.inner.config, expected);
+    }
+
     #[cfg(feature = "negative")]
     #[test]
     fn test_custom_duration_parser_parse_negative_calls_parser() {
@@ -1784,6 +1856,16 @@ mod tests {
         expected.number_is_optional = true;
 
         let builder = CustomDurationParserBuilder::new().number_is_optional();
+        assert_eq!(builder.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_parse_multiple() {
+        let delimiter = |byte: u8| byte.is_ascii_whitespace();
+        let mut expected = Config::new();
+        expected.multiple = Some(delimiter);
+
+        let builder = CustomDurationParserBuilder::new().parse_multiple(delimiter);
         assert_eq!(builder.config, expected);
     }
 
