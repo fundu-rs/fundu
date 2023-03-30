@@ -75,6 +75,11 @@ harness = false
 required-features = ["standard", "negative"]
 
 [[bench]]
+name = "iai_bench_parsing_infinity"
+harness = false
+required-features = ["standard"]
+
+[[bench]]
 name = "iai_bench_reference"
 harness = false
 
