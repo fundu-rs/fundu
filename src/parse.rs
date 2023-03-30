@@ -400,8 +400,13 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline]
+    unsafe fn get_remainder_str_unchecked(&self) -> &str {
+        std::str::from_utf8_unchecked(self.get_remainder())
+    }
+
+    #[inline]
     fn finish(&mut self) {
-        self.current_pos += self.get_remainder().len();
+        self.current_pos = self.input.len();
         self.current_byte = None
     }
 
@@ -474,11 +479,6 @@ impl<'a> ReprParser<'a> {
 
         // parse infinity or the whole number part of the input
         match self.current_byte {
-            Some(byte) if *byte == b'i' || *byte == b'I' => {
-                self.parse_infinity()?;
-                duration_repr.is_infinite = true;
-                return Ok(duration_repr);
-            }
             Some(byte) if byte.is_ascii_digit() => {
                 // the maximum number of digits that need to be considered depending on the
                 // exponent: max(-exponent) = abs(i16::MIN) + max_digits(u64::MAX) =
@@ -496,11 +496,39 @@ impl<'a> ReprParser<'a> {
                     .as_mut()
                     .map(|digits| self.parse_whole(digits));
             }
-            Some(byte) if *byte == b'.' || number_is_optional => {}
-            Some(byte) => {
+            Some(byte) if *byte == b'.' => {}
+            Some(_)
+                if self
+                    .input
+                    .get(self.current_pos..self.current_pos + 3)
+                    .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"inf")) =>
+            {
+                // SAFETY: We just checked that there are at least 3 bytes
+                unsafe { self.advance_by(3) }
+                self.parse_infinity_remainder()?;
+
+                // assure we've reached the end of input
+                match self.current_byte {
+                    Some(byte) => {
+                        return Err(ParseError::Syntax(
+                            self.current_pos,
+                            format!("Expected end of input but found '{}'", *byte as char),
+                        ));
+                    }
+                    None => {
+                        duration_repr.is_infinite = true;
+                        return Ok(duration_repr);
+                    }
+                }
+            }
+            Some(_) if number_is_optional => {}
+            Some(_) => {
+                // SAFETY: The input str is utf-8 and we have only parsed ascii characters so far
                 return Err(ParseError::Syntax(
                     self.current_pos,
-                    format!("Invalid character: '{}'", *byte as char),
+                    format!("Invalid input: '{}'", unsafe {
+                        self.get_remainder_str_unchecked()
+                    }),
                 ));
             }
             None => {
@@ -629,7 +657,7 @@ impl<'a> ReprParser<'a> {
 
         // SAFETY: The input of `parse` is &str and therefore valid utf-8 and we have read only
         // ascii characters up to this point.
-        let string = unsafe { std::str::from_utf8_unchecked(self.get_remainder()) };
+        let string = unsafe { self.get_remainder_str_unchecked() };
         let result = self.time_units.get(string).ok_or_else(|| {
             ParseError::TimeUnit(self.current_pos, format!("Invalid time unit: '{string}'"))
         });
@@ -736,36 +764,35 @@ impl<'a> ReprParser<'a> {
     }
 
     #[inline]
-    fn parse_infinity(&mut self) -> Result<(), ParseError> {
-        let expected = [b'i', b'n', b'f', b'i', b'n', b'i', b't', b'y'];
-        for (pos, byte) in expected.iter().enumerate() {
+    fn parse_infinity_remainder(&mut self) -> Result<(), ParseError> {
+        if self.current_byte.is_none() {
+            return Ok(());
+        }
+
+        let expected = b"inity";
+        for byte in expected.iter() {
             match self.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.advance(),
                 // wrong character
-                Some(_) => {
+                Some(current) => {
                     return Err(ParseError::Syntax(
                         self.current_pos,
-                        "Invalid infinity".to_string(),
+                        format!(
+                            "Error parsing infinity: Invalid character '{}'",
+                            *current as char
+                        ),
                     ));
                 }
-                None if pos == 3 => return Ok(()), // short `inf` is allowed
                 None => {
                     return Err(ParseError::Syntax(
                         self.current_pos,
-                        "Unexpected end of input".to_string(),
+                        "Error parsing infinity: Premature end of input".to_string(),
                     ));
                 }
             }
         }
 
-        // assure we've reached the end of input
-        match self.current_byte {
-            Some(byte) => Err(ParseError::Syntax(
-                self.current_pos,
-                format!("Expected end of input but found '{}'", *byte as char),
-            )),
-            None => Ok(()),
-        }
+        Ok(())
     }
 
     /// Parse and consume the sign if present. Return true if sign is negative.

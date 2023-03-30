@@ -369,8 +369,7 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
 ///
 /// * `e` or `E` which is also indicating an exponent. If
 /// [`CustomDurationParser::disable_exponent`] is set this problem does not occur.
-/// * `i` and in consequence `inf` or `infinity`. These are reserved words, the parser uses to
-/// detect infinite durations
+/// * `inf` or `infinity`. These are reserved words
 /// * ascii digits from `0` to `9`
 /// * decimal point `.` which is also indicating a fraction. If
 /// [`CustomDurationParser::disable_fraction`] is set, this problem does not occur

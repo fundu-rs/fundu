@@ -980,7 +980,10 @@ impl<'a> DurationParserBuilder<'a> {
 ///
 /// assert_eq!(
 ///     parse_duration("Not a number"),
-///     Err(ParseError::Syntax(0, "Invalid character: 'N'".to_string()))
+///     Err(ParseError::Syntax(
+///         0,
+///         "Invalid input: 'Not a number'".to_string()
+///     ))
 /// );
 /// ```
 pub fn parse_duration(string: &str) -> Result<Duration, ParseError> {

@@ -155,8 +155,10 @@ fn test_parse_duration_when_arguments_have_a_sign(
 
 #[rstest]
 #[case::infinity_short("inf")]
+#[case::infinity_short_with_sign("+inf")]
 #[case::infinity_short_case_insensitive("iNf")]
 #[case::infinity_long("infinity")]
+#[case::infinity_long_with_sign("+infinity")]
 #[case::infinity_long_case_insensitive("InfiNitY")]
 fn test_parse_duration_when_arguments_are_infinity_values(#[case] source: &str) {
     let duration = parse_duration(source).unwrap();
@@ -216,8 +218,8 @@ fn test_parser_when_time_units_are_not_present_then_error(
 
 #[rstest]
 #[case::empty("", ParseError::Empty)]
-#[case::only_space(" ", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
-#[case::space_before_number(" 123", ParseError::Syntax(0, "Invalid character: ' '".to_string()))]
+#[case::only_space(" ", ParseError::Syntax(0, "Invalid input: ' '".to_string()))]
+#[case::space_before_number(" 123", ParseError::Syntax(0, "Invalid input: ' 123'".to_string()))]
 #[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
 #[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
 fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expected: ParseError) {
