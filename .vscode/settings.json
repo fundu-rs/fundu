@@ -59,6 +59,7 @@
     "Repr",
     "riscv",
     "rstest",
+    "rustdoc",
     "rustfilt",
     "rustfmt",
     "rustup",

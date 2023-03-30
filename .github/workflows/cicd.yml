@@ -159,7 +159,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Run doc tests
-        run: cargo test --all-features --doc
+        run: cargo test --all-features --doc -- --show-output
       - name: Check Documentation
         run: cargo doc --all-features --no-deps --document-private-items
 

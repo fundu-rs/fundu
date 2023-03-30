@@ -223,8 +223,6 @@
 //! Also, `fundu` tries to give informative error messages
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
 //! use fundu::DurationParser;
 //!
 //! assert_eq!(
@@ -290,6 +288,8 @@
 //! [`Year`]: [`TimeUnit::Year`]
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc(test(attr(warn(unused))))]
+#![doc(test(attr(allow(unused_extern_crates))))]
 
 mod builder;
 mod error;

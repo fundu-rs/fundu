@@ -394,7 +394,6 @@ impl<'a> CustomDurationParser<'a> {
     /// use std::time::Duration;
     ///
     /// use fundu::CustomDurationParser;
-    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     CustomDurationParser::new().parse("100.0").unwrap(),
@@ -432,7 +431,7 @@ impl<'a> CustomDurationParser<'a> {
     /// use fundu::TimeUnit::*;
     /// use fundu::{CustomDurationParser, Multiplier};
     ///
-    /// let mut parser = CustomDurationParser::with_time_units(&[
+    /// let parser = CustomDurationParser::with_time_units(&[
     ///     (Second, &["s"]),
     ///     (Minute, &["Min"]),
     ///     (Hour, &["ώρα"]),
@@ -610,7 +609,6 @@ impl<'a> CustomDurationParser<'a> {
     /// use std::time::Duration;
     ///
     /// use fundu::CustomDurationParser;
-    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     CustomDurationParser::new().parse("1.2e-1").unwrap(),
@@ -632,7 +630,6 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::CustomDurationParser;
-    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     CustomDurationParser::new()
@@ -718,9 +715,6 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
@@ -766,7 +760,7 @@ impl<'a> CustomDurationParser<'a> {
 
     /// If true, disable parsing infinity
     ///
-    /// See also [`DurationParser::disable_infinity`].
+    /// See also [`crate::DurationParser::disable_infinity`].
     ///
     /// # Examples
     ///
@@ -803,8 +797,7 @@ impl<'a> CustomDurationParser<'a> {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.number_is_optional(true);
@@ -823,8 +816,6 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::TimeUnit::*;
     /// use fundu::{CustomDurationParser, Multiplier};
     ///
@@ -849,8 +840,7 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, Multiplier};
+    /// use fundu::CustomDurationParser;
     ///
     /// let parser = CustomDurationParser::new();
     /// assert!(parser.is_empty())
@@ -1071,8 +1061,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```rust
     /// use std::time::Duration;
     ///
+    /// use fundu::CustomDurationParserBuilder;
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParserBuilder, ParseError};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&[(NanoSecond, &["ns"])])
@@ -1094,9 +1084,6 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{CustomDurationParserBuilder, ParseError};
     ///
     /// assert_eq!(
@@ -1144,7 +1131,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
 
     /// Disable parsing infinity values
     ///
-    /// See also [`DurationParser::disable_infinity`]
+    /// See also [`crate::DurationParser::disable_infinity`]
     ///
     /// # Examples
     ///
@@ -1182,7 +1169,6 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS};
     ///
     /// let parser = CustomDurationParserBuilder::new()

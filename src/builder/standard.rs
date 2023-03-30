@@ -154,7 +154,7 @@ impl TimeUnits {
 ///
 /// use fundu::DurationParser;
 ///
-/// let mut parser = DurationParser::new();
+/// let parser = DurationParser::new();
 /// assert_eq!(parser.parse("42Ms").unwrap(), Duration::new(0, 42_000));
 /// ```
 ///
@@ -165,7 +165,7 @@ impl TimeUnits {
 /// use fundu::{DurationParser, TimeUnit::*};
 /// use std::time::Duration;
 //
-/// let mut parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
+/// let parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
 /// for (input, expected) in &[
 ///     ("9e3ns", Duration::new(0, 9000)),
 ///     ("10m", Duration::new(600, 0)),
@@ -258,7 +258,6 @@ impl DurationParser {
     /// use std::time::Duration;
     ///
     /// use fundu::DurationParser;
-    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     DurationParser::without_time_units().parse("33.33").unwrap(),
@@ -282,8 +281,6 @@ impl DurationParser {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::DurationParser;
     /// use fundu::TimeUnit::*;
     ///
@@ -360,7 +357,6 @@ impl DurationParser {
     /// use std::time::Duration;
     ///
     /// use fundu::DurationParser;
-    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     DurationParser::new().parse("1.2e-1s").unwrap(),
@@ -382,7 +378,6 @@ impl DurationParser {
     ///
     /// ```rust
     /// use fundu::DurationParser;
-    /// use fundu::TimeUnit::*;
     ///
     /// assert_eq!(
     ///     DurationParser::new().parse_negative("-10.2e-1s").unwrap(),
@@ -468,9 +463,6 @@ impl DurationParser {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{DurationParser, ParseError};
     ///
     /// let mut parser = DurationParser::new();
@@ -495,7 +487,6 @@ impl DurationParser {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{DurationParser, ParseError};
     ///
     /// let mut parser = DurationParser::new();
@@ -556,8 +547,7 @@ impl DurationParser {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::TimeUnit::*;
-    /// use fundu::{DurationParser, ParseError};
+    /// use fundu::DurationParser;
     ///
     /// let mut parser = DurationParser::new();
     /// parser.number_is_optional(true);
@@ -577,7 +567,6 @@ impl DurationParser {
     ///
     /// ```rust
     /// use fundu::{DurationParser, TimeUnit::*};
-    /// use std::time::Duration;
     ///
     /// let parser = DurationParser::without_time_units();
     /// assert_eq!(
@@ -848,7 +837,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::{DurationParserBuilder, ParseError};
+    /// use fundu::DurationParserBuilder;
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
@@ -870,9 +859,6 @@ impl<'a> DurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{DurationParserBuilder, ParseError};
     ///
     /// assert_eq!(
@@ -898,7 +884,6 @@ impl<'a> DurationParserBuilder<'a> {
     /// ```rust
     /// use std::time::Duration;
     ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{DurationParserBuilder, ParseError};
     ///
     /// let parser = DurationParserBuilder::new()
@@ -926,9 +911,6 @@ impl<'a> DurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::TimeUnit::*;
     /// use fundu::{DurationParserBuilder, ParseError};
     ///
     /// let parser = DurationParserBuilder::new().disable_infinity().build();
@@ -961,7 +943,6 @@ impl<'a> DurationParserBuilder<'a> {
     /// use std::time::Duration;
     ///
     /// use fundu::DurationParserBuilder;
-    /// use fundu::TimeUnit::*;
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
