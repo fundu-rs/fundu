@@ -456,7 +456,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 #[case::empty("", ParseError::Empty)]
 #[case::only_whitespace(" \t\n", ParseError::Syntax(0, "Invalid input: ' \t\n'".to_string()))]
 #[case::just_point(".", ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string()))]
-#[case::two_points("1..1", ParseError::TimeUnit(3, "Invalid time unit: '.'".to_string()))]
+#[case::two_points("1..1", ParseError::TimeUnit(2, "Invalid time unit: '.'".to_string()))]
 #[case::just_time_unit("ns", ParseError::Syntax(0, "Invalid input: 'ns'".to_string()))]
 #[case::valid_then_invalid("1 a", ParseError::Syntax(2, "Invalid input: 'a'".to_string()))]
 #[case::end_with_space("1 1 ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]

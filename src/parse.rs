@@ -735,7 +735,7 @@ impl<'a> ReprParser<'a> {
                 } else {
                     match self.time_units.get(string) {
                         None => Err(ParseError::TimeUnit(
-                            self.current_pos,
+                            start,
                             format!("Invalid time unit: '{string}'"),
                         )),
                         some_time_unit => Ok(some_time_unit),
