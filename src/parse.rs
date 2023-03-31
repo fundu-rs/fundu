@@ -92,11 +92,25 @@ impl Parser {
         let mut parser = &mut ReprParser::new(source, &self.config, time_units);
         loop {
             let (mut duration_repr, maybe_parser) = parser.parse()?;
-            duration = duration.saturating_add(
-                duration_repr
-                    .parse()
-                    .map(|fundu_duration| fundu_duration.saturating_into())?,
-            );
+            let parsed_duration = duration_repr
+                .parse()
+                .map(|fundu_duration| fundu_duration.saturating_into())?;
+
+            // This is a workaround on s390x systems for a strange bug either in the `time` crate or
+            // rust itself. As far as I've found out, it appears when using saturating_add when
+            // `duration.whole_seconds` and `parsed_duration.whole_seconds` are both equal to
+            // `i64::MIN`.
+            #[cfg(target_arch = "s390x")]
+            if duration.whole_seconds() == i64::MIN && parsed_duration.whole_seconds() == i64::MIN {
+                duration = time::Duration::MIN;
+            } else {
+                duration = duration.saturating_add(parsed_duration);
+            }
+            #[cfg(not(target_arch = "s390x"))]
+            {
+                duration = duration.saturating_add(parsed_duration);
+            }
+
             match maybe_parser {
                 Some(p) => parser = p,
                 None => break Ok(duration),

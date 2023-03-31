@@ -658,3 +658,20 @@ fn test_custom_parser_when_disable_infinity_then_no_problems_with_infinity_like_
         .build();
     assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
 }
+
+#[cfg(target_arch = "s390x")]
+#[test]
+#[should_panic] // As soon as this test doesn't panic anymore, the bug is fixed
+fn test_tracking_s390x_bug_when_trying_to_saturate_time_durations() {
+    let a = NegativeDuration::MIN;
+    let b = NegativeDuration::MIN;
+    let a_sec = a.whole_seconds();
+    let b_sec = b.whole_seconds();
+    // This assertion fails with (0, false) although it shouldn't
+    assert_eq!(a_sec.overflowing_add(b_sec), (0, true));
+    // In consequence this assertion fails, too
+    assert_eq!(
+        NegativeDuration::MIN.saturating_add(NegativeDuration::MIN),
+        NegativeDuration::MIN
+    );
+}
