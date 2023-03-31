@@ -125,3 +125,8 @@ test = false
 name = "custom"
 test = false
 required-features = ["custom"]
+
+[[example]]
+name = "systemd"
+test = false
+required-features = ["custom"]
