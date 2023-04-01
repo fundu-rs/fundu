@@ -118,15 +118,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.61.0"
-      - name: Install cross
-        run: |
-          set -e
-          mkdir -vp ~/.cargo/bin
-          mkdir -vp ~/Downloads
-          cd ~/Downloads
-          wget -O cross.tar.gz https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz
-          tar xvzf cross.tar.gz
-          mv -v cross cross-util ~/.cargo/bin
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cross
       - name: Configure cross
         run: |
           cat <<EOF | tee Cross.toml
@@ -174,8 +168,12 @@ jobs:
           toolchain: stable
           components: llvm-tools-preview
       - uses: Swatinem/rust-cache@v2.2.0
-      - name: Prepare
+      - name: Install llvm
         run: sudo apt-get -y update && sudo apt-get -y install llvm
+      - name: Install grcov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: grcov
       - name: Info
         run: |
           set -x
@@ -194,10 +192,6 @@ jobs:
           debug = true
           opt-level = 0
           EOF
-      - name: Install grcov
-        run: |
-          cargo install rustfilt
-          cargo install grcov
       - name: Clean
         run: cargo clean
       - name: Build
@@ -241,7 +235,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: lcov.info
-          # token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
           fail_ci_if_error: false
     env:
       RUSTFLAGS: "-C instrument-coverage"
@@ -378,7 +371,7 @@ jobs:
         with:
           key: "miri_${{ matrix.os }}_${{ matrix.target }}"
       - uses: taiki-e/install-action@v2
-        if: ${{ matrix.target }} != 'x86_64-unknown-linux-gnu'
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
         with:
           tool: cross
       - name: Info
