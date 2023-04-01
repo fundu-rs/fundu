@@ -622,6 +622,7 @@ fn test_parse_negative(#[case] source: &str, #[case] expected: NegativeDuration)
 #[case::two_negative_infinity_short_then_saturate("-inf -inf", NegativeDuration::MIN)]
 #[case::negative_infinity_long("-infinity", NegativeDuration::MIN)]
 #[case::two_negative_infinity_long_then_saturate("-infinity -infinity", NegativeDuration::MIN)]
+#[case::two_negative_infinity_long_then_saturate_max("infinity infinity", NegativeDuration::MAX)]
 #[case::negative_infinity_and_positive_infinity_no_error("-inf +inf", NegativeDuration::new(-1, 0))]
 fn test_parse_negative_when_multiple(#[case] input: &str, #[case] expected: NegativeDuration) {
     assert_eq!(

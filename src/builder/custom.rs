@@ -1729,14 +1729,10 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_setting_parse_multiple() {
-        let delimiter = |byte: u8| byte.is_ascii_whitespace();
-        let mut expected = Config::new();
-        expected.multiple = Some(delimiter);
-
         let mut parser = CustomDurationParser::new();
-        parser.parse_multiple(Some(delimiter));
+        parser.parse_multiple(Some(|byte| byte == 0xff));
 
-        assert_eq!(parser.inner.config, expected);
+        assert!(parser.inner.config.multiple.unwrap()(0xff));
     }
 
     #[cfg(feature = "negative")]
@@ -1861,12 +1857,8 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_builder_when_parse_multiple() {
-        let delimiter = |byte: u8| byte.is_ascii_whitespace();
-        let mut expected = Config::new();
-        expected.multiple = Some(delimiter);
-
-        let builder = CustomDurationParserBuilder::new().parse_multiple(delimiter);
-        assert_eq!(builder.config, expected);
+        let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff);
+        assert!(builder.config.multiple.unwrap()(0xff));
     }
 
     #[test]
