@@ -120,9 +120,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.61.0"
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cross
+      - uses: taiki-e/install-action@cross
       - name: Configure cross
         run: |
           cat <<EOF | tee Cross.toml
@@ -172,10 +170,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
       - name: Install llvm
         run: sudo apt-get -y update && sudo apt-get -y install llvm
-      - name: Install grcov
-        uses: taiki-e/install-action@v2
-        with:
-          tool: grcov
+      - uses: taiki-e/install-action@grcov
       - name: Info
         run: |
           set -x
@@ -372,10 +367,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2.2.0
         with:
           key: "miri_${{ matrix.os }}_${{ matrix.target }}"
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@cross
         if: matrix.target != 'x86_64-unknown-linux-gnu'
-        with:
-          tool: cross
       - name: Info
         run: |
           set -x
