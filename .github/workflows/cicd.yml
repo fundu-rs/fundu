@@ -39,6 +39,7 @@ jobs:
       - run: cargo fmt --check
 
   base:
+    needs: [format]
     name: Build, check and test
     strategy:
       fail-fast: false
@@ -91,6 +92,7 @@ jobs:
         run: cargo test --all-features
 
   cross:
+    needs: [format]
     name: Cross build and test
     strategy:
       fail-fast: false
@@ -145,7 +147,7 @@ jobs:
         run: cross test --all-features --target ${{ matrix.target }}
 
   docs:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Docs/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -158,7 +160,7 @@ jobs:
         run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Coverage/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -242,7 +244,7 @@ jobs:
       RUST_BACKTRACE: "0"
 
   fuzzing:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Fuzzy testing/ubuntu-latest
     runs-on: ubuntu-latest
     defaults:
@@ -275,7 +277,7 @@ jobs:
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
 
   benchmarks:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Benchmarks/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -350,7 +352,7 @@ jobs:
           path: target/iai
 
   miri:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Tests/Miri
     runs-on: ubuntu-latest
     strategy:
