@@ -306,8 +306,7 @@ pub use custom::{
     builder::CustomDurationParserBuilder,
     parser::CustomDurationParser,
     time_units::{
-        CustomTimeUnit, IdentifiersSlice, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS,
-        SYSTEMD_TIME_UNITS,
+        CustomTimeUnit, Identifiers, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
     },
 };
 pub use error::ParseError;

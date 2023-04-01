@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use super::time_units::{CustomTimeUnits, IdentifiersSlice};
+use super::time_units::{CustomTimeUnits, Identifiers};
 use crate::config::Config;
 use crate::parse::Parser;
 use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
@@ -41,7 +41,7 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParserBuilder<'a> {
     config: Config,
-    time_units: Option<&'a [IdentifiersSlice<'a>]>,
+    time_units: Option<&'a [Identifiers<'a>]>,
     custom_time_units: Vec<CustomTimeUnit<'a>>,
 }
 
@@ -111,7 +111,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Some((Year, Multiplier(1, 0)))
     /// );
     /// ```
-    pub fn time_units(mut self, time_units: &'a [IdentifiersSlice<'a>]) -> Self {
+    pub fn time_units(mut self, time_units: &'a [Identifiers<'a>]) -> Self {
         self.time_units = Some(time_units);
         self
     }

@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use super::builder::CustomDurationParserBuilder;
-use super::time_units::{CustomTimeUnit, CustomTimeUnits, IdentifiersSlice};
+use super::time_units::{CustomTimeUnit, CustomTimeUnits, Identifiers};
 use crate::parse::Parser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::{Delimiter, ParseError, TimeUnit};
@@ -73,10 +73,10 @@ impl<'a> CustomDurationParser<'a> {
     /// are ignored. Note the ids for time units are case sensitive.
     ///
     /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
-    /// * [`SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
+    /// * [`crate::SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
     ///   documentation
-    /// * [`DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default ids as
-    ///   used the standard crate by [`crate::DurationParser`]
+    /// * [`crate::DEFAULT_TIME_UNITS`]: This is the complete set of time units with their default
+    ///   ids as used the standard crate by [`crate::DurationParser`]
     ///
     /// # Examples
     ///
@@ -108,7 +108,7 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// assert_eq!(parser.parse("42e-1ώρα").unwrap(), Duration::new(15120, 0));
     /// ```
-    pub fn with_time_units(units: &'a [IdentifiersSlice<'a>]) -> Self {
+    pub fn with_time_units(units: &'a [Identifiers<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
             inner: Parser::new(),

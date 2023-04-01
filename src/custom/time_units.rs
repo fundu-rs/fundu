@@ -11,7 +11,7 @@ use crate::{
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
 
-/// Part of the `custom` feature with [`TimeUnit`] ids as defined in
+/// The [`Identifiers`] as defined in
 /// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
 pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (NanoSecond, &["ns", "nsec"]),
@@ -26,8 +26,7 @@ pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (Year, &["y", "year", "years"]),
 ];
 
-/// Part of the `custom` feature with all [`TimeUnit`] ids as defined in the `default` feature
-/// without `Month` and `Year`.
+/// The default [`Identifiers`] token from the `standard` feature (without `Month` and `Year`)
 pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 8] = [
     (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
     (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
@@ -39,7 +38,7 @@ pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 8] = [
     (Week, &[DEFAULT_ID_WEEK]),
 ];
 
-/// Part of the `custom` feature with all [`TimeUnit`] ids as defined in the `default` feature.
+/// All [`Identifiers`] token from the `standard` feature (with `Month` and `Year`)
 pub const DEFAULT_ALL_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
     (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
@@ -53,8 +52,10 @@ pub const DEFAULT_ALL_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
     (Year, &[DEFAULT_ID_YEAR]),
 ];
 
-pub(super) type Identifiers<'a> = (LookupData, Vec<&'a str>);
-pub type IdentifiersSlice<'a> = (TimeUnit, &'a [&'a str]);
+pub(super) type IdentifiersLookupData<'a> = (LookupData, Vec<&'a str>);
+
+/// A pair consisting of a [`TimeUnit`] and its associated identifiers
+pub type Identifiers<'a> = (TimeUnit, &'a [&'a str]);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(super) struct LookupData {
@@ -115,7 +116,7 @@ impl LookupData {
 /// Both would actually be equal in the sense, that they would resolve to the same result when
 /// multiplying the `base_unit` with the `multiplier`, however they are treated as not equal and
 /// it's possible to choose freely between the definitions. Using both of the definitions in
-/// parallel within the [`CustomDurationParser`] would be possible and produces the desired
+/// parallel within the [`crate::CustomDurationParser`] would be possible and produces the desired
 /// result, although it does not provide any benefits.
 ///
 /// ```rust
@@ -229,7 +230,7 @@ impl<'a> CustomTimeUnit<'a> {
 pub(super) struct CustomTimeUnits<'a> {
     min_length: usize,
     max_length: usize,
-    time_units: Vec<Identifiers<'a>>,
+    time_units: Vec<IdentifiersLookupData<'a>>,
 }
 
 impl<'a> CustomTimeUnits<'a> {
@@ -237,7 +238,7 @@ impl<'a> CustomTimeUnits<'a> {
         Self::with_capacity(0)
     }
 
-    pub(super) fn with_time_units(units: &[IdentifiersSlice<'a>]) -> Self {
+    pub(super) fn with_time_units(units: &[Identifiers<'a>]) -> Self {
         let mut time_units = Self::with_capacity(units.len());
         time_units.add_time_units(units);
         time_units
@@ -251,12 +252,12 @@ impl<'a> CustomTimeUnits<'a> {
         }
     }
 
-    pub(super) fn add_time_unit(&mut self, unit: IdentifiersSlice<'a>) {
+    pub(super) fn add_time_unit(&mut self, unit: Identifiers<'a>) {
         let (time_unit, identifiers) = unit;
         self.add_custom_time_unit(CustomTimeUnit::new(time_unit, identifiers, None));
     }
 
-    pub(super) fn add_time_units(&mut self, units: &[IdentifiersSlice<'a>]) {
+    pub(super) fn add_time_units(&mut self, units: &[Identifiers<'a>]) {
         for unit in units {
             self.add_time_unit(*unit);
         }
