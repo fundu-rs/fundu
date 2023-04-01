@@ -35,7 +35,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
 
   base:
@@ -63,7 +63,7 @@ jobs:
         if: matrix.toolchain != 'stable'
         run: |
           rustup toolchain install stable --no-self-update --component clippy
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
         with:
           key: "${{ matrix.os }}_${{ matrix.toolchain }}"
       - name: Info if unix
@@ -120,6 +120,9 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.61.0"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "ubuntu-latest_1.61.0_${{ matrix.target }}"
       - uses: taiki-e/install-action@cross
       - name: Configure cross
         run: |
@@ -127,9 +130,6 @@ jobs:
           [build.env]
           passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
           EOF
-      - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          key: "ubuntu-latest_1.61.0_${{ matrix.target }}"
       - name: Info
         run: |
           set -x
@@ -151,7 +151,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - name: Run doc tests
         run: cargo test --all-features --doc -- --show-output
       - name: Check Documentation
@@ -167,7 +167,7 @@ jobs:
         with:
           toolchain: stable
           components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - name: Install llvm
         run: sudo apt-get -y update && sudo apt-get -y install llvm
       - uses: taiki-e/install-action@grcov
@@ -251,7 +251,7 @@ jobs:
         with:
           toolchain: nightly
           components: llvm-tools
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             fuzz -> target
@@ -280,7 +280,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.61.0"
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - name: Install iai-callgrind-runner
         run: |
           version=$(cargo metadata --format-version=1 |\
@@ -364,9 +364,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
         with:
-          key: "miri_${{ matrix.os }}_${{ matrix.target }}"
+          key: "miri_${{ matrix.target }}"
+          cache-directories: /home/runner/.cache/miri
       - uses: taiki-e/install-action@cross
         if: matrix.target != 'x86_64-unknown-linux-gnu'
       - name: Info
@@ -379,9 +380,10 @@ jobs:
           cargo --list
       - name: Setup cross/miri
         run: |
+          cargo miri setup
+
           case ${{ matrix.target }} in
             x86_64-unknown-linux-gnu )
-              cargo miri setup
               ;;
             * )
               cat <<EOF | tee Cross.toml
