@@ -355,3 +355,60 @@ jobs:
         with:
           name: iai-callgrind-benchmarks
           path: target/iai
+
+  miri:
+    needs: [format, base, cross]
+    name: Tests/Miri
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - i686-unknown-linux-gnu # 32-bit
+          - mips64-unknown-linux-gnuabi64 # big-endian
+          - aarch64-unknown-linux-gnu
+          - arm-unknown-linux-gnueabihf
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - uses: Swatinem/rust-cache@v2.2.0
+        with:
+          key: "miri_${{ matrix.os }}_${{ matrix.target }}"
+      - uses: taiki-e/install-action@v2
+        if: ${{ matrix.target }} != 'x86_64-unknown-linux-gnu'
+        with:
+          tool: cross
+      - name: Info
+        run: |
+          set -x
+          pwd
+          rustup --version
+          rustup show
+          rustup component list --installed
+          cargo --list
+      - name: Setup cross/miri
+        run: |
+          case ${{ matrix.target }} in
+            x86_64-unknown-linux-gnu )
+              cargo miri setup
+              ;;
+            * )
+              cat <<EOF | tee Cross.toml
+          [build.env]
+          passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
+          EOF
+              ;;
+          esac
+      - name: Test with miri
+        run: |
+          case ${{ matrix.target }} in
+            x86_64-unknown-linux-gnu )
+              cargo miri test --all-features
+              ;;
+            * )
+              cross miri test --all-features --target ${{ matrix.target }}
+              ;;
+          esac
