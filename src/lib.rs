@@ -291,21 +291,22 @@
 #![doc(test(attr(warn(unused))))]
 #![doc(test(attr(allow(unused_extern_crates))))]
 
-mod builder;
 mod config;
+mod custom;
 mod error;
 mod parse;
+mod standard;
 mod time;
 
+pub use config::Delimiter;
 #[cfg(feature = "custom")]
-pub use builder::custom::{
+pub use custom::parser::{
     CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, DEFAULT_ALL_TIME_UNITS,
     DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
 };
-#[cfg(feature = "standard")]
-pub use builder::standard::{parse_duration, DurationParser, DurationParserBuilder};
-pub use config::Delimiter;
 pub use error::ParseError;
+#[cfg(feature = "standard")]
+pub use standard::parser::{parse_duration, DurationParser, DurationParserBuilder};
 
 pub use crate::time::{
     Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,

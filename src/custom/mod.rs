@@ -4,6 +4,4 @@
 // https://opensource.org/licenses/MIT
 
 #[cfg(feature = "custom")]
-pub(crate) mod custom;
-#[cfg(feature = "standard")]
-pub(crate) mod standard;
+pub(crate) mod parser;
