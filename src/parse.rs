@@ -9,7 +9,7 @@
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::time::Duration;
 
-use crate::builder::config::{Config, Delimiter};
+use crate::config::{Config, Delimiter};
 use crate::error::ParseError;
 use crate::time::{Duration as FunduDuration, Multiplier, TimeUnit, TimeUnitsLike};
 

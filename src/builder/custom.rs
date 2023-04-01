@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use super::config::Config;
+use crate::config::Config;
 use crate::parse::Parser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::TimeUnit::*;
@@ -1290,8 +1290,6 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    #[cfg(feature = "negative")]
-    use crate::builder::config::Config;
 
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;

@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use super::config::{Config, Delimiter};
+use crate::config::{Config, Delimiter};
 use crate::parse::Parser;
 use crate::time::{Multiplier, TimeUnitsLike};
 use crate::TimeUnit::*;
@@ -1135,7 +1135,6 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::builder::config::Config;
 
     #[test]
     fn test_time_units_new() {

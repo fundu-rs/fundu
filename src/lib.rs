@@ -292,11 +292,11 @@
 #![doc(test(attr(allow(unused_extern_crates))))]
 
 mod builder;
+mod config;
 mod error;
 mod parse;
 mod time;
 
-use builder::config;
 #[cfg(feature = "custom")]
 pub use builder::custom::{
     CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, DEFAULT_ALL_TIME_UNITS,
