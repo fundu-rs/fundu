@@ -302,9 +302,13 @@ mod time;
 
 pub use config::Delimiter;
 #[cfg(feature = "custom")]
-pub use custom::parser::{
-    CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, DEFAULT_ALL_TIME_UNITS,
-    DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
+pub use custom::{
+    builder::CustomDurationParserBuilder,
+    parser::CustomDurationParser,
+    time_units::{
+        CustomTimeUnit, IdentifiersSlice, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS,
+        SYSTEMD_TIME_UNITS,
+    },
 };
 pub use error::ParseError;
 #[cfg(feature = "standard")]
