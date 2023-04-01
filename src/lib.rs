@@ -292,9 +292,11 @@
 #![doc(test(attr(allow(unused_extern_crates))))]
 
 mod config;
+#[cfg(feature = "custom")]
 mod custom;
 mod error;
 mod parse;
+#[cfg(feature = "standard")]
 mod standard;
 mod time;
 
@@ -306,7 +308,9 @@ pub use custom::parser::{
 };
 pub use error::ParseError;
 #[cfg(feature = "standard")]
-pub use standard::parser::{parse_duration, DurationParser, DurationParserBuilder};
+pub use standard::{
+    builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,
+};
 
 pub use crate::time::{
     Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
