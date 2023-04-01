@@ -3,22 +3,23 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! A systemd time parser as specified in `man systemd.time`. The output is imitating
-//! the output of `systemd-analyze timespan SYSTEMD_TIME_SPAN`
+//! A systemd time span parser as specified in `man systemd.time`. The output of this example is
+//! imitating the output of `systemd-analyze timespan SYSTEMD_TIME_SPAN`
 
 use std::time::Duration;
 
 use clap::{command, Arg};
+use fundu::TimeUnit::*;
 use fundu::{CustomDurationParser, SYSTEMD_TIME_UNITS};
 
 /// Create a human readable string like `100y 2h 46min 40s 123us 456ns` from a `Duration`
 fn make_human(duration: Duration) -> String {
-    const YEAR: u64 = 31557600;
-    const MONTH: u64 = 2629800;
-    const WEEK: u64 = 604800;
-    const DAY: u64 = 86400;
-    const HOUR: u64 = 3600;
-    const MINUTE: u64 = 60;
+    const YEAR: u64 = Year.multiplier().0;
+    const MONTH: u64 = Month.multiplier().0;
+    const WEEK: u64 = Week.multiplier().0;
+    const DAY: u64 = Day.multiplier().0;
+    const HOUR: u64 = Hour.multiplier().0;
+    const MINUTE: u64 = Minute.multiplier().0;
     const MILLIS_PER_NANO: u32 = 1_000_000;
     const MICROS_PER_NANO: u32 = 1_000;
 
@@ -78,8 +79,16 @@ fn make_human(duration: Duration) -> String {
 
 fn main() {
     let matches = command!()
+        .about(
+            "A systemd time span parser as specified in `man systemd.time`. The output of this \
+             example is imitating the output of `systemd-analyze timespan SYSTEMD_TIME_SPAN`",
+        )
         .allow_negative_numbers(true)
-        .arg(Arg::new("SYSTEMD_TIME_SPAN").action(clap::ArgAction::Set))
+        .arg(
+            Arg::new("SYSTEMD_TIME_SPAN")
+                .action(clap::ArgAction::Set)
+                .help("A time span as specified in `man systemd.time`"),
+        )
         .get_matches();
 
     let delimiter = |byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r');
@@ -98,12 +107,7 @@ fn main() {
     match parser.parse(input.trim()) {
         Ok(duration) => {
             println!("{:>8}: {}", "Original", input);
-            let (secs, micros) = (duration.as_secs(), duration.subsec_micros());
-            if secs == 0 && micros == 0 {
-                println!("{:>8}: 0", "μs");
-            } else {
-                println!("{:>8}: {secs}{micros}", "μs",);
-            }
+            println!("{:>8}: {}", "μs", duration.as_micros());
             println!("{:>8}: {}", "Human", make_human(duration));
         }
         Err(error) => eprintln!("Failed to parse time span '{}': {}", &input, error),
