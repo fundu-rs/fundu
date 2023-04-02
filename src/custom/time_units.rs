@@ -100,8 +100,8 @@ impl LookupData {
 /// all but see also the `Problems` section. A [`CustomTimeUnit`] also consists of identifiers which
 /// are used to identify the [`CustomTimeUnit`] during the parsing process.
 ///
-/// To create a [`CustomTimeUnit`] representing two weeks there are multiple (almost countless)
-/// solutions. Just to show two very obvious examples:
+/// To create a [`CustomTimeUnit`] representing two weeks there are multiple solutions. Just to show
+/// two very obvious examples:
 ///
 /// ```rust
 /// use fundu::TimeUnit::*;

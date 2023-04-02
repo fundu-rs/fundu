@@ -403,7 +403,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// );
     /// ```
     pub fn parse_multiple(&mut self, delimiter: Delimiter) -> &mut Self {
-        self.config.multiple = Some(delimiter);
+        self.config.parse_multiple = Some(delimiter);
         self
     }
 
@@ -552,7 +552,7 @@ mod tests {
         let mut builder = DurationParserBuilder::new();
         builder.parse_multiple(|byte: u8| byte == 0xff);
 
-        assert!(builder.config.multiple.unwrap()(0xff));
+        assert!(builder.config.parse_multiple.unwrap()(0xff));
     }
 
     #[rstest]

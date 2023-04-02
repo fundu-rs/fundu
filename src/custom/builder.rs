@@ -364,7 +364,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// );
     /// ```
     pub const fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
-        self.config.multiple = Some(delimiter);
+        self.config.parse_multiple = Some(delimiter);
         self
     }
 
@@ -486,7 +486,7 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_builder_when_parse_multiple() {
         let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff);
-        assert!(builder.config.multiple.unwrap()(0xff));
+        assert!(builder.config.parse_multiple.unwrap()(0xff));
     }
 
     #[test]

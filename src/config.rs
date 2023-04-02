@@ -63,7 +63,7 @@ pub(crate) struct Config {
     pub(crate) number_is_optional: bool,
     pub(crate) max_exponent: i16,
     pub(crate) min_exponent: i16,
-    pub(crate) multiple: Option<Delimiter>,
+    pub(crate) parse_multiple: Option<Delimiter>,
 }
 
 impl Default for Config {
@@ -84,7 +84,7 @@ impl Config {
             max_exponent: i16::MAX,
             min_exponent: i16::MIN,
             disable_infinity: false,
-            multiple: None,
+            parse_multiple: None,
         }
     }
 }

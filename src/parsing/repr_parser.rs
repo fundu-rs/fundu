@@ -46,7 +46,7 @@ impl<'a> ReprParser<'a> {
             number_is_optional,
             allow_delimiter,
             disable_infinity,
-            multiple,
+            parse_multiple,
         } = *self.config;
 
         let mut duration_repr = DurationRepr {
@@ -88,11 +88,11 @@ impl<'a> ReprParser<'a> {
             {
                 // SAFETY: We just checked with peek() that there are at least 3 bytes
                 unsafe { self.advance_by(3) }
-                self.parse_infinity_remainder(multiple)?;
+                self.parse_infinity_remainder(parse_multiple)?;
                 duration_repr.is_infinite = true;
 
                 match self.current_byte {
-                    Some(_) if multiple.is_some() => return Ok((duration_repr, Some(self))),
+                    Some(_) if parse_multiple.is_some() => return Ok((duration_repr, Some(self))),
                     Some(byte) => {
                         return Err(ParseError::Syntax(
                             self.current_pos,
@@ -200,12 +200,12 @@ impl<'a> ReprParser<'a> {
         // parse the time unit if present
         match self.current_byte {
             Some(_) if !self.time_units.is_empty() => {
-                if let Some((unit, multi)) = self.parse_time_unit(multiple)? {
+                if let Some((unit, multi)) = self.parse_time_unit(parse_multiple)? {
                     duration_repr.unit = unit;
                     duration_repr.multiplier = multi;
                 }
             }
-            Some(byte) if multiple.is_none() => {
+            Some(byte) if parse_multiple.is_none() => {
                 return Err(ParseError::TimeUnit(
                     self.current_pos,
                     format!("No time units allowed but found: '{}'", *byte as char),
@@ -218,7 +218,7 @@ impl<'a> ReprParser<'a> {
         }
 
         // check we've reached the end of input
-        match (self.current_byte, multiple) {
+        match (self.current_byte, parse_multiple) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => self
                 .try_consume_delimiter(delimiter)
                 .map(|_| (duration_repr, Some(self))),

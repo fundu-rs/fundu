@@ -491,7 +491,7 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     pub fn parse_multiple(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.multiple = delimiter;
+        self.inner.config.parse_multiple = delimiter;
         self
     }
 
@@ -678,7 +678,7 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.parse_multiple(Some(|byte| byte == 0xff));
 
-        assert!(parser.inner.config.multiple.unwrap()(0xff));
+        assert!(parser.inner.config.parse_multiple.unwrap()(0xff));
     }
 
     #[cfg(feature = "negative")]
