@@ -111,7 +111,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Some((Year, Multiplier(1, 0)))
     /// );
     /// ```
-    pub fn time_units(mut self, time_units: &'a [Identifiers<'a>]) -> Self {
+    pub const fn time_units(mut self, time_units: &'a [Identifiers<'a>]) -> Self {
         self.time_units = Some(time_units);
         self
     }
@@ -199,7 +199,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Duration::new(0, 42)
     /// );
     /// ```
-    pub fn default_unit(mut self, unit: TimeUnit) -> Self {
+    pub const fn default_unit(mut self, unit: TimeUnit) -> Self {
         self.config.default_unit = unit;
         self
     }
@@ -224,7 +224,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
     /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
     /// ```
-    pub fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
+    pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.allow_delimiter = Some(delimiter);
         self
     }
@@ -246,7 +246,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Err(ParseError::Syntax(3, "No exponent allowed".to_string()))
     /// );
     /// ```
-    pub fn disable_exponent(mut self) -> Self {
+    pub const fn disable_exponent(mut self) -> Self {
         self.config.disable_exponent = true;
         self
     }
@@ -276,7 +276,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("123e-2"), Ok(Duration::new(1, 230_000_000)));
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::new(0, 123)));
     /// ```
-    pub fn disable_fraction(mut self) -> Self {
+    pub const fn disable_fraction(mut self) -> Self {
         self.config.disable_fraction = true;
         self
     }
@@ -307,7 +307,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
     /// );
     /// ```
-    pub fn disable_infinity(mut self) -> Self {
+    pub const fn disable_infinity(mut self) -> Self {
         self.config.disable_infinity = true;
         self
     }
@@ -332,7 +332,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
     /// }
     /// ```
-    pub fn number_is_optional(mut self) -> Self {
+    pub const fn number_is_optional(mut self) -> Self {
         self.config.number_is_optional = true;
         self
     }
@@ -363,7 +363,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
+    pub const fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
         self.config.multiple = Some(delimiter);
         self
     }

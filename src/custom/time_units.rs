@@ -340,10 +340,12 @@ impl<'a> CustomTimeUnits<'a> {
 }
 
 impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
+    #[inline]
     fn is_empty(&self) -> bool {
         self.time_units.is_empty()
     }
 
+    #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         let len = identifier.len();
         if self.min_length > len || self.max_length < len {

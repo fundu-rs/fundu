@@ -38,6 +38,7 @@ impl Default for TimeUnits {
 
 impl TimeUnitsLike for TimeUnits {
     /// Return `true` if this set of time units is empty.
+    #[inline]
     fn is_empty(&self) -> bool {
         self.data.iter().all(|byte| byte.is_none())
     }
@@ -46,6 +47,7 @@ impl TimeUnitsLike for TimeUnits {
     ///
     /// Returns `None` if no [`TimeUnit`] with the provided `identifier` is present in the current
     /// set of time units.
+    #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         match identifier.len() {
             1 => self.data.iter().skip(3).filter_map(|t| *t).find_map(|t| {
