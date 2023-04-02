@@ -3,398 +3,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! This module is the working horse of the parser. Public interfaces to the parser are located in
-//! the main library `lib.rs`.
-
-use std::cmp::Ordering::{Equal, Greater, Less};
-use std::time::Duration;
-
-use crate::config::{Config, Delimiter};
-use crate::error::ParseError;
-use crate::time::{Duration as FunduDuration, Multiplier, TimeUnit, TimeUnitsLike};
-
-const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
-const ATTO_TO_NANO: u64 = 1_000_000_000;
-
-const POW10: [u64; 20] = [
-    1,
-    10,
-    100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
-];
-
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Parser {
-    pub(crate) config: Config,
-}
-
-impl Parser {
-    pub(crate) const fn new() -> Self {
-        Self {
-            config: Config::new(),
-        }
-    }
-
-    pub(crate) const fn with_config(config: Config) -> Self {
-        Self { config }
-    }
-
-    /// Parse the `source` string with a positive number into a [`std::time::Duration`] saturating
-    /// at [`std::time::Duration::ZERO`] and [`std::time::Duration::MAX`]
-    pub(crate) fn parse(
-        &self,
-        source: &str,
-        time_units: &dyn TimeUnitsLike,
-    ) -> Result<Duration, ParseError> {
-        let mut duration = Duration::ZERO;
-
-        let mut parser = &mut ReprParser::new(source, &self.config, time_units);
-        loop {
-            let (mut duration_repr, maybe_parser) = parser.parse()?;
-            duration = duration.saturating_add(
-                duration_repr
-                    .parse()?
-                    .try_into()
-                    .map_err(Into::<ParseError>::into)?,
-            );
-            match maybe_parser {
-                Some(p) => parser = p,
-                None => break Ok(duration),
-            }
-        }
-    }
-
-    /// Parse a possibly negative number in the source string into a [`time::Duration`] saturating
-    /// at [`time::Duration::MIN`] and [`time::Duration::MAX`]
-    #[cfg(feature = "negative")]
-    pub(crate) fn parse_negative(
-        &self,
-        source: &str,
-        time_units: &dyn TimeUnitsLike,
-    ) -> Result<time::Duration, ParseError> {
-        let mut duration = time::Duration::ZERO;
-        let mut parser = &mut ReprParser::new(source, &self.config, time_units);
-        loop {
-            let (mut duration_repr, maybe_parser) = parser.parse()?;
-            let parsed_duration = duration_repr
-                .parse()
-                .map(|fundu_duration| fundu_duration.saturating_into())?;
-
-            // This is a workaround on s390x systems for a strange bug either in the `time` crate or
-            // rust itself. As far as I've found out, it appears when using saturating_add when
-            // `duration.whole_seconds` and `parsed_duration.whole_seconds` are both equal to
-            // `i64::MIN`.
-            #[cfg(target_arch = "s390x")]
-            if duration.whole_seconds() == i64::MIN && parsed_duration.whole_seconds() == i64::MIN {
-                duration = time::Duration::MIN;
-            } else {
-                duration = duration.saturating_add(parsed_duration);
-            }
-            #[cfg(not(target_arch = "s390x"))]
-            {
-                duration = duration.saturating_add(parsed_duration);
-            }
-
-            match maybe_parser {
-                Some(p) => parser = p,
-                None => break Ok(duration),
-            }
-        }
-    }
-}
-
-trait Parse8Digits {
-    // This method is based on the work of Johnny Lee and his blog post
-    // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
-    unsafe fn parse_8_digits(digits: &[u8]) -> u64 {
-        // cov:excl-start
-        debug_assert!(
-            digits.len() >= 8,
-            "Call this method only if digits has length >= 8"
-        ); // cov:excl-stop
-
-        let ptr = digits.as_ptr() as *const u64;
-        let mut num = u64::from_le(ptr.read_unaligned());
-        num = (num.wrapping_mul(2561)) >> 8;
-        num = ((num & 0x00FF00FF00FF00FF).wrapping_mul(6553601)) >> 16;
-        num = ((num & 0x0000FFFF0000FFFF).wrapping_mul(42949672960001)) >> 32;
-        num
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Default)]
-struct Whole(usize);
-
-impl Parse8Digits for Whole {}
-
-impl Whole {
-    #[inline]
-    fn parse_slice(digits: &[u8]) -> Result<u64, ParseError> {
-        let mut seconds = 0u64;
-        if digits.len() >= 8 {
-            let mut iter = digits.chunks_exact(8);
-            for digits in iter.by_ref() {
-                match seconds
-                    .checked_mul(100_000_000)
-                    .and_then(|s| s.checked_add(unsafe { Self::parse_8_digits(digits) }))
-                {
-                    Some(s) => seconds = s,
-                    None => {
-                        return Err(ParseError::Overflow);
-                    }
-                }
-            }
-            for num in iter.remainder() {
-                match seconds
-                    .checked_mul(10)
-                    .and_then(|s| s.checked_add(*num as u64))
-                {
-                    Some(s) => seconds = s,
-                    None => {
-                        return Err(ParseError::Overflow);
-                    }
-                }
-            }
-        } else {
-            for num in digits {
-                seconds = seconds * 10 + *num as u64
-            }
-        }
-        Ok(seconds)
-    }
-
-    fn parse(&self, digits: &[u8], zeroes: Option<usize>) -> Result<u64, ParseError> {
-        if digits.is_empty() {
-            return Ok(0);
-        }
-
-        let seconds = Self::parse_slice(digits)?;
-        if seconds == 0 {
-            Ok(0)
-        } else {
-            match zeroes {
-                Some(num_zeroes) if num_zeroes > 0 => match POW10.get(num_zeroes) {
-                    Some(pow) => Ok(seconds.saturating_mul(*pow)),
-                    None => Err(ParseError::Overflow),
-                },
-                Some(_) | None => Ok(seconds),
-            }
-        }
-    }
-
-    #[inline]
-    fn len(&self) -> usize {
-        self.0
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Default)]
-struct Fract(usize, usize);
-
-impl Parse8Digits for Fract {}
-
-impl Fract {
-    #[inline]
-    fn parse_slice(mut multi: u64, zeroes: usize, digits: &[u8]) -> u64 {
-        let mut attos = 0;
-        let len = digits.len();
-
-        if multi >= 100_000_000 && len >= 8 {
-            let max = 18usize.saturating_sub(zeroes);
-            let mut iter = digits
-                .get(0..if len > max { max } else { len })
-                .unwrap()
-                .chunks_exact(8);
-            for digits in iter.by_ref() {
-                multi /= 100_000_000;
-                // SAFETY: The length of digits is exactly 8
-                attos += unsafe { Self::parse_8_digits(digits) } * multi;
-            }
-            for num in iter.remainder() {
-                multi /= 10;
-                attos += *num as u64 * multi;
-            }
-        } else if multi > 0 && len > 0 {
-            for num in digits {
-                multi /= 10;
-                if multi == 0 {
-                    return attos;
-                }
-                attos += *num as u64 * multi;
-            }
-            // else would be reached if multi or len are zero but these states are already handled
-            // in parse
-        } // cov:excl-line
-        attos
-    }
-
-    fn parse(&self, digits: &[u8], zeroes: Option<usize>) -> u64 {
-        if digits.is_empty() {
-            return 0;
-        }
-
-        let num_zeroes = zeroes.unwrap_or_default();
-        let pow = match POW10.get(num_zeroes) {
-            Some(pow) => pow,
-            None => return 0,
-        };
-        let multi = ATTO_MULTIPLIER / pow;
-        if multi == 0 {
-            return 0;
-        }
-
-        Self::parse_slice(multi, num_zeroes, digits)
-    }
-
-    #[inline]
-    fn len(&self) -> usize {
-        self.1 - self.0
-    }
-}
-
-#[derive(Debug, Default)]
-pub(crate) struct DurationRepr {
-    unit: TimeUnit,
-    number_is_optional: bool,
-    is_negative: bool,
-    is_infinite: bool,
-    whole: Option<Whole>,
-    fract: Option<Fract>,
-    digits: Option<Vec<u8>>,
-    exponent: i16,
-    multiplier: Multiplier,
-}
-
-impl DurationRepr {
-    pub(crate) fn parse(&mut self) -> Result<FunduDuration, ParseError> {
-        if self.is_infinite {
-            return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
-        }
-
-        let (whole, fract) = match (self.whole.take(), self.fract.take()) {
-            (None, None) if self.number_is_optional => {
-                self.digits = Some(vec![1]);
-                (Whole(1), Fract(1, 1))
-            }
-            (None, None) => unreachable!(), // cov:excl-line
-            (None, Some(fract)) => (Whole(0), fract),
-            (Some(whole), None) => {
-                let fract_start_and_end = whole.len();
-                (whole, Fract(fract_start_and_end, fract_start_and_end))
-            }
-            (Some(whole), Some(fract)) => (whole, fract),
-        };
-
-        // This unwrap is safe because there are whole or fract present
-        let digits = self.digits.as_ref().unwrap();
-
-        let Multiplier(multiplier, exponent) = self.unit.multiplier() * self.multiplier;
-        let exponent = exponent as i32 + self.exponent as i32;
-
-        // The maximum absolute value of the exponent is `2 * abs(i16::MIN)`, so it is safe to cast
-        // to usize
-        let exponent_abs: usize = exponent.unsigned_abs().try_into().unwrap();
-
-        // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
-        // to integers is necessary, since the exponent can move digits into the to be considered
-        // final integer domain.
-        let (seconds, attos) = match exponent.cmp(&0) {
-            Less if whole.len() > exponent_abs => {
-                let (whole_part, fract_part) = digits.split_at(whole.len() - exponent_abs);
-                let seconds = whole.parse(whole_part, None);
-                let attos = if seconds.is_ok() {
-                    Some(fract.parse(fract_part, None))
-                } else {
-                    None
-                };
-                (Some(seconds), attos)
-            }
-            Less => {
-                let attos = Some(fract.parse(digits, Some(exponent_abs - whole.len())));
-                (None, attos)
-            }
-            Equal => {
-                let (whole_part, fract_part) = digits.split_at(whole.len());
-                let seconds = whole.parse(whole_part, None);
-                let attos = if seconds.is_ok() {
-                    Some(fract.parse(fract_part, None))
-                } else {
-                    None
-                };
-                (Some(seconds), attos)
-            }
-            Greater if fract.len() > exponent_abs => {
-                let (whole_part, fract_part) = digits.split_at(fract.0 + exponent_abs);
-                let seconds = whole.parse(whole_part, None);
-                let attos = if seconds.is_ok() {
-                    Some(fract.parse(fract_part, None))
-                } else {
-                    None
-                };
-                (Some(seconds), attos)
-            }
-            Greater => {
-                let seconds = whole.parse(digits, Some(exponent_abs - fract.len()));
-                (Some(seconds), None)
-            }
-        };
-
-        // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
-        // maximum `Duration`.
-        let (seconds, attos) = match seconds {
-            Some(result) => match result {
-                Ok(seconds) => (seconds, attos.unwrap_or_default()),
-                Err(ParseError::Overflow) => {
-                    return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
-                }
-                // only ParseError::Overflow is returned by `Seconds::parse`
-                Err(_) => unreachable!(), // cov:excl-line
-            },
-            None => (0, attos.unwrap_or_default()),
-        };
-
-        // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
-        // as zero duration
-        if seconds == 0 && attos == 0 {
-            Ok(FunduDuration::new(false, Duration::ZERO))
-        } else if multiplier == 1 {
-            Ok(FunduDuration::new(
-                self.is_negative,
-                Duration::new(seconds, (attos / ATTO_TO_NANO) as u32),
-            ))
-        } else {
-            let attos = attos as u128 * (multiplier as u128);
-            Ok(
-                match seconds
-                    .checked_mul(multiplier)
-                    .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
-                {
-                    Some(s) => FunduDuration::new(
-                        self.is_negative,
-                        Duration::new(s, ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32),
-                    ),
-                    None => FunduDuration::new(self.is_negative, Duration::MAX),
-                },
-            )
-        }
-    }
-}
+use super::repr::{DurationRepr, Fract, Whole};
+use crate::config::Config;
+use crate::time::TimeUnitsLike;
+use crate::{Delimiter, Multiplier, ParseError, TimeUnit};
 
 pub(crate) struct ReprParser<'a> {
     current_pos: usize, // keep first. Has better performance.
@@ -417,74 +29,7 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline]
-    fn advance(&mut self) {
-        self.current_pos += 1;
-        self.current_byte = self.input.get(self.current_pos);
-    }
-
-    #[inline]
-    unsafe fn advance_by(&mut self, num: usize) {
-        self.current_pos += num;
-        self.current_byte = self.input.get(self.current_pos);
-    }
-
-    #[inline]
-    fn peek(&self, num: usize) -> Option<&[u8]> {
-        self.input.get(self.current_pos..self.current_pos + num)
-    }
-
-    #[inline]
-    fn get_remainder(&self) -> &[u8] {
-        &self.input[self.current_pos..]
-    }
-
-    #[inline]
-    unsafe fn get_remainder_str_unchecked(&self) -> &str {
-        std::str::from_utf8_unchecked(self.get_remainder())
-    }
-
-    #[inline]
-    fn finish(&mut self) {
-        self.current_pos = self.input.len();
-        self.current_byte = None
-    }
-
-    /// This method is based on the work of Daniel Lemire and his blog post
-    /// <https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/>
-    #[inline]
-    fn is_8_digits(&self) -> bool {
-        self.input
-            .get(self.current_pos..(self.current_pos + 8))
-            .map_or(false, |digits| {
-                let ptr = digits.as_ptr() as *const u64;
-                // SAFETY: We just ensured there are 8 bytes
-                let num = u64::from_le(unsafe { ptr.read_unaligned() });
-                (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
-                    == 0x3030303030303030
-            })
-    }
-
-    #[inline]
-    fn parse_8_digits(&mut self) -> Option<u64> {
-        self.input
-            .get(self.current_pos..(self.current_pos + 8))
-            .and_then(|digits| {
-                let ptr = digits.as_ptr() as *const u64;
-                // SAFETY: We just ensured there are 8 bytes
-                let num = u64::from_le(unsafe { ptr.read_unaligned() });
-                if (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
-                    == 0x3030303030303030
-                {
-                    unsafe { self.advance_by(8) }
-                    Some(num - 0x3030303030303030)
-                } else {
-                    None
-                }
-            })
-    }
-
-    pub(crate) fn parse(
+    pub(super) fn parse(
         &'a mut self,
     ) -> Result<(DurationRepr, Option<&'a mut ReprParser>), ParseError> {
         if self.current_byte.is_none() {
@@ -681,6 +226,71 @@ impl<'a> ReprParser<'a> {
             (Some(_), None) => unreachable!("Parsing time units consumes the rest of the input"), /* cov:excl-line */
             (None, _) => Ok((duration_repr, None)),
         }
+    }
+
+    #[inline]
+    fn advance(&mut self) {
+        self.current_pos += 1;
+        self.current_byte = self.input.get(self.current_pos);
+    }
+
+    #[inline]
+    unsafe fn advance_by(&mut self, num: usize) {
+        self.current_pos += num;
+        self.current_byte = self.input.get(self.current_pos);
+    }
+
+    #[inline]
+    fn peek(&self, num: usize) -> Option<&[u8]> {
+        self.input.get(self.current_pos..self.current_pos + num)
+    }
+
+    #[inline]
+    fn get_remainder(&self) -> &[u8] {
+        &self.input[self.current_pos..]
+    }
+
+    #[inline]
+    unsafe fn get_remainder_str_unchecked(&self) -> &str {
+        std::str::from_utf8_unchecked(self.get_remainder())
+    }
+
+    #[inline]
+    fn finish(&mut self) {
+        self.current_pos = self.input.len();
+        self.current_byte = None
+    }
+
+    /// This method is based on the work of Daniel Lemire and his blog post
+    /// <https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/>
+    fn is_8_digits(&self) -> bool {
+        self.input
+            .get(self.current_pos..(self.current_pos + 8))
+            .map_or(false, |digits| {
+                let ptr = digits.as_ptr() as *const u64;
+                // SAFETY: We just ensured there are 8 bytes
+                let num = u64::from_le(unsafe { ptr.read_unaligned() });
+                (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
+                    == 0x3030303030303030
+            })
+    }
+
+    fn parse_8_digits(&mut self) -> Option<u64> {
+        self.input
+            .get(self.current_pos..(self.current_pos + 8))
+            .and_then(|digits| {
+                let ptr = digits.as_ptr() as *const u64;
+                // SAFETY: We just ensured there are 8 bytes
+                let num = u64::from_le(unsafe { ptr.read_unaligned() });
+                if (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
+                    == 0x3030303030303030
+                {
+                    unsafe { self.advance_by(8) }
+                    Some(num - 0x3030303030303030)
+                } else {
+                    None
+                }
+            })
     }
 
     fn consume_delimiter(&mut self, delimiter: Delimiter) {
@@ -1093,26 +703,26 @@ mod tests {
         assert_eq!(digits, expected_digits);
     }
 
-    // #[test]
-    // fn test_duration_repr_parser_parse_whole_when_more_than_max() {
-    //     let config = Config::new();
-    //     let input = &"1".repeat(i16::MAX as usize + 100);
-    //     let expected = vec![1u8; i16::MAX as usize + 33];
-    //     let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
-    //     assert_eq!(parser.parse().unwrap().digits.unwrap(), expected);
-    // }
+    #[test]
+    fn test_duration_repr_parser_parse_whole_when_more_than_max() {
+        let config = Config::new();
+        let input = &"1".repeat(i16::MAX as usize + 100);
+        let expected = vec![1u8; i16::MAX as usize + 33];
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
+        assert_eq!(parser.parse().unwrap().0.digits.unwrap(), expected);
+    }
 
-    // #[test]
-    // fn test_duration_repr_parser_parse_fract_when_more_than_max() {
-    //     let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
-    //     let expected = vec![1u8; i16::MAX as usize + 25];
-    //     let config = Config::new();
-    //     let mut parser = ReprParser::new(&input, &config, &TimeUnitsFixture);
-    //     let result = parser.parse().unwrap();
-    //     let digits = result.digits.unwrap();
-    //     assert_eq!(digits.len(), expected.len());
-    //     assert_eq!(digits, expected);
-    // }
+    #[test]
+    fn test_duration_repr_parser_parse_fract_when_more_than_max() {
+        let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
+        let expected = vec![1u8; i16::MAX as usize + 25];
+        let config = Config::new();
+        let mut parser = ReprParser::new(&input, &config, &TimeUnitsFixture);
+        let result = parser.parse().unwrap();
+        let digits = result.0.digits.unwrap();
+        assert_eq!(digits.len(), expected.len());
+        assert_eq!(digits, expected);
+    }
 
     #[rstest]
     #[case::zero("0", vec![0])]

@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use super::time_units::TimeUnits;
 use crate::config::Delimiter;
-use crate::parse::Parser;
+use crate::parsing::parser::Parser;
 use crate::{DurationParserBuilder, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s with default identifiers.
