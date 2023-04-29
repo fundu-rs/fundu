@@ -39,14 +39,14 @@
     - [Time Units](#time-units)
     - [Customization](#customization)
     - [Benchmarks](#benchmarks)
-    - [Comparison](#comparison-fundu-vs-durationtry_from_secs_f64)
+    - [Comparison](#comparison-fundu-vs-durationfrom_secs_f64)
     - [Platform support](#platform-support)
     - [Todo](#todo)
     - [License](#license)
   
 # Overview
 
-`fundu` provides a flexible parser to convert rust strings into a [`std::time::Duration`] and for
+`fundu` provides a flexible and fast parser to convert rust strings into a [`std::time::Duration`] and for
 negative durations into a [`time::Duration`]. Some examples for valid input strings with the
 `standard` feature:
 
@@ -58,11 +58,12 @@ negative durations into a [`time::Duration`]. Some examples for valid input stri
 - `"inf"`, `"+inf"`, `"infinity"`, `"+infinity"`
 - `"1w"` (1 week) or likewise `"7d"`, `"168h"`, `"10080m"`, `"604800s"`, ...
 
+For examples of the `custom` feature see [Customization section](#customization).
 A quick summary of features provided by this crate:
 
 - __Precision__: There are no floating point calculations and the input is precisely parsed as it
 is. So, what you put in you is what you get out within the range of a `Duration`. (See also
-[Comparison](#comparison-fundu-vs-durationtry_from_secs_f64))
+[Comparison](#comparison-fundu-vs-durationfrom_secs_f64))
 - __Performance__: The parser is blazingly fast ([Benchmarks](#benchmarks))
 - __Customization__: [`TimeUnits`](#time-units), the number format and other aspects are
 easily configurable ([Customization](#customization))
@@ -75,10 +76,13 @@ easily adjusted (See also [Examples](#examples))
 
 `fundu` aims for good performance and being a lightweight crate. It is purely built on top of the
 rust `stdlib`, and there are no additional dependencies required in the standard configuration. The
-accepted number format is per default the scientific floating point format and
-compatible with [`f64::from_str`]. However, the number format can be [adjusted](#customization). For a direct
-comparison of `fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
-[Comparison](#comparison-fundu-vs-durationtry_from_secs_f64).
+accepted number format is per default the scientific floating point format and compatible with
+[`f64::from_str`]. However, the number format and other aspects can be [customized](#customization)
+up to formats like [systemd time
+spans](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html). See also the examples
+[Examples section](#examples) and the [examples](examples) folder. For a direct comparison of
+`fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
+[Comparison](#comparison-fundu-vs-durationfrom_secs_f64).
 
 For further details see the [Documentation](https://docs.rs/crate/fundu)!
 
@@ -211,10 +215,48 @@ for (input, expected) in &[
 }
 ```
 
-See also the [examples folder](examples) for common recipes and integration with other crates. Run an example with
+It's also possible to parse multiple durations at once with `parse_multiple`. The different
+durations can be separated by an optional `delimiter` (a closure matching a `u8`) defined with
+`parse_multiple`. If the delimiter is not encountered, a number also indicates a new duration.
+
+```rust
+use std::time::Duration;
+
+use fundu::DurationParser;
+
+let mut parser = DurationParser::new();
+parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')));
+
+assert_eq!(parser.parse("1.5h 2e+2ns"), Ok(Duration::new(5400, 200)));
+assert_eq!(parser.parse("55s500ms"), Ok(Duration::new(55, 500_000_000)));
+assert_eq!(parser.parse("1\t1"), Ok(Duration::new(2, 0)));
+assert_eq!(parser.parse("1.   .1"), Ok(Duration::new(1, 100_000_000)));
+assert_eq!(parser.parse("2h"), Ok(Duration::new(2 * 60 * 60, 0)));
+assert_eq!(
+    parser.parse("300ms20s 5d"),
+    Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
+);
+```
+
+See also the [examples folder](examples) for common recipes and integration with other crates. Run
+an example with
 
 ```shell
 cargo run --example $FILE_NAME_WITHOUT_FILETYPE_SUFFIX
+```
+
+like the systemd time span parser example
+
+```shell
+# For some of the examples a help is available. To pass arguments to the example itself separate the arguments for cargo and the example with `--`
+$ cargo run --example systemd --features custom --no-default-features -- --help
+...
+
+# To actually run the example execute
+$ cargo run --example systemd --features custom --no-default-features '300ms20s 5day'
+Original: 300ms20s 5day
+      μs: 432020300000
+   Human: 5d 20s 300ms
 ```
 
 # Time units
@@ -376,10 +418,11 @@ The initialization for fixed size time unit sets with `DurationParser::new`,
 initialization time for custom sets with `DurationParser::with_time_units` has a maximum of around
 `10 ns`.
 
-# Comparison `fundu` vs `Duration::(try_)from_secs_f64`
+# Comparison `fundu` vs `Duration::from_secs_f64`
 
 Here's a short incomplete overview of differences and advantages of `fundu` over using
-`Duration::(try_)from_secs_f64(input.parse().unwrap())`
+`Duration::from_secs_f64(input.parse().unwrap())` (and
+`Duration::try_from_secs_f64(input.parse().unwrap())`)
 
 Input | Result `fundu` | Result `Duration::(try_)from_secs_f64`
 ---:| --- | ---
