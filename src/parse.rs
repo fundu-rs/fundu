@@ -1093,26 +1093,26 @@ mod tests {
         assert_eq!(digits, expected_digits);
     }
 
-    // #[test]
-    // fn test_duration_repr_parser_parse_whole_when_more_than_max() {
-    //     let config = Config::new();
-    //     let input = &"1".repeat(i16::MAX as usize + 100);
-    //     let expected = vec![1u8; i16::MAX as usize + 33];
-    //     let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
-    //     assert_eq!(parser.parse().unwrap().digits.unwrap(), expected);
-    // }
+    #[test]
+    fn test_duration_repr_parser_parse_whole_when_more_than_max() {
+        let config = Config::new();
+        let input = &"1".repeat(i16::MAX as usize + 100);
+        let expected = vec![1u8; i16::MAX as usize + 33];
+        let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
+        assert_eq!(parser.parse().unwrap().0.digits.unwrap(), expected);
+    }
 
-    // #[test]
-    // fn test_duration_repr_parser_parse_fract_when_more_than_max() {
-    //     let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
-    //     let expected = vec![1u8; i16::MAX as usize + 25];
-    //     let config = Config::new();
-    //     let mut parser = ReprParser::new(&input, &config, &TimeUnitsFixture);
-    //     let result = parser.parse().unwrap();
-    //     let digits = result.digits.unwrap();
-    //     assert_eq!(digits.len(), expected.len());
-    //     assert_eq!(digits, expected);
-    // }
+    #[test]
+    fn test_duration_repr_parser_parse_fract_when_more_than_max() {
+        let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
+        let expected = vec![1u8; i16::MAX as usize + 25];
+        let config = Config::new();
+        let mut parser = ReprParser::new(&input, &config, &TimeUnitsFixture);
+        let result = parser.parse().unwrap();
+        let digits = result.0.digits.unwrap();
+        assert_eq!(digits.len(), expected.len());
+        assert_eq!(digits, expected);
+    }
 
     #[rstest]
     #[case::zero("0", vec![0])]
