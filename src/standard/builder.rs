@@ -5,7 +5,7 @@
 
 use super::time_units::TimeUnits;
 use crate::config::Config;
-use crate::parsing::parser::Parser;
+use crate::parse::Parser;
 use crate::{Delimiter, DurationParser, TimeUnit};
 
 #[derive(Debug, PartialEq, Eq)]

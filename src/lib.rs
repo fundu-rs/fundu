@@ -295,7 +295,7 @@ mod config;
 #[cfg(feature = "custom")]
 mod custom;
 mod error;
-mod parsing;
+mod parse;
 #[cfg(feature = "standard")]
 mod standard;
 mod time;

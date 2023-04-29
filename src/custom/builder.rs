@@ -5,7 +5,7 @@
 
 use super::time_units::{CustomTimeUnits, Identifiers};
 use crate::config::Config;
-use crate::parsing::parser::Parser;
+use crate::parse::Parser;
 use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 
 /// Like [`crate::DurationParserBuilder`] for [`crate::DurationParser`], this is a builder for a
