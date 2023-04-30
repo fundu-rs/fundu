@@ -24,6 +24,8 @@ default = ["standard"]
 standard = []
 custom = []
 negative = ["dep:time"]
+with-iai = []
+with-flamegraph = []
 
 [dependencies]
 time = { version = "<= 0.3.16", optional = true, default-features = false }
@@ -32,17 +34,19 @@ time = { version = "<= 0.3.16", optional = true, default-features = false }
 rstest = "0.17.0"
 criterion = "0.4.0"
 chrono = { version = "0.4.23", default-features = false }
-iai-callgrind = "0.3.1"
+clap = { version = "<=3.2.23", features = ["cargo", "derive"] }
 
-[dev-dependencies.clap]
-version = "3.2.23"
-features = ["cargo", "derive"]
-
-[target.'cfg(unix)'.dev-dependencies]
+# Does not compile the tests an s390x and mips due to:
+# /cargo/registry/src/github.com-1ecc6299db9ec823/rustix-0.37.17/src/backend/libc/io/syscalls.rs:384:24
+#     |
+# 384 |     use linux_raw_sys::ioctl::EXT4_IOC_RESIZE_FS;
+#     |                        ^^^^^ could not find `ioctl` in `linux_raw_sys`
+[target.'cfg(all(unix, not(any(target_arch = "s390x", target_arch = "mips"))))'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 
-[target.'cfg(unix)'.dev-dependencies.inferno]
-version = "=0.11.14"
+[target.'cfg(unix)'.dev-dependencies]
+inferno = { version = "=0.11.14" }
+iai-callgrind = "0.3.1"
 
 [profile.flamegraph]
 inherits = "bench"
@@ -62,48 +66,49 @@ required-features = ["standard"]
 [[bench]]
 name = "iai_bench_parsing_time_units"
 harness = false
-required-features = ["standard"]
+required-features = ["standard", "with-iai"]
 
 [[bench]]
 name = "iai_bench_parsing"
 harness = false
-required-features = ["standard"]
+required-features = ["standard", "with-iai"]
 
 [[bench]]
 name = "iai_bench_parsing_negative"
 harness = false
-required-features = ["standard", "negative"]
+required-features = ["standard", "negative", "with-iai"]
 
 [[bench]]
 name = "iai_bench_parsing_infinity"
 harness = false
-required-features = ["standard"]
+required-features = ["standard", "with-iai"]
 
 [[bench]]
 name = "iai_bench_reference"
 harness = false
+required-features = ["with-iai"]
 
 [[bench]]
 name = "iai_bench_standard"
 harness = false
-required-features = ["standard"]
+required-features = ["standard", "with-iai"]
 
 [[bench]]
 name = "iai_bench_custom"
 harness = false
-required-features = ["custom"]
+required-features = ["custom", "with-iai"]
 
 [[bench]]
 name = "flamegraph_standard"
 harness = false
 bench = false
-required-features = ["standard"]
+required-features = ["standard", "with-flamegraph"]
 
 [[bench]]
 name = "flamegraph_custom"
 harness = false
 bench = false
-required-features = ["custom"]
+required-features = ["custom", "with-flamegraph"]
 
 [[example]]
 name = "simple"
