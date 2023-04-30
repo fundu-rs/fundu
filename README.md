@@ -379,7 +379,17 @@ and then run all benchmarks with
 cargo bench --all-features
 ```
 
-Benchmarks can be filtered for example with
+The `iai-callgrind` (feature = `with-iai`) and `flamegraph` (feature = `with-flamegraph`) benchmarks
+can only be run on unix. Use the `--features` option of cargo to run the benchmarks for specific
+features:
+
+```shell
+cargo bench --features standard,custom,negative
+```
+
+The above won't run the `flamegraph` and `iai-callgrind` benchmarks.
+
+Benchmarks can be further filtered for example with
 
 ```shell
 cargo bench --bench benchmarks_standard
