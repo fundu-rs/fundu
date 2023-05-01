@@ -60,7 +60,7 @@ impl Display for ParseError {
 }
 
 #[derive(Debug)]
-pub(crate) enum TryFromDurationError {
+pub enum TryFromDurationError {
     NegativeNumber,
     #[allow(dead_code)]
     PositiveOverflow,

@@ -7,11 +7,11 @@
 //! the main library `lib.rs`.
 
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::time::Duration;
+use std::time::Duration as StdDuration;
 
 use crate::config::{Config, Delimiter};
 use crate::error::ParseError;
-use crate::time::{Duration as FunduDuration, Multiplier, TimeUnit, TimeUnitsLike};
+use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 const ATTO_TO_NANO: u64 = 1_000_000_000;
@@ -55,9 +55,7 @@ impl Parser {
         Self { config }
     }
 
-    /// Parse the `source` string with a positive number into a [`std::time::Duration`] saturating
-    /// at [`std::time::Duration::ZERO`] and [`std::time::Duration::MAX`]
-    pub(crate) fn parse(
+    fn parse_multiple(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,
@@ -67,12 +65,16 @@ impl Parser {
         let mut parser = &mut ReprParser::new(source, &self.config, time_units);
         loop {
             let (mut duration_repr, maybe_parser) = parser.parse()?;
-            duration = duration.saturating_add(
-                duration_repr
-                    .parse()?
-                    .try_into()
-                    .map_err(Into::<ParseError>::into)?,
-            );
+            let parsed_duration = duration_repr.parse()?;
+            duration = if !self.config.allow_negative && parsed_duration.is_negative() {
+                return Err(ParseError::NegativeNumber);
+            } else if parsed_duration.is_zero() {
+                duration
+            } else if duration.is_zero() {
+                parsed_duration
+            } else {
+                duration.saturating_add(parsed_duration)
+            };
             match maybe_parser {
                 Some(p) => parser = p,
                 None => break Ok(duration),
@@ -80,41 +82,35 @@ impl Parser {
         }
     }
 
-    /// Parse a possibly negative number in the source string into a [`time::Duration`] saturating
-    /// at [`time::Duration::MIN`] and [`time::Duration::MAX`]
-    #[cfg(feature = "negative")]
-    pub(crate) fn parse_negative(
+    fn parse_single(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,
-    ) -> Result<time::Duration, ParseError> {
-        let mut duration = time::Duration::ZERO;
-        let mut parser = &mut ReprParser::new(source, &self.config, time_units);
-        loop {
-            let (mut duration_repr, maybe_parser) = parser.parse()?;
-            let parsed_duration = duration_repr
-                .parse()
-                .map(|fundu_duration| fundu_duration.saturating_into())?;
+    ) -> Result<Duration, ParseError> {
+        ReprParser::new(source, &self.config, time_units)
+            .parse()
+            .and_then(|(mut duration_repr, _)| {
+                duration_repr.parse().and_then(|duration| {
+                    if !self.config.allow_negative && duration.is_negative() {
+                        Err(ParseError::NegativeNumber)
+                    } else {
+                        Ok(duration)
+                    }
+                })
+            })
+    }
 
-            // This is a workaround on s390x systems for a strange bug either in the `time` crate or
-            // rust itself. As far as I've found out, it appears when using saturating_add when
-            // `duration.whole_seconds` and `parsed_duration.whole_seconds` are both equal to
-            // `i64::MIN`.
-            #[cfg(target_arch = "s390x")]
-            if duration.whole_seconds() == i64::MIN && parsed_duration.whole_seconds() == i64::MIN {
-                duration = time::Duration::MIN;
-            } else {
-                duration = duration.saturating_add(parsed_duration);
-            }
-            #[cfg(not(target_arch = "s390x"))]
-            {
-                duration = duration.saturating_add(parsed_duration);
-            }
-
-            match maybe_parser {
-                Some(p) => parser = p,
-                None => break Ok(duration),
-            }
+    /// Parse the `source` string into a saturating [`crate::time::Duration`]
+    #[inline]
+    pub(crate) fn parse(
+        &self,
+        source: &str,
+        time_units: &dyn TimeUnitsLike,
+    ) -> Result<Duration, ParseError> {
+        if self.config.parse_multiple.is_some() {
+            self.parse_multiple(source, time_units)
+        } else {
+            self.parse_single(source, time_units)
         }
     }
 }
@@ -282,9 +278,9 @@ pub(crate) struct DurationRepr {
 }
 
 impl DurationRepr {
-    pub(crate) fn parse(&mut self) -> Result<FunduDuration, ParseError> {
+    pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
-            return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
+            return Ok(Duration::from_std(self.is_negative, StdDuration::MAX));
         }
 
         let (whole, fract) = match (self.whole.take(), self.fract.take()) {
@@ -361,7 +357,7 @@ impl DurationRepr {
             Some(result) => match result {
                 Ok(seconds) => (seconds, attos.unwrap_or_default()),
                 Err(ParseError::Overflow) => {
-                    return Ok(FunduDuration::new(self.is_negative, Duration::MAX));
+                    return Ok(Duration::from_std(self.is_negative, StdDuration::MAX));
                 }
                 // only ParseError::Overflow is returned by `Seconds::parse`
                 Err(_) => unreachable!(), // cov:excl-line
@@ -372,11 +368,11 @@ impl DurationRepr {
         // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
         // as zero duration
         if seconds == 0 && attos == 0 {
-            Ok(FunduDuration::new(false, Duration::ZERO))
+            Ok(Duration::ZERO)
         } else if multiplier == 1 {
-            Ok(FunduDuration::new(
+            Ok(Duration::from_std(
                 self.is_negative,
-                Duration::new(seconds, (attos / ATTO_TO_NANO) as u32),
+                StdDuration::new(seconds, (attos / ATTO_TO_NANO) as u32),
             ))
         } else {
             let attos = attos as u128 * (multiplier as u128);
@@ -385,11 +381,14 @@ impl DurationRepr {
                     .checked_mul(multiplier)
                     .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
                 {
-                    Some(s) => FunduDuration::new(
+                    Some(s) => Duration::from_std(
                         self.is_negative,
-                        Duration::new(s, ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32),
+                        StdDuration::new(
+                            s,
+                            ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32,
+                        ),
                     ),
-                    None => FunduDuration::new(self.is_negative, Duration::MAX),
+                    None => Duration::from_std(self.is_negative, StdDuration::MAX),
                 },
             )
         }
@@ -502,6 +501,7 @@ impl<'a> ReprParser<'a> {
             allow_delimiter,
             disable_infinity,
             parse_multiple,
+            allow_negative: _,
         } = *self.config;
 
         let mut duration_repr = DurationRepr {

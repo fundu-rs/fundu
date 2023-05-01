@@ -3,10 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::time::Duration;
-
 use fundu::TimeUnit::{self, *};
-use fundu::{DurationParser, ParseError};
+use fundu::{Duration, DurationParser, ParseError};
 use iai_callgrind::{black_box, main};
 
 type Result<T> = std::result::Result<T, ParseError>;

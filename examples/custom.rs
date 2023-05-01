@@ -103,6 +103,7 @@ fn main() {
     {
         match parser.parse(input.trim()) {
             Ok(duration) => {
+                let duration: std::time::Duration = duration.try_into().unwrap();
                 println!(
                     "{:>20}|{:21}.{:09}",
                     &input,

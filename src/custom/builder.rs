@@ -229,6 +229,11 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
+    pub const fn allow_negative(mut self) -> Self {
+        self.config.allow_negative = true;
+        self
+    }
+
     /// Disable parsing an exponent.
     ///
     /// See also [`crate::DurationParser::disable_exponent`].

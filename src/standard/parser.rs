@@ -3,11 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::time::Duration;
+use std::time::Duration as StdDuration;
 
 use super::time_units::TimeUnits;
 use crate::config::Delimiter;
 use crate::parse::Parser;
+use crate::time::Duration as FunduDuration;
 use crate::{DurationParserBuilder, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s with default identifiers.
@@ -234,34 +235,8 @@ impl DurationParser {
     /// );
     /// ```
     #[inline]
-    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
+    pub fn parse(&self, source: &str) -> Result<FunduDuration, ParseError> {
         self.inner.parse(source, &self.time_units)
-    }
-
-    /// Parse a source string into a [`time::Duration`] which can be negative.
-    ///
-    /// This method is only available when activating the `negative` feature and saturates at
-    /// [`time::Duration::MIN`] for parsed negative durations and at [`time::Duration::MAX`] for
-    /// positive durations.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::DurationParser;
-    ///
-    /// assert_eq!(
-    ///     DurationParser::new().parse_negative("-10.2e-1s").unwrap(),
-    ///     time::Duration::new(-1, -20_000_000),
-    /// );
-    /// assert_eq!(
-    ///     DurationParser::new().parse_negative("1.2e-1s").unwrap(),
-    ///     time::Duration::new(0, 120_000_000),
-    /// );
-    /// ```
-    #[cfg(feature = "negative")]
-    #[inline]
-    pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
-        self.inner.parse_negative(source, &self.time_units)
     }
 
     /// Set the default [`TimeUnit`] to `unit`.
@@ -322,6 +297,11 @@ impl DurationParser {
     /// ```
     pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
         self.inner.config.allow_delimiter = delimiter;
+        self
+    }
+
+    pub fn allow_negative(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_negative = value;
         self
     }
 
@@ -559,8 +539,12 @@ impl Default for DurationParser {
 ///     ))
 /// );
 /// ```
-pub fn parse_duration(string: &str) -> Result<Duration, ParseError> {
-    DurationParser::new().parse(string)
+pub fn parse_duration(string: &str) -> Result<StdDuration, ParseError> {
+    DurationParser::new()
+        .parse(string)
+        // unwrap is safe here because negative durations aren't allowed in the default
+        // configuration of the DurationParser
+        .map(|d| d.try_into().unwrap())
 }
 
 #[cfg(test)]
@@ -613,24 +597,6 @@ mod tests {
         parser.parse_multiple(Some(|byte: u8| byte == 0xff));
 
         assert!(parser.inner.config.parse_multiple.unwrap()(0xff));
-    }
-
-    #[cfg(feature = "negative")]
-    #[test]
-    fn test_duration_parser_parse_negative_calls_parser() {
-        let parser = DurationParser::new();
-        assert_eq!(parser.inner.config, Config::new());
-        assert_eq!(
-            parser.parse_negative("1y"),
-            Err(ParseError::TimeUnit(
-                1,
-                "Invalid time unit: 'y'".to_string()
-            ))
-        );
-        assert_eq!(
-            parser.parse_negative("-1.0e0ns"),
-            Ok(time::Duration::new(0, -1))
-        )
     }
 
     #[test]

@@ -270,6 +270,11 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    pub fn allow_negative(&mut self) -> &mut Self {
+        self.config.allow_negative = true;
+        self
+    }
+
     /// Disable parsing an exponent.
     ///
     /// See also [`DurationParser::disable_exponent`].

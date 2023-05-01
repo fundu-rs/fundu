@@ -3,12 +3,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::time::Duration;
-
 use super::builder::CustomDurationParserBuilder;
 use super::time_units::{CustomTimeUnit, CustomTimeUnits, Identifiers};
 use crate::parse::Parser;
-use crate::time::{Multiplier, TimeUnitsLike};
+use crate::time::{Duration as FunduDuration, Multiplier, TimeUnitsLike};
 use crate::{Delimiter, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
@@ -271,38 +269,8 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     #[inline]
-    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
+    pub fn parse(&self, source: &str) -> Result<FunduDuration, ParseError> {
         self.inner.parse(source, &self.time_units)
-    }
-
-    /// Parse a source string into a [`time::Duration`] which can be negative.
-    ///
-    /// This method is only available when activating the `negative` feature and saturates at
-    /// [`time::Duration::MIN`] for parsed negative durations and at [`time::Duration::MAX`] for
-    /// positive durations.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use fundu::CustomDurationParser;
-    ///
-    /// assert_eq!(
-    ///     CustomDurationParser::new()
-    ///         .parse_negative("-10.2e-1")
-    ///         .unwrap(),
-    ///     time::Duration::new(-1, -20_000_000),
-    /// );
-    /// assert_eq!(
-    ///     CustomDurationParser::new()
-    ///         .parse_negative("1.2e-1")
-    ///         .unwrap(),
-    ///     time::Duration::new(0, 120_000_000),
-    /// );
-    /// ```
-    #[cfg(feature = "negative")]
-    #[inline]
-    pub fn parse_negative(&self, source: &str) -> Result<time::Duration, ParseError> {
-        self.inner.parse_negative(source, &self.time_units)
     }
 
     /// Set the default [`TimeUnit`] to `unit`.
@@ -360,6 +328,11 @@ impl<'a> CustomDurationParser<'a> {
     /// ```
     pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
         self.inner.config.allow_delimiter = delimiter;
+        self
+    }
+
+    pub fn allow_negative(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_negative = value;
         self
     }
 
@@ -547,6 +520,7 @@ mod tests {
     use super::*;
     use crate::custom::builder::CustomDurationParserBuilder;
     use crate::custom::time_units::DEFAULT_ALL_TIME_UNITS;
+    use crate::time::Duration;
     use crate::TimeUnit::*;
 
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
@@ -557,7 +531,7 @@ mod tests {
         let parser = CustomDurationParser::new();
         assert_eq!(parser.inner.config.default_unit, Second);
         assert!(parser.time_units.is_empty());
-        assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
+        assert_eq!(parser.parse("1.0"), Ok(Duration::positive(1, 0)));
         assert_eq!(
             parser.parse("1.0s"),
             Err(ParseError::TimeUnit(
@@ -579,7 +553,7 @@ mod tests {
                 );
             }
         }
-        assert_eq!(parser.parse("1.0"), Ok(Duration::new(1, 0)));
+        assert_eq!(parser.parse("1.0"), Ok(Duration::positive(1, 0)));
     }
 
     #[test]
@@ -607,20 +581,20 @@ mod tests {
         parser.default_unit(NanoSecond);
 
         assert_eq!(parser.inner.config.default_unit, NanoSecond);
-        assert_eq!(parser.parse("1"), Ok(Duration::new(0, 1)));
+        assert_eq!(parser.parse("1"), Ok(Duration::positive(0, 1)));
     }
 
     #[rstest]
-    #[case::nano_second("1ns", Duration::new(0, 1))]
-    #[case::micro_second("1Ms", Duration::new(0, 1000))]
-    #[case::milli_second("1ms", Duration::new(0, 1_000_000))]
-    #[case::second("1s", Duration::new(1, 0))]
-    #[case::minute("1m", Duration::new(60, 0))]
-    #[case::hour("1h", Duration::new(60 * 60, 0))]
-    #[case::day("1d", Duration::new(60 * 60 * 24, 0))]
-    #[case::week("1w", Duration::new(60 * 60 * 24 * 7, 0))]
-    #[case::month("1M", Duration::new(MONTH, 0))]
-    #[case::year("1y", Duration::new(YEAR, 0))]
+    #[case::nano_second("1ns", Duration::positive(0, 1))]
+    #[case::micro_second("1Ms", Duration::positive(0, 1000))]
+    #[case::milli_second("1ms", Duration::positive(0, 1_000_000))]
+    #[case::second("1s", Duration::positive(1, 0))]
+    #[case::minute("1m", Duration::positive(60, 0))]
+    #[case::hour("1h", Duration::positive(60 * 60, 0))]
+    #[case::day("1d", Duration::positive(60 * 60 * 24, 0))]
+    #[case::week("1w", Duration::positive(60 * 60 * 24 * 7, 0))]
+    #[case::month("1M", Duration::positive(MONTH, 0))]
+    #[case::year("1y", Duration::positive(YEAR, 0))]
     fn test_custom_duration_parser_parse_when_default_time_units(
         #[case] input: &str,
         #[case] expected: Duration,
@@ -634,7 +608,7 @@ mod tests {
         let parser = CustomDurationParser::with_time_units(&[(MilliSecond, &["мілісекунда"])]);
         assert_eq!(
             parser.parse("1мілісекунда"),
-            Ok(Duration::new(0, 1_000_000))
+            Ok(Duration::positive(0, 1_000_000))
         );
     }
 
@@ -679,26 +653,6 @@ mod tests {
         parser.parse_multiple(Some(|byte| byte == 0xff));
 
         assert!(parser.inner.config.parse_multiple.unwrap()(0xff));
-    }
-
-    #[cfg(feature = "negative")]
-    #[test]
-    fn test_custom_duration_parser_parse_negative_calls_parser() {
-        use crate::config::Config;
-
-        let parser = CustomDurationParser::new();
-        assert_eq!(parser.inner.config, Config::new());
-        assert_eq!(
-            parser.parse_negative("1s"),
-            Err(ParseError::TimeUnit(
-                1,
-                "No time units allowed but found: 's'".to_string()
-            ))
-        );
-        assert_eq!(
-            parser.parse_negative("-1.0e0"),
-            Ok(time::Duration::new(-1, 0))
-        )
     }
 
     #[test]

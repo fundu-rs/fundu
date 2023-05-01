@@ -3,9 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::time::Duration;
-
-use fundu::{DurationParser, TimeUnit};
+use fundu::{Duration, DurationParser, TimeUnit};
 
 fn main() {
     let input = "100y";
@@ -13,5 +11,5 @@ fn main() {
         .parse(input)
         .unwrap();
 
-    assert_eq!(duration, Duration::new(3_155_760_000, 0))
+    assert_eq!(duration, Duration::positive(3_155_760_000, 0))
 }

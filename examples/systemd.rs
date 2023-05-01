@@ -106,6 +106,7 @@ fn main() {
         .expect("At least one argument must be present");
     match parser.parse(input.trim()) {
         Ok(duration) => {
+            let duration: std::time::Duration = duration.try_into().unwrap();
             println!("{:>8}: {}", "Original", input);
             println!("{:>8}: {}", "μs", duration.as_micros());
             println!("{:>8}: {}", "Human", make_human(duration));

@@ -3,6 +3,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::cmp::Ordering;
+use std::ops::Sub;
+
 use TimeUnit::*;
 
 use crate::error::TryFromDurationError;
@@ -159,24 +162,104 @@ impl std::ops::Mul for Multiplier {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Duration {
+pub trait SaturatingInto<T>: Sized {
+    fn saturating_into(self) -> T;
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Duration {
     is_negative: bool,
     inner: std::time::Duration,
 }
 
 impl Duration {
-    pub(crate) fn new(is_negative: bool, inner: std::time::Duration) -> Self {
+    pub const ZERO: Self = Self {
+        is_negative: false,
+        inner: std::time::Duration::ZERO,
+    };
+
+    pub const MIN: Self = Self {
+        is_negative: true,
+        inner: std::time::Duration::MAX,
+    };
+
+    pub const MAX: Self = Self {
+        is_negative: false,
+        inner: std::time::Duration::MAX,
+    };
+
+    // TODO: If inner is zero then return a positive zero duration ??
+    pub fn from_std(is_negative: bool, inner: std::time::Duration) -> Self {
         Self { is_negative, inner }
     }
 
-    #[cfg(feature = "negative")]
-    pub(crate) fn saturating_into(&self) -> time::Duration {
-        time::Duration::try_from(self).unwrap_or_else(|error| match error {
-            TryFromDurationError::NegativeOverflow => time::Duration::MIN,
-            TryFromDurationError::PositiveOverflow => time::Duration::MAX,
-            TryFromDurationError::NegativeNumber => unreachable!(), // cov:excl-line
-        })
+    pub fn new(is_negative: bool, secs: u64, nanos: u32) -> Self {
+        Self {
+            is_negative,
+            inner: std::time::Duration::new(secs, nanos),
+        }
+    }
+
+    pub fn positive(secs: u64, nanos: u32) -> Self {
+        Self {
+            is_negative: false,
+            inner: std::time::Duration::new(secs, nanos),
+        }
+    }
+
+    pub fn negative(secs: u64, nanos: u32) -> Self {
+        Self {
+            is_negative: true,
+            inner: std::time::Duration::new(secs, nanos),
+        }
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.is_negative
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.inner.is_zero()
+    }
+
+    pub fn checked_add(&self, other: Self) -> Option<Self> {
+        match (
+            self.is_negative,
+            other.is_negative,
+            self.inner.cmp(&other.inner),
+        ) {
+            (true, true, _) => self
+                .inner
+                .checked_add(other.inner)
+                .map(|d| Self::from_std(true, d)),
+            (true, false, Ordering::Equal) | (false, true, Ordering::Equal) => Some(Self::ZERO),
+            (true, false, Ordering::Greater) => {
+                Some(Self::from_std(true, self.inner.sub(other.inner)))
+            }
+            (true, false, Ordering::Less) => {
+                Some(Self::from_std(false, other.inner.sub(self.inner)))
+            }
+            (false, true, Ordering::Greater) => {
+                Some(Self::from_std(false, self.inner.sub(other.inner)))
+            }
+            (false, true, Ordering::Less) => {
+                Some(Self::from_std(true, other.inner.sub(self.inner)))
+            }
+            (false, false, _) => self
+                .inner
+                .checked_add(other.inner)
+                .map(|d| Self::from_std(false, d)),
+        }
+    }
+
+    pub fn saturating_add(&self, other: Self) -> Self {
+        match self.checked_add(other) {
+            Some(d) => d,
+            // checked_add only returns None if both durations are either negative or positive so it
+            // is enough to check one of the durations for negativity
+            None if self.is_negative => Self::MIN,
+            None => Self::MAX,
+        }
     }
 }
 
@@ -201,7 +284,7 @@ impl TryFrom<Duration> for std::time::Duration {
     }
 }
 
-#[cfg(feature = "negative")]
+#[cfg(feature = "time")]
 impl TryFrom<Duration> for time::Duration {
     type Error = TryFromDurationError;
 
@@ -210,7 +293,7 @@ impl TryFrom<Duration> for time::Duration {
     }
 }
 
-#[cfg(feature = "negative")]
+#[cfg(feature = "time")]
 impl TryFrom<&Duration> for time::Duration {
     type Error = TryFromDurationError;
 
@@ -232,8 +315,25 @@ impl TryFrom<&Duration> for time::Duration {
     }
 }
 
+// TODO: implement TryFrom for chrono::Duration
+// TODO: Create trait SaturatingInto and implement for and chrono
+
+#[cfg(feature = "time")]
+impl SaturatingInto<time::Duration> for Duration {
+    fn saturating_into(self) -> time::Duration {
+        match self.try_into() {
+            Ok(duration) => duration,
+            Err(TryFromDurationError::NegativeOverflow) => time::Duration::MIN,
+            Err(TryFromDurationError::PositiveOverflow) => time::Duration::MAX,
+            Err(_) => unreachable!(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::time::Duration as StdDuration;
+
     use rstest::rstest;
 
     use super::*;
@@ -268,50 +368,38 @@ mod tests {
         assert_eq!(time_unit.multiplier(), expected);
     }
 
-    #[cfg(feature = "negative")]
+    #[cfg(feature = "time")]
     #[rstest]
-    #[case::positive_zero(Duration::new(false, std::time::Duration::ZERO), time::Duration::ZERO)]
-    #[case::negative_zero(Duration::new(true, std::time::Duration::ZERO), time::Duration::ZERO)]
-    #[case::positive_one(
-        Duration::new(false, std::time::Duration::new(1, 0)),
-        time::Duration::new(1, 0)
-    )]
-    #[case::negative_one(
-        Duration::new(true, std::time::Duration::new(1, 0)),
-        time::Duration::new(-1, 0)
-    )]
+    #[case::positive_zero(Duration::ZERO, time::Duration::ZERO)]
+    #[case::negative_zero(Duration::negative(0, 0), time::Duration::ZERO)]
+    #[case::positive_one(Duration::positive(1, 0), time::Duration::new(1, 0))]
+    #[case::negative_one(Duration::negative(1, 0), time::Duration::new(-1, 0))]
     #[case::negative_barely_no_overflow(
-        Duration::new(true, std::time::Duration::new(i64::MIN.unsigned_abs(), 999_999_999)),
+        Duration::negative(i64::MIN.unsigned_abs(), 999_999_999),
         time::Duration::MIN
     )]
     #[case::negative_barely_overflow(
-        Duration::new(true, std::time::Duration::new(i64::MIN.unsigned_abs() + 1, 0)),
+        Duration::negative(i64::MIN.unsigned_abs() + 1, 0),
         time::Duration::MIN
     )]
-    #[case::negative_max_overflow(
-        Duration::new(true, std::time::Duration::new(u64::MAX, 999_999_999)),
-        time::Duration::MIN
-    )]
+    #[case::negative_max_overflow(Duration::negative(u64::MAX, 999_999_999), time::Duration::MIN)]
     #[case::positive_barely_no_overflow(
-        Duration::new(false, std::time::Duration::new(i64::MAX as u64, 999_999_999)),
+        Duration::positive(i64::MAX as u64, 999_999_999),
         time::Duration::MAX
     )]
     #[case::positive_barely_overflow(
-        Duration::new(false, std::time::Duration::new(i64::MAX as u64 + 1, 999_999_999)),
+        Duration::positive(i64::MAX as u64 + 1, 999_999_999),
         time::Duration::MAX
     )]
-    #[case::positive_max_overflow(
-        Duration::new(false, std::time::Duration::new(u64::MAX, 999_999_999)),
-        time::Duration::MAX
-    )]
+    #[case::positive_max_overflow(Duration::positive(u64::MAX, 999_999_999), time::Duration::MAX)]
     fn test_duration_saturating_into(#[case] duration: Duration, #[case] expected: time::Duration) {
         assert_eq!(duration.saturating_into(), expected);
     }
 
-    #[cfg(feature = "negative")]
+    #[cfg(feature = "time")]
     #[test]
     fn test_duration_try_from_duration_for_time_duration() {
-        let duration = Duration::new(false, std::time::Duration::new(1, 0));
+        let duration = Duration::from_std(false, std::time::Duration::new(1, 0));
         let time_duration: time::Duration = duration.try_into().unwrap();
         assert_eq!(time_duration, time::Duration::new(1, 0));
     }
@@ -319,19 +407,19 @@ mod tests {
     #[rstest]
     #[case::zero(
         std::time::Duration::ZERO,
-        Duration::new(false, std::time::Duration::ZERO)
+        Duration::from_std(false, std::time::Duration::ZERO)
     )]
     #[case::one(
         std::time::Duration::new(1, 0),
-        Duration::new(false, std::time::Duration::new(1, 0))
+        Duration::from_std(false, std::time::Duration::new(1, 0))
     )]
     #[case::with_nano_seconds(
         std::time::Duration::new(1, 123_456_789),
-        Duration::new(false, std::time::Duration::new(1, 123_456_789))
+        Duration::from_std(false, std::time::Duration::new(1, 123_456_789))
     )]
     #[case::max(
         std::time::Duration::MAX,
-        Duration::new(false, std::time::Duration::MAX)
+        Duration::from_std(false, std::time::Duration::MAX)
     )]
     fn test_from_std_time_duration_for_duration(
         #[case] std_duration: std::time::Duration,
@@ -374,5 +462,89 @@ mod tests {
         #[case] multiplier: Multiplier,
     ) {
         let _ = time_unit.multiplier() * multiplier;
+    }
+
+    #[rstest]
+    #[case::both_standard_zero(Duration::ZERO, Duration::ZERO, Duration::ZERO)]
+    #[case::both_positive_zero(
+        Duration::from_std(false, StdDuration::ZERO),
+        Duration::from_std(false, StdDuration::ZERO),
+        Duration::from_std(false, StdDuration::ZERO)
+    )]
+    #[case::both_negative_zero(
+        Duration::from_std(true, StdDuration::ZERO),
+        Duration::from_std(true, StdDuration::ZERO),
+        Duration::from_std(true, StdDuration::ZERO)
+    )]
+    #[case::one_add_zero(
+        Duration::from_std(false, StdDuration::new(1, 0)),
+        Duration::ZERO,
+        Duration::from_std(false, StdDuration::new(1, 0))
+    )]
+    #[case::minus_one_add_zero(
+        Duration::from_std(true, StdDuration::new(1, 0)),
+        Duration::ZERO,
+        Duration::from_std(true, StdDuration::new(1, 0))
+    )]
+    #[case::minus_one_add_plus_one(
+        Duration::from_std(true, StdDuration::new(1, 0)),
+        Duration::from_std(false, StdDuration::new(1, 0)),
+        Duration::ZERO
+    )]
+    #[case::minus_one_add_plus_two_then_carry(
+        Duration::from_std(true, StdDuration::new(1, 0)),
+        Duration::from_std(false, StdDuration::new(2, 0)),
+        Duration::from_std(false, StdDuration::new(1, 0))
+    )]
+    #[case::minus_one_nano_add_one_then_carry(
+        Duration::from_std(true, StdDuration::new(0, 1)),
+        Duration::from_std(false, StdDuration::new(1, 0)),
+        Duration::from_std(false, StdDuration::new(0, 999_999_999))
+    )]
+    #[case::plus_one_nano_add_minus_one_then_carry(
+        Duration::from_std(false, StdDuration::new(0, 1)),
+        Duration::from_std(true, StdDuration::new(1, 0)),
+        Duration::from_std(true, StdDuration::new(0, 999_999_999))
+    )]
+    #[case::plus_one_add_minus_two_then_carry(
+        Duration::from_std(false, StdDuration::new(1, 0)),
+        Duration::from_std(true, StdDuration::new(2, 0)),
+        Duration::from_std(true, StdDuration::new(1, 0))
+    )]
+    #[case::one_sec_below_min_add_max(
+        Duration::from_std(true, StdDuration::new(u64::MAX - 1, 999_999_999)),
+        Duration::MAX,
+        Duration::from_std(false, StdDuration::new(1, 0)))
+    ]
+    #[case::one_nano_below_min_add_max(
+        Duration::from_std(true, StdDuration::new(u64::MAX, 999_999_998)),
+        Duration::MAX,
+        Duration::from_std(false, StdDuration::new(0, 1))
+    )]
+    #[case::one_sec_below_max_add_min(
+        Duration::from_std(false, StdDuration::new(u64::MAX - 1, 999_999_999)),
+        Duration::MIN,
+        Duration::from_std(true, StdDuration::new(1, 0)))
+    ]
+    #[case::one_nano_below_max_add_min(
+        Duration::from_std(false, StdDuration::new(u64::MAX, 999_999_998)),
+        Duration::MIN,
+        Duration::from_std(true, StdDuration::new(0, 1))
+    )]
+    #[case::min_and_max(Duration::MIN, Duration::MAX, Duration::ZERO)]
+    fn test_fundu_duration_checked_add_then_is_some(
+        #[case] lhs: Duration,
+        #[case] rhs: Duration,
+        #[case] expected: Duration,
+    ) {
+        assert_eq!(Some(expected), lhs.checked_add(rhs));
+        assert_eq!(Some(expected), rhs.checked_add(lhs));
+    }
+
+    #[rstest]
+    #[case::min(Duration::MIN, Duration::MIN)]
+    #[case::max(Duration::MAX, Duration::MAX)]
+    fn test_fundu_duration_checked_add_then_is_none(#[case] lhs: Duration, #[case] rhs: Duration) {
+        assert_eq!(None, lhs.checked_add(rhs));
     }
 }

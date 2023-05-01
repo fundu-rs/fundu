@@ -16,7 +16,7 @@ const MIXED_NEGATIVE_INPUT_8: &str = "-12345678.12345678";
 #[inline(never)]
 #[export_name = "__iai_setup::setup_parser"]
 fn setup_parser() -> DurationParser {
-    DurationParser::without_time_units()
+    DurationParser::builder().allow_negative().build()
 }
 
 #[inline(never)]
@@ -29,26 +29,26 @@ fn generate_large_input() -> String {
 #[inline(never)]
 fn small_negative_input() -> Result<Duration> {
     let parser = setup_parser();
-    black_box(parser).parse_negative(black_box(SMALL_NEGATIVE_INPUT))
+    black_box(parser).parse(black_box(SMALL_NEGATIVE_INPUT))
 }
 
 #[inline(never)]
 fn mixed_negative_input_7() -> Result<Duration> {
     let parser = setup_parser();
-    black_box(parser).parse_negative(black_box(MIXED_NEGATIVE_INPUT_7))
+    black_box(parser).parse(black_box(MIXED_NEGATIVE_INPUT_7))
 }
 
 #[inline(never)]
 fn mixed_negative_input_8() -> Result<Duration> {
     let parser = setup_parser();
-    black_box(parser).parse_negative(black_box(MIXED_NEGATIVE_INPUT_8))
+    black_box(parser).parse(black_box(MIXED_NEGATIVE_INPUT_8))
 }
 
 #[inline(never)]
 fn large_negative_input() -> Result<Duration> {
     let parser = setup_parser();
     let input = generate_large_input();
-    black_box(parser).parse_negative(black_box(&input))
+    black_box(parser).parse(black_box(&input))
 }
 
 main!(
