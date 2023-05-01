@@ -12,6 +12,10 @@ on:
         required: true
         type: boolean
 
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
@@ -35,10 +39,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
 
   base:
+    needs: [format]
     name: Build, check and test
     strategy:
       fail-fast: false
@@ -49,8 +54,11 @@ jobs:
           - stable
           - nightly
         include:
-          - toolchain: stable
-            components: clippy
+          - components: clippy
+            toolchain: stable
+          - features: standard,custom,negative,with-iai,with-flamegraph
+          - features: standard,custom,negative
+            os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v3
@@ -62,7 +70,7 @@ jobs:
         if: matrix.toolchain != 'stable'
         run: |
           rustup toolchain install stable --no-self-update --component clippy
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
         with:
           key: "${{ matrix.os }}_${{ matrix.toolchain }}"
       - name: Info if unix
@@ -82,15 +90,14 @@ jobs:
           rustup show
           rustup component list --installed
       - name: Build
-        run: cargo build --all-features
+        run: cargo build --features ${{ matrix.features }}
       - name: Lint
-        run: cargo +stable clippy --all-features --all-targets -- -D warnings
-        env:
-          CARGO_REGISTRIES_CRATES_IO_PROTOCOL: git # unstable on 1.66 + 1.67
+        run: cargo +stable clippy --features ${{ matrix.features }} --all-targets -- -D warnings
       - name: Test
-        run: cargo test --all-features
+        run: cargo test --features ${{ matrix.features }}
 
   cross:
+    needs: [format]
     name: Cross build and test
     strategy:
       fail-fast: false
@@ -118,24 +125,16 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.61.0"
-      - name: Install cross
-        run: |
-          set -e
-          mkdir -vp ~/.cargo/bin
-          mkdir -vp ~/Downloads
-          cd ~/Downloads
-          wget -O cross.tar.gz https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz
-          tar xvzf cross.tar.gz
-          mv -v cross cross-util ~/.cargo/bin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "ubuntu-latest_1.61.0_${{ matrix.target }}"
+      - uses: taiki-e/install-action@cross
       - name: Configure cross
         run: |
           cat <<EOF | tee Cross.toml
           [build.env]
           passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
           EOF
-      - uses: Swatinem/rust-cache@v2.2.0
-        with:
-          key: "ubuntu-latest_1.61.0_${{ matrix.target }}"
       - name: Info
         run: |
           set -x
@@ -151,20 +150,20 @@ jobs:
         run: cross test --all-features --target ${{ matrix.target }}
 
   docs:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Docs/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - name: Run doc tests
-        run: cargo test --all-features --doc
+        run: cargo test --all-features --doc -- --show-output
       - name: Check Documentation
         run: cargo doc --all-features --no-deps --document-private-items
 
   coverage:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Coverage/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -173,9 +172,10 @@ jobs:
         with:
           toolchain: stable
           components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@v2.2.0
-      - name: Prepare
+      - uses: Swatinem/rust-cache@v2
+      - name: Install llvm
         run: sudo apt-get -y update && sudo apt-get -y install llvm
+      - uses: taiki-e/install-action@grcov
       - name: Info
         run: |
           set -x
@@ -194,10 +194,6 @@ jobs:
           debug = true
           opt-level = 0
           EOF
-      - name: Install grcov
-        run: |
-          cargo install rustfilt
-          cargo install grcov
       - name: Clean
         run: cargo clean
       - name: Build
@@ -241,7 +237,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: lcov.info
-          # token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
           fail_ci_if_error: false
     env:
       RUSTFLAGS: "-C instrument-coverage"
@@ -249,7 +244,7 @@ jobs:
       RUST_BACKTRACE: "0"
 
   fuzzing:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Fuzzy testing/ubuntu-latest
     runs-on: ubuntu-latest
     defaults:
@@ -261,7 +256,7 @@ jobs:
         with:
           toolchain: nightly
           components: llvm-tools
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             fuzz -> target
@@ -282,7 +277,7 @@ jobs:
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
 
   benchmarks:
-    needs: [format, base, cross]
+    needs: [base, cross]
     name: Benchmarks/ubuntu-latest
     runs-on: ubuntu-latest
     steps:
@@ -290,7 +285,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.61.0"
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2
       - name: Install iai-callgrind-runner
         run: |
           version=$(cargo metadata --format-version=1 |\
@@ -312,18 +307,18 @@ jobs:
           if_no_artifact_found: warn
       - name: Run iai-callgrind standard feature benchmarks
         run: |
-          cargo bench --features standard \
+          cargo bench --features standard,with-iai \
             --bench iai_bench_standard \
             --bench iai_bench_parsing \
             --bench iai_bench_parsing_time_units \
             --bench iai_bench_reference | tee bench.out
       - name: Run iai-callgrind custom feature benchmarks
         run: |
-          cargo bench --features custom --no-default-features \
+          cargo bench --features custom,with-iai --no-default-features \
             --bench iai_bench_custom | tee -a bench.out
       - name: Run iai-callgrind negative feature benchmarks
         run: |
-          cargo bench --features negative \
+          cargo bench --features negative,with-iai \
             --bench iai_bench_parsing_negative | tee -a bench.out
       - name: Strip colors from output file bench.out
         run: |
@@ -355,3 +350,60 @@ jobs:
         with:
           name: iai-callgrind-benchmarks
           path: target/iai
+
+  miri:
+    needs: [base, cross]
+    name: Tests/Miri
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-unknown-linux-gnu
+          - i686-unknown-linux-gnu # 32-bit
+          - mips64-unknown-linux-gnuabi64 # big-endian
+          - aarch64-unknown-linux-gnu
+          - arm-unknown-linux-gnueabihf
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "miri_${{ matrix.target }}"
+          cache-directories: /home/runner/.cache/miri
+      - uses: taiki-e/install-action@cross
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+      - name: Info
+        run: |
+          set -x
+          pwd
+          rustup --version
+          rustup show
+          rustup component list --installed
+          cargo --list
+      - name: Setup cross/miri
+        run: |
+          cargo miri setup
+
+          case ${{ matrix.target }} in
+            x86_64-unknown-linux-gnu )
+              ;;
+            * )
+              cat <<EOF | tee Cross.toml
+          [build.env]
+          passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
+          EOF
+              ;;
+          esac
+      - name: Test with miri
+        run: |
+          case ${{ matrix.target }} in
+            x86_64-unknown-linux-gnu )
+              cargo miri test --features standard,custom,negative
+              ;;
+            * )
+              cross miri test --features standard,custom,negative --target ${{ matrix.target }}
+              ;;
+          esac

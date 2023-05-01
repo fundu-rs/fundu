@@ -76,6 +76,18 @@ fn benchmark_parsing(criterion: &mut Criterion) {
     group.finish();
 }
 
+fn benchmark_parsing_infinity(criterion: &mut Criterion) {
+    let inputs = vec!["inf", "infinity"];
+    let parser = DurationParser::with_all_time_units();
+    let mut group = criterion.benchmark_group("parsing speed infinity");
+    for input in inputs {
+        group.bench_with_input(input, input, |b, input| {
+            b.iter(|| black_box(&parser).parse(input).unwrap())
+        });
+    }
+    group.finish();
+}
+
 fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
     let inputs = [(NanoSecond, "ns"), (Second, "s"), (Year, "y")];
     let mut parser = DurationParser::with_all_time_units();
@@ -124,6 +136,11 @@ criterion_group!(
     targets = benchmark_parsing
 );
 criterion_group!(
+    name = parsing_infinity;
+    config = criterion_config();
+    targets = benchmark_parsing_infinity
+);
+criterion_group!(
     name = parsing_time_units;
     config = criterion_config();
     targets = benchmark_parsing_with_time_units
@@ -133,4 +150,10 @@ criterion_group!(
     config = criterion_config();
     targets = reference_benchmark
 );
-criterion_main!(initialization, parsing, reference, parsing_time_units);
+criterion_main!(
+    initialization,
+    parsing,
+    parsing_infinity,
+    reference,
+    parsing_time_units
+);

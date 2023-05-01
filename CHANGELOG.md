@@ -24,6 +24,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2023-05-01
+
+This version introduces a slight performance regression in favour of the new `parse_multiple` method.
+
+### Added
+
+* New method `parse_multiple` to parse multiple durations in the source string at once.
+* New method `disable_infinity` to disable parsing `inf` or `infinity`.
+* The new methods above make it possible to build a systemd time span parser as defined by systemd
+* An example for a fully functional systemd time span parser
+
+### Changed
+
+* Parsing `infinity` values was improved, so that time unit identifiers can now start with an `i` or `in`.
+* Running the benchmarks was improved, so that `iai` (feature = `with-iai`) and `flamegraph`
+(feature = `with-flamegraph`) benchmarks need to be activated via their features.
+* Make `TimeUnit::multiplier` method public
+* Make `custom::Identifiers` type public
+
+### Fixed
+
+* In the `parser` module an invocation of `ParseError::TimeUnit` error was pointing to a wrong
+position in the source string.
+* Use a workaround on s390x systems because parsing negative durations produced wrong results when
+using `time::Duration::MIN.saturating_add`. The source of this bug is maybe the `time` crate or
+`rust` itself.
+
 ## [0.5.0] - 2023-03-29
 
 ### Added

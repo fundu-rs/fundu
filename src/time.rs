@@ -98,13 +98,16 @@ impl TimeUnit {
         }
     }
 
-    /// Return the multiplier `(m, e)` to convert a number `x` with [`TimeUnit`] to seconds.
+    /// Return the base [`Multiplier`] of this [`TimeUnit`].
     ///
-    /// ```text
-    /// x * m * 10 ^ e
-    /// where  m = multiplier
+    /// This multiplier is always seconds based so for example:
+    ///
+    /// ```ignore
+    /// NanoSecond: Multiplier(1, -9)
+    /// Second: Multiplier(1, 0)
+    /// Year: Multiplier(31557600, 0)
     /// ```
-    pub(crate) const fn multiplier(&self) -> Multiplier {
+    pub const fn multiplier(&self) -> Multiplier {
         match self {
             NanoSecond => Multiplier(1, -9),
             MicroSecond => Multiplier(1, -6),
@@ -120,7 +123,7 @@ impl TimeUnit {
     }
 }
 
-pub trait TimeUnitsLike {
+pub(crate) trait TimeUnitsLike {
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
 }

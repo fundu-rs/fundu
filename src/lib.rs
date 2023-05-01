@@ -101,8 +101,8 @@
 //!
 //! * The `TimeUnit` rule is based on the default identifiers as defined in the table above. They
 //!   can also be completely customized with the [`CustomDurationParser`].
-//! * Negative values, including negative infinity are not allowed. For exceptions see the next
-//!   point.
+//! * Negative values, including negative infinity are not allowed as long as the `negative` feature
+//! is not activated. For exceptions see the next point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
 //! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`
@@ -223,8 +223,6 @@
 //! Also, `fundu` tries to give informative error messages
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
 //! use fundu::DurationParser;
 //!
 //! assert_eq!(
@@ -290,22 +288,32 @@
 //! [`Year`]: [`TimeUnit::Year`]
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc(test(attr(warn(unused))))]
+#![doc(test(attr(allow(unused_extern_crates))))]
 
-mod builder;
+mod config;
+#[cfg(feature = "custom")]
+mod custom;
 mod error;
 mod parse;
+#[cfg(feature = "standard")]
+mod standard;
 mod time;
 
-use builder::config;
-#[cfg(feature = "custom")]
-pub use builder::custom::{
-    CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, DEFAULT_ALL_TIME_UNITS,
-    DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
-};
-#[cfg(feature = "standard")]
-pub use builder::standard::{parse_duration, DurationParser, DurationParserBuilder};
 pub use config::Delimiter;
+#[cfg(feature = "custom")]
+pub use custom::{
+    builder::CustomDurationParserBuilder,
+    parser::CustomDurationParser,
+    time_units::{
+        CustomTimeUnit, Identifiers, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
+    },
+};
 pub use error::ParseError;
+#[cfg(feature = "standard")]
+pub use standard::{
+    builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,
+};
 
 pub use crate::time::{
     Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
