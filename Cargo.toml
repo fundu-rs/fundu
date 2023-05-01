@@ -28,7 +28,7 @@ with-iai = []
 with-flamegraph = []
 
 [dependencies]
-time = { version = "<= 0.3.16", optional = true, default-features = false }
+time = { version = "<= 0.3.21", optional = true, default-features = false }
 
 [dev-dependencies]
 rstest = "0.17.0"
