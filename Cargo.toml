@@ -36,15 +36,8 @@ criterion = "0.4.0"
 chrono = { version = "0.4.23", default-features = false }
 clap = { version = "<=3.2.23", features = ["cargo", "derive"] }
 
-# Does not compile the tests an s390x and mips due to:
-# /cargo/registry/src/github.com-1ecc6299db9ec823/rustix-0.37.17/src/backend/libc/io/syscalls.rs:384:24
-#     |
-# 384 |     use linux_raw_sys::ioctl::EXT4_IOC_RESIZE_FS;
-#     |                        ^^^^^ could not find `ioctl` in `linux_raw_sys`
-[target.'cfg(all(unix, not(any(target_arch = "s390x", target_arch = "mips"))))'.dev-dependencies]
-pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
-
 [target.'cfg(unix)'.dev-dependencies]
+pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
 inferno = { version = "=0.11.14" }
 iai-callgrind = "0.3.1"
 
