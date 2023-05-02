@@ -59,7 +59,7 @@ impl Display for ParseError {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TryFromDurationError {
     NegativeNumber,
     #[allow(dead_code)]

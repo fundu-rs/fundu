@@ -315,9 +315,6 @@ impl TryFrom<&Duration> for time::Duration {
     }
 }
 
-// TODO: implement TryFrom for chrono::Duration
-// TODO: Create trait SaturatingInto and implement for and chrono
-
 #[cfg(feature = "time")]
 impl SaturatingInto<time::Duration> for Duration {
     fn saturating_into(self) -> time::Duration {
@@ -330,10 +327,68 @@ impl SaturatingInto<time::Duration> for Duration {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl TryFrom<Duration> for chrono::Duration {
+    type Error = TryFromDurationError;
+
+    fn try_from(duration: Duration) -> Result<Self, Self::Error> {
+        (&duration).try_into()
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl TryFrom<&Duration> for chrono::Duration {
+    type Error = TryFromDurationError;
+
+    fn try_from(duration: &Duration) -> Result<Self, Self::Error> {
+        const MAX: chrono::Duration = chrono::Duration::max_value();
+        const MIN: chrono::Duration = chrono::Duration::min_value();
+        use std::ops::Neg;
+
+        match (duration.is_negative, duration.inner.as_secs()) {
+            (true, secs) if secs > MIN.num_seconds().unsigned_abs() => {
+                Err(TryFromDurationError::NegativeOverflow)
+            }
+            (true, secs) => {
+                let nanos =
+                    chrono::Duration::nanoseconds((duration.inner.subsec_nanos() as i64).neg());
+                match chrono::Duration::seconds((secs as i64).neg()).checked_add(&nanos) {
+                    Some(d) => Ok(d),
+                    None => Err(TryFromDurationError::NegativeOverflow),
+                }
+            }
+            (false, secs) if secs > MAX.num_seconds() as u64 => {
+                Err(TryFromDurationError::PositiveOverflow)
+            }
+            (false, secs) => {
+                let nanos = chrono::Duration::nanoseconds(duration.inner.subsec_nanos() as i64);
+                match chrono::Duration::seconds(secs as i64).checked_add(&nanos) {
+                    Some(d) => Ok(d),
+                    None => Err(TryFromDurationError::PositiveOverflow),
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "chrono")]
+impl SaturatingInto<chrono::Duration> for Duration {
+    fn saturating_into(self) -> chrono::Duration {
+        match self.try_into() {
+            Ok(duration) => duration,
+            Err(TryFromDurationError::NegativeOverflow) => chrono::Duration::min_value(),
+            Err(TryFromDurationError::PositiveOverflow) => chrono::Duration::max_value(),
+            Err(_) => unreachable!(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration as StdDuration;
 
+    #[cfg(feature = "chrono")]
+    use chrono::Duration as ChronoDuration;
     use rstest::rstest;
 
     use super::*;
@@ -392,8 +447,8 @@ mod tests {
         time::Duration::MAX
     )]
     #[case::positive_max_overflow(Duration::positive(u64::MAX, 999_999_999), time::Duration::MAX)]
-    fn test_duration_saturating_into(#[case] duration: Duration, #[case] expected: time::Duration) {
-        assert_eq!(duration.saturating_into(), expected);
+    fn test_fundu_duration_saturating_into_time_duration(#[case] duration: Duration, #[case] expected: time::Duration) {
+        assert_eq!(SaturatingInto::<time::Duration>::saturating_into(duration), expected);
     }
 
     #[cfg(feature = "time")]
@@ -541,10 +596,66 @@ mod tests {
         assert_eq!(Some(expected), rhs.checked_add(lhs));
     }
 
+    // TODO: add more tests
     #[rstest]
     #[case::min(Duration::MIN, Duration::MIN)]
     #[case::max(Duration::MAX, Duration::MAX)]
-    fn test_fundu_duration_checked_add_then_is_none(#[case] lhs: Duration, #[case] rhs: Duration) {
+    fn test_fundu_duration_checked_add_then_return_none(
+        #[case] lhs: Duration,
+        #[case] rhs: Duration,
+    ) {
         assert_eq!(None, lhs.checked_add(rhs));
+    }
+
+    #[cfg(feature = "chrono")]
+    #[rstest]
+    #[case::zero(Duration::ZERO, ChronoDuration::zero())]
+    #[case::negative_zero(Duration::negative(0, 0), ChronoDuration::zero())]
+    #[case::positive_one_sec(Duration::positive(1, 0), ChronoDuration::seconds(1))]
+    #[case::positive_one_sec_and_nano(
+        Duration::positive(1, 1),
+        ChronoDuration::nanoseconds(1_000_000_001)
+    )]
+    #[case::negative_one_sec(Duration::negative(1, 0), ChronoDuration::seconds(-1))]
+    #[case::negative_one_sec_and_nano(
+        Duration::negative(1, 1),
+        ChronoDuration::nanoseconds(-1_000_000_001)
+    )]
+    #[case::max_nanos(
+        Duration::positive(0, 999_999_999),
+        ChronoDuration::nanoseconds(999_999_999)
+    )]
+    #[case::min_nanos(
+        Duration::negative(0, 999_999_999),
+        ChronoDuration::nanoseconds(-999_999_999)
+    )]
+    #[case::max_secs(Duration::positive(i64::MAX as u64 / 1000, 0), ChronoDuration::seconds(i64::MAX / 1000))]
+    #[case::max_secs_and_nanos(Duration::positive(i64::MAX as u64 / 1000, 807_000_000), ChronoDuration::max_value())]
+    #[case::secs_and_nanos_one_below_max(Duration::positive(i64::MAX as u64 / 1000, 807_000_000 - 1), ChronoDuration::max_value().checked_sub(&ChronoDuration::nanoseconds(1)).unwrap())]
+    #[case::min_secs(Duration::negative(i64::MIN.unsigned_abs() / 1000, 0), ChronoDuration::seconds(i64::MIN / 1000))]
+    #[case::min_secs_and_nanos(Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000), ChronoDuration::min_value())]
+    #[case::secs_and_nanos_one_above_min(Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000 - 1), ChronoDuration::min_value().checked_add(&ChronoDuration::nanoseconds(1)).unwrap())]
+    fn test_chrono_try_from_fundu_duration(
+        #[case] duration: Duration,
+        #[case] expected: ChronoDuration,
+    ) {
+        let chrono_duration: ChronoDuration = duration.try_into().unwrap();
+        assert_eq!(chrono_duration, expected)
+    }
+
+    #[cfg(feature = "chrono")]
+    #[rstest]
+    #[case::positive_overflow_secs(Duration::positive(i64::MAX as u64 / 1000 + 1, 0), TryFromDurationError::PositiveOverflow)]
+    #[case::positive_overflow_secs_and_nanos(Duration::positive(i64::MAX as u64 / 1000, 807_000_000 + 1), TryFromDurationError::PositiveOverflow)]
+    #[case::positive_overflow_max_fundu_duration(Duration::MAX, TryFromDurationError::PositiveOverflow)]
+    #[case::negative_overflow_secs(Duration::negative(i64::MIN.unsigned_abs() / 1000 + 1, 0), TryFromDurationError::NegativeOverflow)]
+    #[case::negative_overflow_secs_and_nanos(Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_001), TryFromDurationError::NegativeOverflow)]
+    #[case::negative_overflow_min_fundu_duration(Duration::MIN, TryFromDurationError::NegativeOverflow)]
+    fn test_chrono_try_from_fundu_duration_then_error(
+        #[case] duration: Duration,
+        #[case] expected: TryFromDurationError,
+    ) {
+        let result: Result<ChronoDuration, TryFromDurationError> = duration.try_into();
+        assert_eq!(result.unwrap_err(), expected)
     }
 }

@@ -24,14 +24,13 @@ default = ["standard"]
 standard = []
 custom = []
 time = ["dep:time"]
-# TODO: activate chrono feature
-# chrono = ["dep:chrono"]
+chrono = ["dep:chrono"]
 with-iai = []
 with-flamegraph = []
 
 [dependencies]
 time = { version = "<= 0.3.16", optional = true, default-features = false }
-# chrono = { version = "0.4.24", optional = true, default-features = false }
+chrono = { version = "0.4.24", optional = true, default-features = false }
 
 [dev-dependencies]
 rstest = "0.17.0"
