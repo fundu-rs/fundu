@@ -14,7 +14,8 @@ fn check_exponent_overflow(input: &str, error: ParseError) {
             Some(exponent) => {
                 match exponent.parse::<i16>() {
                     Ok(e) if (MIN_EXPONENT..=MAX_EXPONENT).contains(&e) => panic!(
-                        "Exponent overflow error: Exponent was in valid range: input: {input}, error: {error:?}"
+                        "Exponent overflow error: Exponent was in valid range: input: {input}, \
+                         error: {error:?}"
                     ),
                     Ok(_) => {
                         // The overflow error is correctly returned by the parser
@@ -24,9 +25,10 @@ fn check_exponent_overflow(input: &str, error: ParseError) {
                             // The overflow error is correctly returned by the parser
                         }
                         kind => panic!(
-                            "Exponent overflow error: Should not be an Overflow error: {input}, error: {error:?}, kind: {kind:?}"
+                            "Exponent overflow error: Should not be an Overflow error: {input}, \
+                             error: {error:?}, kind: {kind:?}"
                         ),
-                    }
+                    },
                 }
             }
             None => panic!("Exponent overflow error: No number: input: {input}, error: {error:?}"),
@@ -69,7 +71,8 @@ fuzz_target!(|data: &[u8]| {
                     Some(std::cmp::Ordering::Greater) | None => {
                         if let Ok(duration) = parser.parse(string) {
                             panic!(
-                                "Expected an error: input: {string}, f64: {parsed}, duration: {duration:?}"
+                                "Expected an error: input: {string}, f64: {parsed}, duration: \
+                                 {duration:?}"
                             );
                         }
                     }
@@ -81,8 +84,8 @@ fuzz_target!(|data: &[u8]| {
                         "Expected an error: input: {string}, f64: {parsed}, duration: {duration:?}"
                     );
                 }
-            // Everything else should be parsable by fundu besides some special handling of the exponent
-            // and the overflow errors
+            // Everything else should be parsable by fundu besides some special handling of the
+            // exponent and the overflow errors
             } else {
                 match parser.parse(string) {
                     Ok(duration) => {
@@ -96,7 +99,11 @@ fuzz_target!(|data: &[u8]| {
                             .max(rust_duration)
                             .saturating_sub(duration.min(rust_duration));
                         if delta > epsilon_duration {
-                            panic!("The duration delta between rust and fundu was too high: input: {string}, fundu: {duration:?}, rust: {rust_duration:?}, epsilon: {epsilon_duration:?}, delta: {delta:?}")
+                            panic!(
+                                "The duration delta between rust and fundu was too high: input: \
+                                 {string}, fundu: {duration:?}, rust: {rust_duration:?}, epsilon: \
+                                 {epsilon_duration:?}, delta: {delta:?}"
+                            )
                         }
                     }
                     Err(error) => match error {
