@@ -22,6 +22,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
+  FEATURES: standard,custom,time,chrono
 
 jobs:
   deny:
@@ -58,8 +59,8 @@ jobs:
         include:
           - components: clippy
             toolchain: stable
-          - features: standard,custom,negative,with-iai,with-flamegraph
-          - features: standard,custom,negative
+          - features: standard,custom,time,chrono,with-iai,with-flamegraph
+          - features: standard,custom,time,chrono
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -147,9 +148,9 @@ jobs:
           cargo --list
           cross --version
       - name: Build
-        run: cross build --all-features --target ${{ matrix.target }}
+        run: cross build --features ${{ env.FEATURES }} --target ${{ matrix.target }}
       - name: Test
-        run: cross test --all-features --target ${{ matrix.target }}
+        run: cross test --features ${{ env.FEATURES }} --target ${{ matrix.target }}
 
   docs:
     needs: [base, cross]
@@ -199,9 +200,9 @@ jobs:
       - name: Clean
         run: cargo clean
       - name: Build
-        run: cargo build --all-features --profile coverage
+        run: cargo build --features ${{ env.FEATURES }} --profile coverage
       - name: Test
-        run: cargo test --all-features --tests --profile coverage
+        run: cargo test --features ${{ env.FEATURES }} --tests --profile coverage
       - name: Generate code coverage
         run: |
           ~/.cargo/bin/grcov . \
@@ -318,9 +319,9 @@ jobs:
         run: |
           cargo bench --features custom,with-iai --no-default-features \
             --bench iai_bench_custom | tee -a bench.out
-      - name: Run iai-callgrind negative feature benchmarks
+      - name: Run iai-callgrind time chrono feature benchmarks
         run: |
-          cargo bench --features negative,with-iai \
+          cargo bench --features time,chrono,with-iai \
             --bench iai_bench_parsing_negative | tee -a bench.out
       - name: Strip colors from output file bench.out
         run: |
@@ -403,9 +404,9 @@ jobs:
         run: |
           case ${{ matrix.target }} in
             x86_64-unknown-linux-gnu )
-              cargo miri test --features standard,custom,negative
+              cargo miri test --features ${{ env.FEATURES }}
               ;;
             * )
-              cross miri test --features standard,custom,negative --target ${{ matrix.target }}
+              cross miri test --features ${{ env.FEATURES }} --target ${{ matrix.target }}
               ;;
           esac
