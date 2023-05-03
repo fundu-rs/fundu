@@ -1,6 +1,6 @@
 #![no_main]
 
-use std::{num::IntErrorKind, time::Duration};
+use std::num::IntErrorKind;
 
 use fundu::{DurationParser, ParseError};
 use libfuzzer_sys::fuzz_target;
@@ -89,12 +89,13 @@ fuzz_target!(|data: &[u8]| {
             } else {
                 match parser.parse(string) {
                     Ok(duration) => {
-                        let rust_duration = match Duration::try_from_secs_f64(parsed) {
+                        let duration: std::time::Duration = duration.try_into().unwrap();
+                        let rust_duration = match std::time::Duration::try_from_secs_f64(parsed) {
                             Ok(d) => d,
-                            Err(_) => Duration::MAX,
+                            Err(_) => std::time::Duration::MAX,
                         };
                         // This epsilon is backed by a lot of random runs and manual comparisons
-                        let epsilon_duration = Duration::from_secs(1024);
+                        let epsilon_duration = std::time::Duration::from_secs(1024);
                         let delta = duration
                             .max(rust_duration)
                             .saturating_sub(duration.min(rust_duration));
