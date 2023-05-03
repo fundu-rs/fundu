@@ -14,10 +14,8 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 /// # Examples
 ///
 /// ```rust
-/// use std::time::Duration;
-///
 /// use fundu::TimeUnit::*;
-/// use fundu::{CustomDurationParser, CustomDurationParserBuilder};
+/// use fundu::{CustomDurationParser, CustomDurationParserBuilder, Duration};
 ///
 /// let parser = CustomDurationParserBuilder::new()
 ///     .time_units(&[(NanoSecond, &["ns"])])
@@ -25,8 +23,8 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 ///     .allow_delimiter(|byte| byte == b' ')
 ///     .build();
 ///
-/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
-/// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
+/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::positive(0, 1));
+/// assert_eq!(parser.parse("1").unwrap(), Duration::positive(0, 1_000));
 ///
 /// // instead of
 ///
@@ -35,8 +33,8 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 ///     .default_unit(MicroSecond)
 ///     .allow_delimiter(Some(|byte| byte == b' '));
 ///
-/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::new(0, 1));
-/// assert_eq!(parser.parse("1").unwrap(), Duration::new(0, 1_000));
+/// assert_eq!(parser.parse("1 ns").unwrap(), Duration::positive(0, 1));
+/// assert_eq!(parser.parse("1").unwrap(), Duration::positive(0, 1_000));
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParserBuilder<'a> {
@@ -123,10 +121,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Multiplier};
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .custom_time_unit(CustomTimeUnit::new(
@@ -137,7 +133,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     .build();
     /// assert_eq!(
     ///     parser.parse("1fortnight").unwrap(),
-    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
+    ///     Duration::positive(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
     pub fn custom_time_unit(mut self, time_unit: CustomTimeUnit<'a>) -> Self {
@@ -152,10 +148,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Example
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Multiplier};
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier};
     ///
     /// const CUSTOM_TIME_UNITS: [CustomTimeUnit; 2] = [
     ///     CustomTimeUnit::new(Week, &["fortnight", "fortnights"], Some(Multiplier(2, 0))),
@@ -168,7 +162,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// assert_eq!(
     ///     parser.parse("1fortnight").unwrap(),
-    ///     Duration::new(2 * 7 * 24 * 60 * 60, 0),
+    ///     Duration::positive(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
     pub fn custom_time_units(mut self, time_units: &[CustomTimeUnit<'a>]) -> Self {
@@ -185,10 +179,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::CustomDurationParserBuilder;
     /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, Duration};
     ///
     /// assert_eq!(
     ///     CustomDurationParserBuilder::new()
@@ -196,7 +188,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///         .build()
     ///         .parse("42")
     ///         .unwrap(),
-    ///     Duration::new(0, 42)
+    ///     Duration::positive(0, 42)
     /// );
     /// ```
     pub const fn default_unit(mut self, unit: TimeUnit) -> Self {
@@ -211,18 +203,16 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::CustomDurationParserBuilder;
     /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&[(NanoSecond, &["ns"])])
     ///     .allow_delimiter(|byte| byte == b' ')
     ///     .build();
     ///
-    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::new(0, 123)));
-    /// assert_eq!(parser.parse("123 "), Ok(Duration::new(123, 0)));
+    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123 "), Ok(Duration::positive(123, 0)));
     /// ```
     pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.allow_delimiter = Some(delimiter);
@@ -263,10 +253,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParserBuilder, ParseError};
+    /// use fundu::{CustomDurationParserBuilder, Duration, ParseError};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&[(NanoSecond, &["ns"])])
@@ -278,8 +266,11 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Err(ParseError::Syntax(3, "No fraction allowed".to_string()))
     /// );
     ///
-    /// assert_eq!(parser.parse("123e-2"), Ok(Duration::new(1, 230_000_000)));
-    /// assert_eq!(parser.parse("123ns"), Ok(Duration::new(0, 123)));
+    /// assert_eq!(
+    ///     parser.parse("123e-2"),
+    ///     Ok(Duration::positive(1, 230_000_000))
+    /// );
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     /// ```
     pub const fn disable_fraction(mut self) -> Self {
         self.config.disable_fraction = true;
@@ -324,9 +315,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
@@ -334,7 +323,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     .build();
     ///
     /// for input in &[".001e-6s", "ns", "e-9", "e-3Ms"] {
-    ///     assert_eq!(parser.parse(input), Ok(Duration::new(0, 1)));
+    ///     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
     /// }
     /// ```
     pub const fn number_is_optional(mut self) -> Self {
@@ -349,23 +338,30 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
     ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'))
     ///     .build();
     ///
-    /// assert_eq!(parser.parse("1.5h 2e+2ns"), Ok(Duration::new(5400, 200)));
-    /// assert_eq!(parser.parse("55s500ms"), Ok(Duration::new(55, 500_000_000)));
-    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::new(2, 0)));
-    /// assert_eq!(parser.parse("1.   .1"), Ok(Duration::new(1, 100_000_000)));
-    /// assert_eq!(parser.parse("2h"), Ok(Duration::new(2 * 60 * 60, 0)));
+    /// assert_eq!(
+    ///     parser.parse("1.5h 2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("55s500ms"),
+    ///     Ok(Duration::positive(55, 500_000_000))
+    /// );
+    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::positive(2, 0)));
+    /// assert_eq!(
+    ///     parser.parse("1.   .1"),
+    ///     Ok(Duration::positive(1, 100_000_000))
+    /// );
+    /// assert_eq!(parser.parse("2h"), Ok(Duration::positive(2 * 60 * 60, 0)));
     /// assert_eq!(
     ///     parser.parse("300ms20s 5d"),
-    ///     Ok(Duration::new(5 * 60 * 60 * 24 + 20, 300_000_000))
+    ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
     pub const fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
@@ -382,10 +378,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
-    /// use fundu::CustomDurationParserBuilder;
     /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&[(Minute, &["min"]), (Hour, &["h", "hr"])])
@@ -393,7 +387,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     .build();
     ///
     /// for input in &["60 min", "1h", "1\t\n hr"] {
-    ///     assert_eq!(parser.parse(input).unwrap(), Duration::new(60 * 60, 0));
+    ///     assert_eq!(parser.parse(input).unwrap(), Duration::positive(60 * 60, 0));
     /// }
     /// ```
     pub fn build(self) -> CustomDurationParser<'a> {

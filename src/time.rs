@@ -39,15 +39,13 @@ pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 /// # Examples
 ///
 /// ```rust
-/// use std::time::Duration;
-///
-/// use fundu::{DurationParser, TimeUnit};
+/// use fundu::{Duration, DurationParser, TimeUnit};
 ///
 /// assert_eq!(
 ///     DurationParser::with_time_units(&[TimeUnit::NanoSecond])
 ///         .parse("42ns")
 ///         .unwrap(),
-///     Duration::new(0, 42)
+///     Duration::positive(0, 42)
 /// );
 /// ```
 ///

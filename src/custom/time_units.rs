@@ -120,10 +120,8 @@ impl LookupData {
 /// result, although it does not provide any benefits.
 ///
 /// ```rust
-/// use std::time::Duration;
-///
 /// use fundu::TimeUnit::*;
-/// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
+/// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier};
 ///
 /// let parser = CustomDurationParser::builder()
 ///     .custom_time_units(&[
@@ -134,7 +132,7 @@ impl LookupData {
 ///
 /// assert_eq!(
 ///     parser.parse("1fortnight").unwrap(),
-///     Duration::new(1209600, 0)
+///     Duration::positive(1209600, 0)
 /// );
 /// ```
 ///
@@ -198,17 +196,15 @@ impl<'a> CustomTimeUnit<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use std::time::Duration;
-    ///
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier};
     ///
     /// let time_unit = CustomTimeUnit::new(Second, &["shake", "shakes"], Some(Multiplier(1, -8)));
     /// let parser = CustomDurationParser::builder()
     ///     .custom_time_unit(time_unit)
     ///     .build();
     ///
-    /// assert_eq!(parser.parse("1shake").unwrap(), Duration::new(0, 10));
+    /// assert_eq!(parser.parse("1shake").unwrap(), Duration::positive(0, 10));
     /// ```
     pub const fn new(
         base_unit: TimeUnit,

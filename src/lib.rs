@@ -127,28 +127,24 @@
 //! [`DurationParser`] can be used.
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
-//! use fundu::DurationParser;
+//! use fundu::{Duration, DurationParser};
 //!
 //! let input = "3m";
 //! assert_eq!(
 //!     DurationParser::with_all_time_units().parse(input).unwrap(),
-//!     Duration::new(180, 0)
+//!     Duration::positive(180, 0)
 //! );
 //! ```
 //!
 //! When no time units are configured, seconds is assumed.
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
-//! use fundu::DurationParser;
+//! use fundu::{Duration, DurationParser};
 //!
 //! let input = "1.0e2";
 //! assert_eq!(
 //!     DurationParser::without_time_units().parse(input).unwrap(),
-//!     Duration::new(100, 0)
+//!     Duration::positive(100, 0)
 //! );
 //! ```
 //!
@@ -164,17 +160,15 @@
 //! The parser is reusable and the set of time units is fully customizable
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
-//! use fundu::DurationParser;
 //! use fundu::TimeUnit::*;
+//! use fundu::{Duration, DurationParser};
 //!
 //! let parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
 //! for (input, expected) in &[
-//!     ("9e3ns", Duration::new(0, 9000)),
-//!     ("10m", Duration::new(600, 0)),
-//!     ("1.1h", Duration::new(3960, 0)),
-//!     ("7", Duration::new(7, 0)),
+//!     ("9e3ns", Duration::positive(0, 9000)),
+//!     ("10m", Duration::positive(600, 0)),
+//!     ("1.1h", Duration::positive(3960, 0)),
+//!     ("7", Duration::positive(7, 0)),
 //! ] {
 //!     assert_eq!(parser.parse(input).unwrap(), *expected);
 //! }
@@ -184,27 +178,23 @@
 //! different than seconds is also easily possible
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
-//! use fundu::DurationParser;
 //! use fundu::TimeUnit::*;
+//! use fundu::{Duration, DurationParser};
 //!
 //! assert_eq!(
 //!     DurationParser::without_time_units()
 //!         .default_unit(MilliSecond)
 //!         .parse("1000")
 //!         .unwrap(),
-//!     Duration::new(1, 0)
+//!     Duration::positive(1, 0)
 //! );
 //! ```
 //! The identifiers for time units can be fully customized with any number of valid
 //! [utf-8](https://en.wikipedia.org/wiki/UTF-8) sequences if the `custom` feature is activated:
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
-//! use fundu::CustomDurationParser;
 //! use fundu::TimeUnit::*;
+//! use fundu::{CustomDurationParser, Duration};
 //!
 //! let parser = CustomDurationParser::with_time_units(&[
 //!     (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
@@ -212,9 +202,12 @@
 //!     (Hour, &["⏳"]),
 //! ]);
 //! for (input, expected) in &[
-//!     (".3χιλιοστό του δευτερολέπτου", Duration::new(0, 300_000)),
-//!     ("1e3secs", Duration::new(1000, 0)),
-//!     ("1.1⏳", Duration::new(3960, 0)),
+//!     (
+//!         ".3χιλιοστό του δευτερολέπτου",
+//!         Duration::positive(0, 300_000),
+//!     ),
+//!     ("1e3secs", Duration::positive(1000, 0)),
+//!     ("1.1⏳", Duration::positive(3960, 0)),
 //! ] {
 //!     assert_eq!(parser.parse(input).unwrap(), *expected);
 //! }
@@ -239,10 +232,8 @@
 //! number format to whole numbers, without fractional part and an exponent:
 //!
 //! ```rust
-//! use std::time::Duration;
-//!
 //! use fundu::TimeUnit::*;
-//! use fundu::{DurationParser, ParseError};
+//! use fundu::{Duration, DurationParser, ParseError};
 //!
 //! let parser = DurationParser::builder()
 //!     .custom_time_units(&[NanoSecond])
@@ -253,8 +244,8 @@
 //!     .build();
 //!
 //! for (input, expected) in &[
-//!     ("ns", Duration::new(0, 1)),
-//!     ("1000\t\n\r ns", Duration::new(0, 1000)),
+//!     ("ns", Duration::positive(0, 1)),
+//!     ("1000\t\n\r ns", Duration::positive(0, 1000)),
 //! ] {
 //!     assert_eq!(parser.parse(input).unwrap(), *expected);
 //! }
