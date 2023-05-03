@@ -4,7 +4,8 @@
 // https://opensource.org/licenses/MIT
 
 use std::cmp::Ordering;
-use std::ops::Sub;
+use std::hash::{Hash, Hasher};
+use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
 use TimeUnit::*;
 
@@ -154,9 +155,10 @@ impl Default for Multiplier {
     }
 }
 
-impl std::ops::Mul for Multiplier {
+impl Mul for Multiplier {
     type Output = Self;
 
+    // TODO: Use checked_mul() and checked_add with expect() for a better error message
     fn mul(self, rhs: Self) -> Self::Output {
         Multiplier(self.0 * rhs.0, self.1 + rhs.1)
     }
@@ -166,7 +168,7 @@ pub trait SaturatingInto<T>: Sized {
     fn saturating_into(self) -> T;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, Eq, Clone, Copy, Default)]
 pub struct Duration {
     is_negative: bool,
     inner: std::time::Duration,
@@ -193,6 +195,7 @@ impl Duration {
         Self { is_negative, inner }
     }
 
+    // TODO: Remove
     pub fn new(is_negative: bool, secs: u64, nanos: u32) -> Self {
         Self {
             is_negative,
@@ -218,8 +221,16 @@ impl Duration {
         self.is_negative
     }
 
+    pub fn is_positive(&self) -> bool {
+        !self.is_negative
+    }
+
     pub fn is_zero(&self) -> bool {
         self.inner.is_zero()
+    }
+
+    pub fn abs(&self) -> Self {
+        Self::from_std(false, self.inner)
     }
 
     pub fn checked_add(&self, other: Self) -> Option<Self> {
@@ -252,6 +263,10 @@ impl Duration {
         }
     }
 
+    pub fn checked_sub(&self, other: Self) -> Option<Self> {
+        self.checked_add(other.neg())
+    }
+
     pub fn saturating_add(&self, other: Self) -> Self {
         match self.checked_add(other) {
             Some(d) => d,
@@ -259,6 +274,88 @@ impl Duration {
             // is enough to check one of the durations for negativity
             None if self.is_negative => Self::MIN,
             None => Self::MAX,
+        }
+    }
+
+    pub fn saturating_sub(&self, other: Self) -> Self {
+        self.saturating_add(other.neg())
+    }
+}
+
+impl Add for Duration {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        self.checked_add(rhs)
+            .expect("Overflow when adding duration")
+    }
+}
+
+impl AddAssign for Duration {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = *self + rhs
+    }
+}
+
+impl Sub for Duration {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        self.checked_sub(rhs)
+            .expect("Overflow when subtracting duration")
+    }
+}
+
+impl SubAssign for Duration {
+    fn sub_assign(&mut self, rhs: Self) {
+        *self = *self - rhs
+    }
+}
+
+impl Neg for Duration {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            is_negative: self.is_negative ^ true,
+            inner: self.inner,
+        }
+    }
+}
+
+impl PartialEq for Duration {
+    fn eq(&self, other: &Self) -> bool {
+        (self.is_zero() && other.is_zero())
+            || (self.is_negative == other.is_negative && self.inner == other.inner)
+    }
+}
+
+impl Hash for Duration {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        if self.is_zero() {
+            false.hash(state);
+            self.inner.hash(state);
+        } else {
+            self.is_negative.hash(state);
+            self.inner.hash(state);
+        }
+    }
+}
+
+impl PartialOrd for Duration {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Duration {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.is_negative, other.is_negative) {
+            (true, true) => other.inner.cmp(&self.inner),
+            (true, false) | (false, true) if self.is_zero() && other.is_zero() => Ordering::Equal,
+            (true, false) => Ordering::Less,
+            (false, true) => Ordering::Greater,
+            (false, false) => self.inner.cmp(&other.inner),
         }
     }
 }
@@ -280,6 +377,19 @@ impl TryFrom<Duration> for std::time::Duration {
             Err(TryFromDurationError::NegativeNumber)
         } else {
             Ok(duration.inner)
+        }
+    }
+}
+
+#[cfg(feature = "time")]
+impl From<time::Duration> for Duration {
+    fn from(duration: time::Duration) -> Self {
+        Self {
+            is_negative: duration.is_negative(),
+            inner: std::time::Duration::new(
+                duration.whole_seconds().unsigned_abs(),
+                duration.subsec_nanoseconds().unsigned_abs(),
+            ),
         }
     }
 }
@@ -343,7 +453,6 @@ impl TryFrom<&Duration> for chrono::Duration {
     fn try_from(duration: &Duration) -> Result<Self, Self::Error> {
         const MAX: chrono::Duration = chrono::Duration::max_value();
         const MIN: chrono::Duration = chrono::Duration::min_value();
-        use std::ops::Neg;
 
         match (duration.is_negative, duration.inner.as_secs()) {
             (true, secs) if secs > MIN.num_seconds().unsigned_abs() => {
@@ -383,8 +492,19 @@ impl SaturatingInto<chrono::Duration> for Duration {
     }
 }
 
+#[cfg(feature = "chrono")]
+impl From<chrono::Duration> for Duration {
+    fn from(duration: chrono::Duration) -> Self {
+        Self {
+            is_negative: duration.num_seconds() < 0,
+            inner: duration.abs().to_std().unwrap(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map::DefaultHasher;
     use std::time::Duration as StdDuration;
 
     #[cfg(feature = "chrono")]
@@ -699,5 +819,121 @@ mod tests {
     ) {
         let result: Result<ChronoDuration, TryFromDurationError> = duration.try_into();
         assert_eq!(result.unwrap_err(), expected)
+    }
+
+    #[rstest]
+    #[case::positive_zero(Duration::ZERO, Duration::ZERO, Ordering::Equal)]
+    #[case::negative_zero(Duration::negative(0, 0), Duration::negative(0, 0), Ordering::Equal)]
+    #[case::negative_zero_and_positive_zero(
+        Duration::negative(0, 0),
+        Duration::ZERO,
+        Ordering::Equal
+    )]
+    #[case::both_positive_one_sec(
+        Duration::positive(1, 0),
+        Duration::positive(1, 0),
+        Ordering::Equal
+    )]
+    #[case::both_negative_one_sec(
+        Duration::negative(1, 0),
+        Duration::negative(1, 0),
+        Ordering::Equal
+    )]
+    #[case::negative_and_positive_one_sec(
+        Duration::negative(1, 0),
+        Duration::positive(1, 0),
+        Ordering::Less
+    )]
+    #[case::one_nano_second_difference_positive(
+        Duration::ZERO,
+        Duration::positive(0, 1),
+        Ordering::Less
+    )]
+    #[case::one_nano_second_difference_negative(
+        Duration::ZERO,
+        Duration::negative(0, 1),
+        Ordering::Greater
+    )]
+    #[case::max(Duration::MAX, Duration::MAX, Ordering::Equal)]
+    #[case::one_nano_below_max(
+        Duration::MAX,
+        Duration::positive(u64::MAX, 999_999_998),
+        Ordering::Greater
+    )]
+    #[case::min(Duration::MIN, Duration::MIN, Ordering::Equal)]
+    #[case::one_nano_above_min(
+        Duration::MIN,
+        Duration::negative(u64::MAX, 999_999_998),
+        Ordering::Less
+    )]
+    #[case::min_max(Duration::MIN, Duration::MAX, Ordering::Less)]
+    #[case::mixed_positive(
+        Duration::positive(123, 987),
+        Duration::positive(987, 123),
+        Ordering::Less
+    )]
+    #[case::mixed_negative(
+        Duration::negative(123, 987),
+        Duration::negative(987, 123),
+        Ordering::Greater
+    )]
+    #[case::mixed_positive_and_negative(
+        Duration::positive(123, 987),
+        Duration::negative(987, 123),
+        Ordering::Greater
+    )]
+    fn test_duration_partial_and_total_ordering(
+        #[case] lhs: Duration,
+        #[case] rhs: Duration,
+        #[case] expected: Ordering,
+    ) {
+        assert_eq!(lhs.partial_cmp(&rhs), Some(expected));
+        assert_eq!(rhs.partial_cmp(&lhs), Some(expected.reverse()));
+    }
+
+    #[rstest]
+    #[case::positive_zero(Duration::ZERO, Duration::ZERO)]
+    #[case::negative_zero(Duration::negative(0, 0), Duration::negative(0, 0))]
+    #[case::negative_zero_and_positive_zero(Duration::negative(0, 0), Duration::ZERO)]
+    #[case::positive_one_sec(Duration::positive(1, 0), Duration::positive(1, 0))]
+    #[case::negative_one_sec(Duration::negative(1, 0), Duration::negative(1, 0))]
+    #[case::max(Duration::MAX, Duration::MAX)]
+    #[case::min(Duration::MIN, Duration::MIN)]
+    fn test_duration_hash_and_eq_property_when_equal(
+        #[case] duration: Duration,
+        #[case] other: Duration,
+    ) {
+        assert_eq!(duration, other);
+        assert_eq!(other, duration);
+
+        let mut hasher = DefaultHasher::new();
+        duration.hash(&mut hasher);
+
+        let mut other_hasher = DefaultHasher::new();
+        other.hash(&mut other_hasher);
+
+        assert_eq!(hasher.finish(), other_hasher.finish());
+    }
+
+    #[rstest]
+    #[case::zero_and_positive_one(Duration::ZERO, Duration::positive(1, 0))]
+    #[case::zero_and_negative_one(Duration::ZERO, Duration::negative(1, 0))]
+    #[case::positive_sec(Duration::positive(1, 0), Duration::negative(2, 0))]
+    #[case::positive_and_negative_one_sec(Duration::positive(1, 0), Duration::negative(1, 0))]
+    #[case::min_and_max(Duration::MIN, Duration::MAX)]
+    fn test_duration_hash_and_eq_property_when_not_equal(
+        #[case] duration: Duration,
+        #[case] other: Duration,
+    ) {
+        assert_ne!(duration, other);
+        assert_ne!(other, duration);
+
+        let mut hasher = DefaultHasher::new();
+        duration.hash(&mut hasher);
+
+        let mut other_hasher = DefaultHasher::new();
+        other.hash(&mut other_hasher);
+
+        assert_ne!(hasher.finish(), other_hasher.finish());
     }
 }
