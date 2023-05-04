@@ -153,12 +153,32 @@ impl Default for Multiplier {
     }
 }
 
+impl Multiplier {
+    pub fn coefficient(&self) -> i64 {
+        self.0
+    }
+
+    pub fn exponent(&self) -> i16 {
+        self.1
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.0.is_negative()
+    }
+}
+
 impl Mul for Multiplier {
     type Output = Self;
 
-    // TODO: Use checked_mul() and checked_add with expect() for a better error message
     fn mul(self, rhs: Self) -> Self::Output {
-        Multiplier(self.0 * rhs.0, self.1 + rhs.1)
+        Multiplier(
+            self.0
+                .checked_mul(rhs.0)
+                .expect("Multiplier: Overflow when multiplying coefficient"),
+            self.1
+                .checked_add(rhs.1)
+                .expect("Multiplier: Overflow when adding exponent"),
+        )
     }
 }
 
@@ -193,7 +213,7 @@ impl Duration {
         Self { is_negative, inner }
     }
 
-    // TODO: Remove
+    // TODO: Remove ??
     pub fn new(is_negative: bool, secs: u64, nanos: u32) -> Self {
         Self {
             is_negative,
@@ -430,7 +450,7 @@ impl SaturatingInto<time::Duration> for Duration {
             Ok(duration) => duration,
             Err(TryFromDurationError::NegativeOverflow) => time::Duration::MIN,
             Err(TryFromDurationError::PositiveOverflow) => time::Duration::MAX,
-            Err(_) => unreachable!(),
+            Err(_) => unreachable!(), // cov:excl-line
         }
     }
 }

@@ -14,6 +14,7 @@ use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
+// TODO: Rename to ATTOS_PER_NANO_SECOND
 const ATTO_TO_NANO: u64 = 1_000_000_000;
 
 const POW10: [u64; 20] = [
