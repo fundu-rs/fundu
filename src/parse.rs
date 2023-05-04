@@ -300,7 +300,8 @@ impl DurationRepr {
         // This unwrap is safe because there are whole or fract present
         let digits = self.digits.as_ref().unwrap();
 
-        let Multiplier(multiplier, exponent) = self.unit.multiplier() * self.multiplier;
+        // Panic on overflow during the multiplication of the multipliers or adding the exponents
+        let Multiplier(coefficient, exponent) = self.unit.multiplier() * self.multiplier;
         let exponent = exponent as i32 + self.exponent as i32;
 
         // The maximum absolute value of the exponent is `2 * abs(i16::MIN)`, so it is safe to cast
@@ -351,13 +352,18 @@ impl DurationRepr {
             }
         };
 
+        let duration_is_negative = self.is_negative ^ coefficient.is_negative();
+
         // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
         // maximum `Duration`.
         let (seconds, attos) = match seconds {
             Some(result) => match result {
                 Ok(seconds) => (seconds, attos.unwrap_or_default()),
+                Err(ParseError::Overflow) if duration_is_negative => {
+                    return Ok(Duration::MIN);
+                }
                 Err(ParseError::Overflow) => {
-                    return Ok(Duration::from_std(self.is_negative, StdDuration::MAX));
+                    return Ok(Duration::MAX);
                 }
                 // only ParseError::Overflow is returned by `Seconds::parse`
                 Err(_) => unreachable!(), // cov:excl-line
@@ -369,26 +375,29 @@ impl DurationRepr {
         // as zero duration
         if seconds == 0 && attos == 0 {
             Ok(Duration::ZERO)
-        } else if multiplier == 1 {
+        } else if coefficient == 1 || coefficient == -1 {
             Ok(Duration::from_std(
-                self.is_negative,
+                duration_is_negative,
                 StdDuration::new(seconds, (attos / ATTO_TO_NANO) as u32),
             ))
         } else {
-            let attos = attos as u128 * (multiplier as u128);
+            let unsigned_coefficient = coefficient.unsigned_abs();
+
+            let attos = attos as u128 * (unsigned_coefficient as u128);
             Ok(
                 match seconds
-                    .checked_mul(multiplier)
+                    .checked_mul(unsigned_coefficient)
                     .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
                 {
                     Some(s) => Duration::from_std(
-                        self.is_negative,
+                        duration_is_negative,
                         StdDuration::new(
                             s,
                             ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32,
                         ),
                     ),
-                    None => Duration::from_std(self.is_negative, StdDuration::MAX),
+                    None if duration_is_negative => Duration::MIN,
+                    None => Duration::MAX,
                 },
             )
         }

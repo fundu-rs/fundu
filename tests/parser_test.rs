@@ -7,8 +7,8 @@ use std::time::Duration as StdDuration;
 
 use fundu::TimeUnit::*;
 use fundu::{
-    parse_duration, CustomDurationParser, CustomDurationParserBuilder, Duration, DurationParser,
-    ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
+    parse_duration, CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, Duration,
+    DurationParser, Multiplier, ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
 };
 use rstest::rstest;
 
@@ -657,4 +657,24 @@ fn test_custom_parser_when_disable_infinity_then_no_problems_with_infinity_like_
         .time_units(time_units)
         .build();
     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
+}
+
+#[rstest]
+#[case::positive_zero("0s", Duration::ZERO)]
+#[case::negative_zero("-0s", Duration::ZERO)]
+#[case::positive_second("1s", Duration::negative(1, 0))]
+#[case::negative_second("-1s", Duration::positive(1, 0))]
+#[case::positive_two_seconds("2s", Duration::negative(2, 0))]
+#[case::negative_two_seconds("-2s", Duration::positive(2, 0))]
+#[case::positive_fraction("0.1s", Duration::negative(0, 100_000_000))]
+#[case::negative_fraction("-0.1s", Duration::positive(0, 100_000_000))]
+#[case::positive_overflow(&format!("{}s", u128::MAX), Duration::MIN)]
+#[case::negative_overflow(&format!("-{}s", u128::MAX), Duration::MAX)]
+fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expected: Duration) {
+    let parser = CustomDurationParserBuilder::new()
+        .custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(-1, 0))))
+        .allow_negative()
+        .build();
+    let actual = parser.parse(input).unwrap();
+    assert_eq!(actual, expected);
 }

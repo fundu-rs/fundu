@@ -14,12 +14,12 @@ use fundu::{CustomDurationParser, SYSTEMD_TIME_UNITS};
 
 /// Create a human readable string like `100y 2h 46min 40s 123us 456ns` from a `Duration`
 fn make_human(duration: Duration) -> String {
-    const YEAR: u64 = Year.multiplier().0;
-    const MONTH: u64 = Month.multiplier().0;
-    const WEEK: u64 = Week.multiplier().0;
-    const DAY: u64 = Day.multiplier().0;
-    const HOUR: u64 = Hour.multiplier().0;
-    const MINUTE: u64 = Minute.multiplier().0;
+    const YEAR: u64 = Year.multiplier().0.unsigned_abs();
+    const MONTH: u64 = Month.multiplier().0.unsigned_abs();
+    const WEEK: u64 = Week.multiplier().0.unsigned_abs();
+    const DAY: u64 = Day.multiplier().0.unsigned_abs();
+    const HOUR: u64 = Hour.multiplier().0.unsigned_abs();
+    const MINUTE: u64 = Minute.multiplier().0.unsigned_abs();
     const MILLIS_PER_NANO: u32 = 1_000_000;
     const MICROS_PER_NANO: u32 = 1_000;
 

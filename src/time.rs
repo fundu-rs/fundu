@@ -145,7 +145,7 @@ pub(crate) trait TimeUnitsLike {
 /// let hour = Multiplier(3600, 0);
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Multiplier(pub u64, pub i16);
+pub struct Multiplier(pub i64, pub i16);
 
 impl Default for Multiplier {
     fn default() -> Self {
@@ -607,17 +607,39 @@ mod tests {
         assert_eq!(Duration::from(std_duration), expected);
     }
 
+    #[test]
+    fn test_multiplier_get_coefficient() {
+        let multi = Multiplier(1234, 0);
+        assert_eq!(multi.coefficient(), 1234);
+    }
+
+    #[test]
+    fn test_multiplier_get_exponent() {
+        let multi = Multiplier(0, 1234);
+        assert_eq!(multi.exponent(), 1234);
+    }
+
     #[rstest]
-    #[case::nano_second(NanoSecond, Multiplier(u64::MAX, i16::MIN + 9))]
-    #[case::micro_second(MicroSecond, Multiplier(u64::MAX, i16::MIN + 6))]
-    #[case::milli_second(MilliSecond, Multiplier(u64::MAX, i16::MIN + 3))]
-    #[case::second(Second, Multiplier(u64::MAX, i16::MIN))]
-    #[case::minute(Minute, Multiplier(307_445_734_561_825_860, i16::MIN))]
-    #[case::hour(Hour, Multiplier(5_124_095_576_030_431, i16::MIN))]
-    #[case::day(Day, Multiplier(213_503_982_334_601, i16::MIN))]
-    #[case::week(Week, Multiplier(30_500_568_904_943, i16::MIN))]
-    #[case::month(Month, Multiplier(7_014_504_553_087, i16::MIN))]
-    #[case::year(Year, Multiplier(584_542_046_090, i16::MIN))]
+    #[case::zero(Multiplier(0, 0), false)]
+    #[case::negative(Multiplier(-1, 0), true)]
+    #[case::positive(Multiplier(1, 0), false)]
+    #[case::negative_exponent(Multiplier(1, -1), false)]
+    #[case::positive_exponent(Multiplier(-1, 1), true)]
+    fn test_multiplier_is_negative(#[case] multi: Multiplier, #[case] expected: bool) {
+        assert_eq!(multi.is_negative(), expected);
+    }
+
+    #[rstest]
+    #[case::nano_second(NanoSecond, Multiplier(i64::MAX, i16::MIN + 9))]
+    #[case::micro_second(MicroSecond, Multiplier(i64::MAX, i16::MIN + 6))]
+    #[case::milli_second(MilliSecond, Multiplier(i64::MAX, i16::MIN + 3))]
+    #[case::second(Second, Multiplier(i64::MAX, i16::MIN))]
+    #[case::minute(Minute, Multiplier(i64::MAX / 60, i16::MIN))]
+    #[case::hour(Hour, Multiplier(i64::MAX / (60 * 60), i16::MIN))]
+    #[case::day(Day, Multiplier(i64::MAX / (60 * 60 * 24), i16::MIN))]
+    #[case::week(Week, Multiplier(i64::MAX / (60 * 60 * 24 * 7), i16::MIN))]
+    #[case::month(Month, Multiplier(3_507_252_276_543, i16::MIN))]
+    #[case::year(Year, Multiplier(292_271_023_045, i16::MIN))]
     fn test_multiplier_multiplication_barely_no_panic(
         #[case] time_unit: TimeUnit,
         #[case] multiplier: Multiplier,
@@ -626,15 +648,15 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, Multiplier(u64::MAX, i16::MIN + 8))]
-    #[case::micro_second(MicroSecond, Multiplier(u64::MAX, i16::MIN + 4))]
-    #[case::milli_second(MilliSecond, Multiplier(u64::MAX, i16::MIN + 2))]
-    #[case::minute(Minute, Multiplier(307_445_734_561_825_860 + 1, i16::MIN))]
-    #[case::hour(Hour, Multiplier(5_124_095_576_030_431 + 1, i16::MIN))]
-    #[case::day(Day, Multiplier(213_503_982_334_601 + 1, i16::MIN))]
-    #[case::week(Week, Multiplier(30_500_568_904_943 + 1, i16::MIN))]
-    #[case::month(Month, Multiplier(7_014_504_553_087 + 1, i16::MIN))]
-    #[case::year(Year, Multiplier(584_542_046_090 + 1, i16::MIN))]
+    #[case::nano_second(NanoSecond, Multiplier(i64::MAX, i16::MIN + 8))]
+    #[case::micro_second(MicroSecond, Multiplier(i64::MAX, i16::MIN + 4))]
+    #[case::milli_second(MilliSecond, Multiplier(i64::MAX, i16::MIN + 2))]
+    #[case::minute(Minute, Multiplier(i64::MAX / 60 + 1, i16::MIN))]
+    #[case::hour(Hour, Multiplier(i64::MAX / (60 * 60) + 1, i16::MIN))]
+    #[case::day(Day, Multiplier(i64::MAX / (60 * 60 * 24) + 1, i16::MIN))]
+    #[case::week(Week, Multiplier(i64::MAX / (60 * 60 * 24 * 7) + 1, i16::MIN))]
+    #[case::month(Month, Multiplier(3_507_252_276_543 + 1, i16::MIN))]
+    #[case::year(Year, Multiplier(292_271_023_045 + 1, i16::MIN))]
     #[should_panic]
     fn test_multiplier_multiplication_then_panic(
         #[case] time_unit: TimeUnit,
