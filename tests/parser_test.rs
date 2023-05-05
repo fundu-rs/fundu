@@ -80,6 +80,7 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 }
 
 #[rstest]
+#[case::minimum_exponent_with_minimum_time_unit(&format!("1{}.0e{}ns", "0".repeat((i16::MAX as usize) + 1), i16::MIN), Duration::positive(0, 1))]
 #[case::seconds_overflow_when_negative_exponent(&format!("{}e-1", u64::MAX as u128 * 100), Duration::MAX)]
 #[case::seconds_overflow_when_positive_exponent(&format!("{}.11e1", u64::MAX), Duration::MAX)]
 #[case::minus_sign_whole_to_fract("1.00000001e-1", Duration::positive(0, 100_000_001))]
@@ -103,7 +104,6 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 #[case::minimum_exponent(&format!("1{}.0e{}", "0".repeat(i16::MIN.unsigned_abs() as usize), i16::MIN), Duration::positive(1, 0))]
 #[case::minimum_exponent_barely_not_max_duration(&format!("1{}.0e{}", "0".repeat((i16::MIN.unsigned_abs() as usize) + 19), i16::MIN), Duration::positive(10_000_000_000_000_000_000, 0))]
 #[case::minimum_exponent_barely_not_max_duration_with_time_unit(&format!("1{}.0e{}ns", "0".repeat((i16::MIN.unsigned_abs() as usize) + 28), i16::MIN), Duration::positive(10_000_000_000_000_000_000, 0))]
-#[case::minimum_exponent_with_minimum_time_unit(&format!("1{}.0e{}ns", "0".repeat((i16::MAX as usize) + 1), i16::MIN), Duration::positive(0, 1))]
 fn test_parse_duration_when_arguments_contain_exponent(
     #[case] source: &str,
     #[case] expected: Duration,
@@ -597,6 +597,7 @@ fn test_custom_duration_parser_parse_when_systemd_time_units(
 )]
 #[case::positive_years("1.000000001y", Duration::positive(YEAR, YEAR as u32))]
 #[case::positive_high_value_saturate(&format!("{}.{}e1000", "1".repeat(1000), "1".repeat(1000)), Duration::MAX)]
+#[case::time_unit_causes_saturate_negative(&format!("-{}y", u64::MAX), Duration::MIN)]
 fn test_parse_negative(#[case] source: &str, #[case] expected: Duration) {
     let actual = DurationParser::with_all_time_units()
         .allow_negative(true)
