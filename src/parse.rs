@@ -540,24 +540,10 @@ impl<'a> ReprParser<'a> {
             return Err(ParseError::Empty);
         }
 
-        let Config {
-            default_unit,
-            default_multiplier: _,
-            disable_exponent,
-            disable_fraction,
-            max_exponent: _,
-            min_exponent: _,
-            number_is_optional,
-            allow_delimiter,
-            disable_infinity,
-            parse_multiple,
-            allow_negative: _,
-        } = *self.config;
-
         let mut duration_repr = DurationRepr {
-            unit: default_unit,
+            unit: self.config.default_unit,
             input: self.input,
-            number_is_optional,
+            number_is_optional: self.config.number_is_optional,
             ..Default::default()
         };
 
@@ -573,18 +559,20 @@ impl<'a> ReprParser<'a> {
             }
             Some(byte) if *byte == b'.' => {}
             Some(_)
-                if !disable_infinity
+                if !self.config.disable_infinity
                     && self
                         .peek(3)
                         .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"inf")) =>
             {
                 // SAFETY: We just checked with peek() that there are at least 3 bytes
                 unsafe { self.advance_by(3) }
-                self.parse_infinity_remainder(parse_multiple)?;
+                self.parse_infinity_remainder(self.config.parse_multiple)?;
                 duration_repr.is_infinite = true;
 
                 match self.current_byte {
-                    Some(_) if parse_multiple.is_some() => return Ok((duration_repr, Some(self))),
+                    Some(_) if self.config.parse_multiple.is_some() => {
+                        return Ok((duration_repr, Some(self)));
+                    }
                     Some(byte) => {
                         return Err(ParseError::Syntax(
                             self.current_pos,
@@ -594,7 +582,7 @@ impl<'a> ReprParser<'a> {
                     None => return Ok((duration_repr, None)),
                 }
             }
-            Some(_) if number_is_optional => {}
+            Some(_) if self.config.number_is_optional => {}
             Some(_) => {
                 // SAFETY: The input str is utf-8 and we have only parsed ascii characters so far
                 return Err(ParseError::Syntax(
@@ -614,7 +602,7 @@ impl<'a> ReprParser<'a> {
 
         // parse the fraction number part of the input
         match self.current_byte {
-            Some(byte) if *byte == b'.' && !disable_fraction => {
+            Some(byte) if *byte == b'.' && !self.config.disable_fraction => {
                 self.advance();
                 let fract = match self.current_byte {
                     Some(byte) if byte.is_ascii_digit() => Some(self.parse_fract()),
@@ -644,7 +632,7 @@ impl<'a> ReprParser<'a> {
 
         // parse the exponent of the input if present
         match self.current_byte {
-            Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !disable_exponent => {
+            Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !self.config.disable_exponent => {
                 self.advance();
                 duration_repr.exponent = self.parse_exponent()?;
             }
@@ -660,7 +648,7 @@ impl<'a> ReprParser<'a> {
 
         // If allow_delimiter is Some and there are any delimiters between the number and the time
         // unit, the delimiters are consumed before trying to parse the time units
-        match (self.current_byte, allow_delimiter) {
+        match (self.current_byte, self.config.allow_delimiter) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => {
                 self.advance();
                 // TODO: replace with try_consume_delimiter
@@ -673,12 +661,12 @@ impl<'a> ReprParser<'a> {
         // parse the time unit if present
         match self.current_byte {
             Some(_) if !self.time_units.is_empty() => {
-                if let Some((unit, multi)) = self.parse_time_unit(parse_multiple)? {
+                if let Some((unit, multi)) = self.parse_time_unit(self.config.parse_multiple)? {
                     duration_repr.unit = unit;
                     duration_repr.multiplier = multi;
                 }
             }
-            Some(byte) if parse_multiple.is_none() => {
+            Some(byte) if self.config.parse_multiple.is_none() => {
                 return Err(ParseError::TimeUnit(
                     self.current_pos,
                     format!("No time units allowed but found: '{}'", *byte as char),
@@ -691,7 +679,7 @@ impl<'a> ReprParser<'a> {
         }
 
         // check we've reached the end of input
-        match (self.current_byte, parse_multiple) {
+        match (self.current_byte, self.config.parse_multiple) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => self
                 .try_consume_delimiter(delimiter)
                 .map(|_| (duration_repr, Some(self))),
