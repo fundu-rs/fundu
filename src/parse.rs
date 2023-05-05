@@ -503,7 +503,6 @@ impl<'a> ReprParser<'a> {
 
     /// This method is based on the work of Daniel Lemire and his blog post
     /// <https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/>
-    #[inline]
     fn is_8_digits(&self) -> bool {
         self.input
             .get(self.current_pos..(self.current_pos + 8))
@@ -516,7 +515,6 @@ impl<'a> ReprParser<'a> {
             })
     }
 
-    #[inline]
     fn parse_8_digits(&mut self) -> Option<u64> {
         self.input
             .get(self.current_pos..(self.current_pos + 8))
@@ -735,7 +733,6 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline]
     fn parse_time_unit(
         &mut self,
         multiple: Option<Delimiter>,
@@ -793,7 +790,6 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline]
     fn parse_whole(&mut self) -> Whole {
         debug_assert!(
             self.current_byte
@@ -843,7 +839,6 @@ impl<'a> ReprParser<'a> {
         Whole(start, start + counter)
     }
 
-    #[inline]
     fn parse_fract(&mut self) -> Fract {
         debug_assert!(
             self.current_byte
@@ -870,7 +865,6 @@ impl<'a> ReprParser<'a> {
         Fract(start, start + counter)
     }
 
-    #[inline]
     fn parse_infinity_remainder(&mut self, multiple: Option<Delimiter>) -> Result<(), ParseError> {
         match (self.current_byte, multiple) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => {
@@ -921,7 +915,6 @@ impl<'a> ReprParser<'a> {
     }
 
     /// Parse and consume the sign if present. Return true if sign is negative.
-    #[inline]
     fn parse_sign_is_negative(&mut self) -> Result<bool, ParseError> {
         match self.current_byte {
             Some(byte) if *byte == b'+' => {
@@ -940,7 +933,6 @@ impl<'a> ReprParser<'a> {
         }
     }
 
-    #[inline]
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?;
         self.current_byte.ok_or_else(|| {
