@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use super::builder::CustomDurationParserBuilder;
-use super::time_units::{CustomTimeUnit, CustomTimeUnits, Identifiers};
+use super::time_units::{CustomTimeUnit, CustomTimeUnits, Identifiers, TimeKeyword};
 use crate::parse::Parser;
 use crate::time::{Duration as FunduDuration, Multiplier, TimeUnitsLike};
 use crate::{Delimiter, ParseError, TimeUnit};
@@ -32,6 +32,7 @@ use crate::{Delimiter, ParseError, TimeUnit};
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParser<'a> {
     pub(super) time_units: CustomTimeUnits<'a>,
+    pub(super) keywords: CustomTimeUnits<'a>,
     pub(super) inner: Parser,
 }
 
@@ -54,6 +55,7 @@ impl<'a> CustomDurationParser<'a> {
     pub fn new() -> Self {
         Self {
             time_units: CustomTimeUnits::new(),
+            keywords: CustomTimeUnits::new(),
             inner: Parser::new(),
         }
     }
@@ -108,6 +110,7 @@ impl<'a> CustomDurationParser<'a> {
     pub fn with_time_units(units: &'a [Identifiers<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
+            keywords: CustomTimeUnits::new(),
             inner: Parser::new(),
         }
     }
@@ -242,6 +245,19 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    pub fn keyword(&mut self, keyword: TimeKeyword<'a>) -> &mut Self {
+        self.keywords
+            .add_custom_time_unit(keyword.to_custom_time_unit());
+        self
+    }
+
+    pub fn keywords(&mut self, keywords: &[TimeKeyword<'a>]) -> &mut Self {
+        for keyword in keywords {
+            self.keyword(*keyword);
+        }
+        self
+    }
+
     /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
     /// configured [`TimeUnit`]s.
     ///
@@ -259,7 +275,15 @@ impl<'a> CustomDurationParser<'a> {
     /// ```
     #[inline]
     pub fn parse(&self, source: &str) -> Result<FunduDuration, ParseError> {
-        self.inner.parse(source, &self.time_units)
+        self.inner.parse(
+            source,
+            &self.time_units,
+            if self.keywords.is_empty() {
+                None
+            } else {
+                Some(&self.keywords)
+            },
+        )
     }
 
     /// Set the default [`TimeUnit`] to `unit`.

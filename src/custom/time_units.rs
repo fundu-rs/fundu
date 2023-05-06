@@ -351,6 +351,27 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct TimeKeyword<'a> {
+    time_unit: CustomTimeUnit<'a>,
+}
+
+impl<'a> TimeKeyword<'a> {
+    pub const fn new(
+        base_unit: TimeUnit,
+        identifiers: &'a [&'a str],
+        multiplier: Option<Multiplier>,
+    ) -> Self {
+        Self {
+            time_unit: CustomTimeUnit::new(base_unit, identifiers, multiplier),
+        }
+    }
+
+    pub(super) const fn to_custom_time_unit(self) -> CustomTimeUnit<'a> {
+        self.time_unit
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;

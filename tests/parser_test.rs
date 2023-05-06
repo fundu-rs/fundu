@@ -8,7 +8,7 @@ use std::time::Duration as StdDuration;
 use fundu::TimeUnit::*;
 use fundu::{
     parse_duration, CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, Duration,
-    DurationParser, Multiplier, ParseError, TimeUnit, SYSTEMD_TIME_UNITS,
+    DurationParser, Multiplier, ParseError, TimeKeyword, TimeUnit, SYSTEMD_TIME_UNITS,
 };
 use rstest::rstest;
 
@@ -678,4 +678,97 @@ fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expec
         .build();
     let actual = parser.parse(input).unwrap();
     assert_eq!(actual, expected);
+}
+
+#[rstest]
+#[case::yesterday("yesterday", Duration::negative(60 * 60 * 24, 0))]
+#[case::negative_yesterday("-yesterday", Duration::positive(60 * 60 * 24, 0))]
+#[case::positive_yesterday("+yesterday", Duration::negative(60 * 60 * 24, 0))]
+#[case::tomorrow("tomorrow", Duration::positive(60 * 60 * 24, 0))]
+#[case::negative_tomorrow("-tomorrow", Duration::negative(60 * 60 * 24, 0))]
+#[case::today("today", Duration::ZERO)]
+#[case::negative_today("-today", Duration::ZERO)]
+fn test_custom_parser_with_keywords(#[case] input: &str, #[case] expected: Duration) {
+    let parser = CustomDurationParserBuilder::new()
+        .keyword(TimeKeyword::new(
+            Day,
+            &["yesterday"],
+            Some(Multiplier(-1, 0)),
+        ))
+        .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
+        .keyword(TimeKeyword::new(Day, &["today"], Some(Multiplier(0, 0))))
+        .time_units(&[(NanoSecond, &["ns"]), (Second, &["s", "second"])])
+        .allow_negative()
+        .build();
+    let actual = parser.parse(input).unwrap();
+    assert_eq!(actual, expected);
+}
+
+#[rstest]
+#[case::leading_space(" tomorrow", ParseError::Syntax(0, "Invalid input: ' tomorrow'".to_string()))]
+#[case::trailing_space("tomorrow ", ParseError::Syntax(0, "Invalid input: 'tomorrow '".to_string()))]
+#[case::incomplete_keyword("tomorro", ParseError::Syntax(0, "Invalid input: 'tomorro'".to_string()))]
+#[case::number("1tomorrow", ParseError::TimeUnit(1, "Invalid time unit: 'tomorrow'".to_string()))]
+#[case::number_with_space("1 tomorrow", ParseError::TimeUnit(1, "Invalid time unit: ' tomorrow'".to_string()))]
+fn test_custom_parser_with_keywords_then_error(#[case] input: &str, #[case] expected: ParseError) {
+    let parser = CustomDurationParserBuilder::new()
+        .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
+        .time_units(&[(NanoSecond, &["ns"]), (Second, &["s", "second"])])
+        .build();
+    assert_eq!(parser.parse(input), Err(expected));
+}
+
+#[rstest]
+#[case::single_tomorrow("tomorrow", Duration::positive(60 * 60 * 24, 0))]
+#[case::two_tomorrow("tomorrow tomorrow", Duration::positive(60 * 60 * 24 * 2, 0))]
+#[case::yesterday_tomorrow("yesterday tomorrow", Duration::ZERO)]
+#[case::number_tomorrow("1 tomorrow", Duration::positive(60 * 60 * 24 + 1, 0))]
+#[case::fraction_tomorrow(".1 tomorrow", Duration::positive(60 * 60 * 24, 100_000_000))]
+fn test_custom_parser_with_keywords_when_parse_multiple(
+    #[case] input: &str,
+    #[case] expected: Duration,
+) {
+    let parser = CustomDurationParserBuilder::new()
+        .keyword(TimeKeyword::new(
+            Day,
+            &["yesterday"],
+            Some(Multiplier(-1, 0)),
+        ))
+        .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
+        .time_units(&[(NanoSecond, &["ns"]), (Second, &["s", "second"])])
+        .parse_multiple(|byte| byte.is_ascii_whitespace())
+        .allow_negative()
+        .build();
+    assert_eq!(parser.parse(input), Ok(expected));
+}
+
+#[rstest]
+#[case::nano_second("ns", Duration::positive(0, 1))]
+#[case::two_times_nano_second("ns ns", Duration::positive(0, 2))]
+#[case::tomorrow_nano_second("tomorrow ns", Duration::positive(60 * 60 * 24, 1))]
+#[case::nano_second_tomorrow("ns tomorrow", Duration::positive(60 * 60 * 24, 1))]
+#[case::one_tomorrow_nano_second("1 tomorrow ns", Duration::positive(60 * 60 * 24 + 1, 1))]
+fn test_custom_parser_with_keywords_when_parse_multiple_and_number_is_optional(
+    #[case] input: &str,
+    #[case] expected: Duration,
+) {
+    let parser = CustomDurationParserBuilder::new()
+        .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
+        .time_units(&[(NanoSecond, &["ns"]), (Second, &["s", "second"])])
+        .parse_multiple(|byte| byte.is_ascii_whitespace())
+        .number_is_optional()
+        .build();
+    assert_eq!(parser.parse(input), Ok(expected));
+}
+
+#[test]
+fn test_custom_parser_with_negative_keyword_when_not_allow_negative_then_error() {
+    let parser = CustomDurationParserBuilder::new()
+        .keyword(TimeKeyword::new(
+            Day,
+            &["yesterday"],
+            Some(Multiplier(-1, 0)),
+        ))
+        .build();
+    assert_eq!(parser.parse("yesterday"), Err(ParseError::NegativeNumber));
 }

@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use super::time_units::{CustomTimeUnits, Identifiers};
+use super::time_units::{CustomTimeUnits, Identifiers, TimeKeyword};
 use crate::config::Config;
 use crate::parse::Parser;
 use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
@@ -41,6 +41,7 @@ pub struct CustomDurationParserBuilder<'a> {
     config: Config,
     time_units: Option<&'a [Identifiers<'a>]>,
     custom_time_units: Vec<CustomTimeUnit<'a>>,
+    keywords: Vec<TimeKeyword<'a>>,
 }
 
 impl<'a> Default for CustomDurationParserBuilder<'a> {
@@ -76,6 +77,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
             config: Config::new(),
             time_units: None,
             custom_time_units: vec![],
+            keywords: vec![],
         }
     }
 
@@ -168,6 +170,18 @@ impl<'a> CustomDurationParserBuilder<'a> {
     pub fn custom_time_units(mut self, time_units: &[CustomTimeUnit<'a>]) -> Self {
         for unit in time_units {
             self.custom_time_units.push(*unit);
+        }
+        self
+    }
+
+    pub fn keyword(mut self, keyword: TimeKeyword<'a>) -> Self {
+        self.keywords.push(keyword);
+        self
+    }
+
+    pub fn keywords(mut self, keywords: &[TimeKeyword<'a>]) -> Self {
+        for keyword in keywords {
+            self.keywords.push(*keyword);
         }
         self
     }
@@ -396,13 +410,16 @@ impl<'a> CustomDurationParserBuilder<'a> {
             Some(time_units) => CustomDurationParser {
                 time_units: CustomTimeUnits::with_time_units(time_units),
                 inner: parser,
+                keywords: CustomTimeUnits::with_capacity(self.keywords.len()),
             },
             None => CustomDurationParser {
                 time_units: CustomTimeUnits::with_capacity(self.custom_time_units.len()),
                 inner: parser,
+                keywords: CustomTimeUnits::with_capacity(self.keywords.len()),
             },
         };
         parser.custom_time_units(&self.custom_time_units);
+        parser.keywords(&self.keywords);
         parser
     }
 }

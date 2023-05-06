@@ -223,7 +223,7 @@ impl DurationParser {
     /// ```
     #[inline]
     pub fn parse(&self, source: &str) -> Result<FunduDuration, ParseError> {
-        self.inner.parse(source, &self.time_units)
+        self.inner.parse(source, &self.time_units, None)
     }
 
     /// Set the default [`TimeUnit`] to `unit`.
