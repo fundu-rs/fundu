@@ -187,7 +187,7 @@ impl Whole {
         &self,
         digits: &[u8],
         append: Option<&[u8]>,
-        zeroes: Option<usize>,
+        zeros: Option<usize>,
     ) -> Result<u64, ParseError> {
         if digits.is_empty() && append.is_none() {
             return Ok(0);
@@ -200,8 +200,8 @@ impl Whole {
         if seconds == 0 {
             Ok(0)
         } else {
-            match zeroes {
-                Some(num_zeroes) if num_zeroes > 0 => match POW10.get(num_zeroes) {
+            match zeros {
+                Some(num_zeros) if num_zeros > 0 => match POW10.get(num_zeros) {
                     Some(pow) => Ok(seconds.saturating_mul(*pow)),
                     None => Err(ParseError::Overflow),
                 },
@@ -256,13 +256,13 @@ impl Fract {
         (multi, attos)
     }
 
-    fn parse(&self, digits: &[u8], prepend: Option<&[u8]>, zeroes: Option<usize>) -> u64 {
+    fn parse(&self, digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
         if digits.is_empty() && prepend.is_none() {
             return 0;
         }
 
-        let num_zeroes = zeroes.unwrap_or_default();
-        let pow = match POW10.get(num_zeroes) {
+        let num_zeros = zeros.unwrap_or_default();
+        let pow = match POW10.get(num_zeros) {
             Some(pow) => pow,
             None => return 0,
         };
@@ -272,17 +272,17 @@ impl Fract {
         }
 
         match prepend {
-            Some(prepend) if num_zeroes + prepend.len() >= 18 => {
-                let (_, attos) = Self::parse_slice(multi, num_zeroes, prepend);
+            Some(prepend) if num_zeros + prepend.len() >= 18 => {
+                let (_, attos) = Self::parse_slice(multi, num_zeros, prepend);
                 attos
             }
             Some(prepend) if !prepend.is_empty() => {
-                let (multi, attos) = Self::parse_slice(multi, num_zeroes, prepend);
-                let (_, remainder) = Self::parse_slice(multi, num_zeroes + prepend.len(), digits);
+                let (multi, attos) = Self::parse_slice(multi, num_zeros, prepend);
+                let (_, remainder) = Self::parse_slice(multi, num_zeros + prepend.len(), digits);
                 attos + remainder
             }
             Some(_) | None => {
-                let (_, attos) = Self::parse_slice(multi, num_zeroes, digits);
+                let (_, attos) = Self::parse_slice(multi, num_zeros, digits);
                 attos
             }
         }
@@ -786,18 +786,18 @@ impl<'a> ReprParser<'a> {
 
         let mut start = self.current_pos;
         let mut counter = 0;
-        let mut strip_leading_zeroes = true;
+        let mut strip_leading_zeros = true;
         while let Some(eight) = self.parse_8_digits() {
-            if strip_leading_zeroes {
+            if strip_leading_zeros {
                 if eight == ASCII_EIGHT_ZEROS {
                     start += 8;
                 } else {
-                    strip_leading_zeroes = false;
+                    strip_leading_zeros = false;
 
                     // eight is little endian so we need to count the trailing zeros
-                    let leading_zeroes = (eight - ASCII_EIGHT_ZEROS).trailing_zeros() / 8;
-                    start += leading_zeroes as usize;
-                    counter += 8 - leading_zeroes as usize;
+                    let leading_zeros = (eight - ASCII_EIGHT_ZEROS).trailing_zeros() / 8;
+                    start += leading_zeros as usize;
+                    counter += 8 - leading_zeros as usize;
                 }
             } else {
                 counter += 8;
@@ -807,11 +807,11 @@ impl<'a> ReprParser<'a> {
         while let Some(byte) = self.current_byte {
             let digit = byte.wrapping_sub(b'0');
             if digit < 10 {
-                if strip_leading_zeroes {
+                if strip_leading_zeros {
                     if digit == 0 {
                         start += 1;
                     } else {
-                        strip_leading_zeroes = false;
+                        strip_leading_zeros = false;
                         counter += 1;
                     }
                 } else {
@@ -980,7 +980,7 @@ mod tests {
     } // cov:excl-stop
 
     #[rstest]
-    #[case::zeroes("00000000")]
+    #[case::zeros("00000000")]
     #[case::nines("99999999")]
     #[case::mixed("012345678")]
     #[case::more_than_8_digits("0123456789")]
@@ -1047,8 +1047,8 @@ mod tests {
     #[case::one("1", Whole(0, 1))]
     #[case::nine("9", Whole(0, 1))]
     #[case::ten("10", Whole(0, 2))]
-    #[case::eight_leading_zeroes("00000000", Whole(8, 8))]
-    #[case::fifteen_leading_zeroes("000000000000000", Whole(15, 15))]
+    #[case::eight_leading_zeros("00000000", Whole(8, 8))]
+    #[case::fifteen_leading_zeros("000000000000000", Whole(15, 15))]
     #[case::ten_with_leading_zeros_when_eight_digits("00000010", Whole(6, 8))]
     #[case::ten_with_leading_zeros_when_nine_digits("000000010", Whole(7, 9))]
     #[case::mixed_number("12345", Whole(0, 5))]
@@ -1092,7 +1092,7 @@ mod tests {
     #[case::nine("9", Fract(0, 1))]
     #[case::ten("10", Fract(0, 2))]
     #[case::leading_zero("01", Fract(0, 2))]
-    #[case::leading_zeroes("001", Fract(0, 3))]
+    #[case::leading_zeros("001", Fract(0, 3))]
     #[case::eight_leading_zeros("000000001", Fract(0, 9))]
     #[case::mixed_number("12345", Fract(0, 5))]
     #[case::max_8_digits("99999999", Fract(0, 8))]
