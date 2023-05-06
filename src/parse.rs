@@ -278,7 +278,7 @@ impl Fract {
             }
             Some(prepend) if !prepend.is_empty() => {
                 let (multi, attos) = Self::parse_slice(multi, num_zeroes, prepend);
-                let (_, remainder) = Self::parse_slice(multi, 0, digits);
+                let (_, remainder) = Self::parse_slice(multi, num_zeroes + prepend.len(), digits);
                 attos + remainder
             }
             Some(_) | None => {
