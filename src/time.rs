@@ -110,18 +110,19 @@ impl TimeUnit {
     /// Year: Multiplier(31557600, 0)
     /// ```
     pub const fn multiplier(&self) -> Multiplier {
-        match self {
-            NanoSecond => Multiplier(1, -9),
-            MicroSecond => Multiplier(1, -6),
-            MilliSecond => Multiplier(1, -3),
-            Second => Multiplier(1, 0),
-            Minute => Multiplier(60, 0),
-            Hour => Multiplier(3600, 0),
-            Day => Multiplier(86400, 0),
-            Week => Multiplier(604800, 0),
-            Month => Multiplier(2629800, 0), // Year / 12
-            Year => Multiplier(31557600, 0), // 365.25 days
-        }
+        const MULTIPLIERS: [Multiplier; 10] = [
+            Multiplier(1, -9),
+            Multiplier(1, -6),
+            Multiplier(1, -3),
+            Multiplier(1, 0),
+            Multiplier(60, 0),
+            Multiplier(3600, 0),
+            Multiplier(86400, 0),
+            Multiplier(604800, 0),
+            Multiplier(2629800, 0),  // Year / 12
+            Multiplier(31557600, 0), // 365.25 days
+        ];
+        MULTIPLIERS[*self as usize]
     }
 }
 
