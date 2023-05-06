@@ -223,13 +223,12 @@ impl Parse8Digits for Fract {}
 
 impl Fract {
     #[inline]
-    fn parse_slice(mut multi: u64, zeroes: usize, digits: &[u8]) -> (u64, u64) {
+    fn parse_slice(mut multi: u64, num_skip: usize, digits: &[u8]) -> (u64, u64) {
         let mut attos = 0;
         let len = digits.len();
 
         if multi >= 100_000_000 && len >= 8 {
-            // TODO: Remove ??
-            let max = 18usize.saturating_sub(zeroes);
+            let max = 18usize.saturating_sub(num_skip);
             let mut iter = digits
                 .get(0..if len > max { max } else { len })
                 .unwrap()
@@ -1067,9 +1066,8 @@ mod tests {
         assert_eq!(parser.parse_whole(), expected);
     }
 
-    // FIXME: Only parse a maximum amount of digits dependent on the exponent
     #[test]
-    fn test_duration_repr_parser_parse_whole_when_more_than_max() {
+    fn test_duration_repr_parser_parse_whole_when_more_than_max_exponent() {
         let config = Config::new();
         let input = &"1".repeat(i16::MAX as usize + 100);
         let mut parser = ReprParser::new(input, &config, &TimeUnitsFixture);
@@ -1078,9 +1076,8 @@ mod tests {
         assert_eq!(duration_repr.fract, None);
     }
 
-    // FIXME: Only parse a maximum amount of digits dependent on the exponent
     #[test]
-    fn test_duration_repr_parser_parse_fract_when_more_than_max() {
+    fn test_duration_repr_parser_parse_fract_when_more_than_max_exponent() {
         let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
         let config = Config::new();
         let mut parser = ReprParser::new(&input, &config, &TimeUnitsFixture);
