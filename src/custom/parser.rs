@@ -345,6 +345,12 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    pub fn allow_ago(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.allow_ago = delimiter;
+        self.inner.config.allow_negative = true;
+        self
+    }
+
     /// Disable parsing the exponent.
     ///
     /// See also [`crate::DurationParser::disable_exponent`].

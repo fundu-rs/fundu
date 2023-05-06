@@ -772,3 +772,63 @@ fn test_custom_parser_with_negative_keyword_when_not_allow_negative_then_error()
         .build();
     assert_eq!(parser.parse("yesterday"), Err(ParseError::NegativeNumber));
 }
+
+#[rstest]
+#[case::seconds("1s ago", Duration::negative(1, 0))]
+#[case::day("1day ago", Duration::negative(60 * 60 * 24, 0))]
+#[case::with_delimiter_between_number_and_time_unit("1 s ago", Duration::negative(1, 0))]
+fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Duration) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_units(&SYSTEMD_TIME_UNITS)
+        .allow_delimiter(|byte| byte.is_ascii_whitespace())
+        .allow_ago(|byte| byte.is_ascii_whitespace())
+        .allow_negative()
+        .build();
+    assert_eq!(parser.parse(input), Ok(expected));
+}
+
+#[rstest]
+#[case::just_ago("ago", ParseError::Syntax(0, "Invalid input: 'ago'".to_string()))]
+#[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
+#[case::incomplete_ago("1s ag", ParseError::Syntax(3, "Expected end of input, but found: 'a'".to_string()))]
+fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_units(&SYSTEMD_TIME_UNITS)
+        .allow_delimiter(|byte| byte.is_ascii_whitespace())
+        .allow_ago(|byte| byte.is_ascii_whitespace())
+        .allow_negative()
+        .build();
+    assert_eq!(parser.parse(input), Err(expected));
+}
+
+#[rstest]
+#[case::seconds_without_ago("1s", Duration::positive(1, 0))]
+#[case::seconds("1s ago", Duration::negative(1, 0))]
+#[case::twice_seconds("1s ago 1s ago", Duration::negative(2, 0))]
+#[case::seconds_and_day("1s ago 1day ago", Duration::negative(60 * 60 * 24 + 1, 0))]
+#[case::two_without_delimiter_between_multiple("1s ago1s ago", Duration::negative(2, 0))]
+#[case::two_with_delimiter_between_number_and_time_unit(
+    "1 s ago 1 day ago",
+    Duration::negative(60 * 60 * 24 + 1, 0)
+)]
+#[case::without_ago_and_with_ago(
+    "1 s 1 day ago",
+    Duration::negative(60 * 60 * 24 - 1, 0)
+)]
+#[case::with_ago_and_without_ago(
+    "1s ago 1 day",
+    Duration::positive(60 * 60 * 24 - 1, 0)
+)]
+fn test_custom_parser_with_allow_ago_when_parse_multiple(
+    #[case] input: &str,
+    #[case] expected: Duration,
+) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_units(&SYSTEMD_TIME_UNITS)
+        .allow_delimiter(|byte| byte.is_ascii_whitespace())
+        .allow_ago(|byte| byte.is_ascii_whitespace())
+        .allow_negative()
+        .parse_multiple(|byte| byte.is_ascii_whitespace())
+        .build();
+    assert_eq!(parser.parse(input), Ok(expected));
+}

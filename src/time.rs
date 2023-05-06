@@ -183,6 +183,14 @@ impl Mul for Multiplier {
     }
 }
 
+impl Neg for Multiplier {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Multiplier(self.0.saturating_neg(), self.1)
+    }
+}
+
 pub trait SaturatingInto<T>: Sized {
     fn saturating_into(self) -> T;
 }

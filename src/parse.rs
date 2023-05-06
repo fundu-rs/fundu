@@ -7,6 +7,7 @@
 //! the main library `lib.rs`.
 
 use std::cmp::Ordering::{Equal, Greater, Less};
+use std::ops::Neg;
 use std::time::Duration as StdDuration;
 
 use crate::config::{Config, Delimiter};
@@ -696,17 +697,28 @@ impl<'a> ReprParser<'a> {
                 if let Some((unit, multi)) = self.parse_time_unit()? {
                     duration_repr.unit = unit;
                     duration_repr.multiplier = multi;
+
+                    match (self.current_byte, self.config.allow_ago) {
+                        (Some(byte), Some(delimiter)) if delimiter(*byte) => {
+                            self.try_consume_delimiter(delimiter)?;
+                            if self.peek(3) == Some(b"ago") {
+                                unsafe { self.advance_by(3) };
+                                duration_repr.multiplier = duration_repr.multiplier.neg();
+                            }
+                        }
+                        (Some(_), _) => {}
+                        (None, _) => return Ok((duration_repr, None)),
+                    }
                 }
             }
-            Some(byte) if self.config.parse_multiple.is_none() => {
+            Some(_) if self.config.parse_multiple.is_none() => {
                 return Err(ParseError::TimeUnit(
                     self.current_pos,
-                    // TODO: return whole str unchecked not just the byte
-                    format!("No time units allowed but found: '{}'", *byte as char),
+                    format!("No time units allowed but found: '{}'", unsafe {
+                        self.get_remainder_str_unchecked()
+                    }),
                 ));
             }
-            // If multiple is Some and self.time_units is empty we don't need to try to parse time
-            // units
             Some(_) => {}
             None => return Ok((duration_repr, None)),
         }
@@ -717,7 +729,10 @@ impl<'a> ReprParser<'a> {
                 .try_consume_delimiter(delimiter)
                 .map(|_| (duration_repr, Some(self))),
             (Some(_), Some(_)) => Ok((duration_repr, Some(self))),
-            (Some(_), None) => unreachable!("Parsing time units consumes the rest of the input"), /* cov:excl-line */
+            (Some(byte), None) => Err(ParseError::Syntax(
+                self.current_pos,
+                format!("Expected end of input, but found: '{}'", *byte as char),
+            )),
             (None, _) => Ok((duration_repr, None)),
         }
     }
@@ -761,37 +776,39 @@ impl<'a> ReprParser<'a> {
             "Don't call this function without being sure there's at least 1 byte remaining"
         ); // cov:excl-stop
 
-        match self.config.parse_multiple {
-            Some(delimiter) => {
-                let start = self.current_pos;
+        let start = self.current_pos;
+        match (self.config.allow_ago, self.config.parse_multiple) {
+            (Some(ago_delimiter), Some(parse_multiple_delimiter)) => {
                 while let Some(byte) = self.current_byte {
-                    if delimiter(*byte) || byte.is_ascii_digit() {
+                    if ago_delimiter(*byte)
+                        || parse_multiple_delimiter(*byte)
+                        || byte.is_ascii_digit()
+                    {
                         break;
-                    }
-                    self.advance();
-                }
-
-                let string =
-                    std::str::from_utf8(&self.input[start..self.current_pos]).map_err(|error| {
-                        ParseError::TimeUnit(
-                            start + error.valid_up_to(),
-                            "Invalid utf-8 when applying the delimiter".to_string(),
-                        )
-                    })?;
-
-                if string.is_empty() {
-                    Ok(None)
-                } else {
-                    match self.time_units.get(string) {
-                        None => Err(ParseError::TimeUnit(
-                            start,
-                            format!("Invalid time unit: '{string}'"),
-                        )),
-                        some_time_unit => Ok(some_time_unit),
+                    } else {
+                        self.advance();
                     }
                 }
             }
-            None => {
+            (None, Some(delimiter)) => {
+                while let Some(byte) = self.current_byte {
+                    if delimiter(*byte) || byte.is_ascii_digit() {
+                        break;
+                    } else {
+                        self.advance();
+                    }
+                }
+            }
+            (Some(delimiter), None) => {
+                while let Some(byte) = self.current_byte {
+                    if delimiter(*byte) {
+                        break;
+                    } else {
+                        self.advance();
+                    }
+                }
+            }
+            (None, None) => {
                 // SAFETY: The input of `parse` is &str and therefore valid utf-8 and we have read
                 // only ascii characters up to this point.
                 let string = unsafe { self.get_remainder_str_unchecked() };
@@ -803,7 +820,26 @@ impl<'a> ReprParser<'a> {
                     some_time_unit => Ok(some_time_unit),
                 };
                 self.finish();
-                result
+                return result;
+            }
+        }
+        let string =
+            std::str::from_utf8(&self.input[start..self.current_pos]).map_err(|error| {
+                ParseError::TimeUnit(
+                    start + error.valid_up_to(),
+                    "Invalid utf-8 when applying the delimiter".to_string(),
+                )
+            })?;
+
+        if string.is_empty() {
+            Ok(None)
+        } else {
+            match self.time_units.get(string) {
+                None => Err(ParseError::TimeUnit(
+                    start,
+                    format!("Invalid time unit: '{string}'"),
+                )),
+                some_time_unit => Ok(some_time_unit),
             }
         }
     }

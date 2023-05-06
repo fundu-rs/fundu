@@ -65,6 +65,7 @@ pub(crate) struct Config {
     pub(crate) min_exponent: i16,
     pub(crate) parse_multiple: Option<Delimiter>,
     pub(crate) allow_negative: bool,
+    pub(crate) allow_ago: Option<Delimiter>,
 }
 
 impl Default for Config {
@@ -87,6 +88,7 @@ impl Config {
             disable_infinity: false,
             parse_multiple: None,
             allow_negative: false,
+            allow_ago: None,
         }
     }
 }
