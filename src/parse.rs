@@ -150,6 +150,7 @@ impl Whole {
         if digits.len() >= 8 {
             let mut iter = digits.chunks_exact(8);
             for digits in iter.by_ref() {
+                // SAFETY: We have chunks of exactly 8 bytes
                 match seconds
                     .checked_mul(100_000_000)
                     .and_then(|s| s.checked_add(unsafe { Self::parse_8_digits(digits) }))
@@ -607,6 +608,7 @@ impl<'a> ReprParser<'a> {
                 } else if self.config.number_is_optional {
                     // do nothing
                 } else {
+                    // SAFETY: The input str is utf-8 and we have only parsed valid utf-8 so far
                     return Err(ParseError::Syntax(
                         self.current_pos,
                         format!("Invalid input: '{}'", unsafe {
@@ -702,6 +704,7 @@ impl<'a> ReprParser<'a> {
                         (Some(byte), Some(delimiter)) if delimiter(*byte) => {
                             self.try_consume_delimiter(delimiter)?;
                             if self.peek(3) == Some(b"ago") {
+                                // SAFETY: We have checked with peed that there are at least 3 bytes
                                 unsafe { self.advance_by(3) };
                                 duration_repr.multiplier = duration_repr.multiplier.neg();
                             }
@@ -712,6 +715,7 @@ impl<'a> ReprParser<'a> {
                 }
             }
             Some(_) if self.config.parse_multiple.is_none() => {
+                // SAFETY: We've parsed only valid utf-8 so far
                 return Err(ParseError::TimeUnit(
                     self.current_pos,
                     format!("No time units allowed but found: '{}'", unsafe {
@@ -849,34 +853,38 @@ impl<'a> ReprParser<'a> {
 
         if let Some(delimiter) = self.config.parse_multiple {
             let start = self.current_pos;
-            let mut counter = 0;
             while let Some(byte) = self.current_byte {
                 if delimiter(*byte) || byte.is_ascii_digit() {
                     break;
                 } else {
-                    counter += 1;
                     self.advance()
                 }
             }
-            let keyword = unsafe {
-                std::str::from_utf8_unchecked(self.input.get(start..start + counter).unwrap())
-            };
+            let keyword =
+                std::str::from_utf8(&self.input[start..self.current_pos]).map_err(|error| {
+                    ParseError::Syntax(
+                        start + error.valid_up_to(),
+                        "Invalid utf-8 when applying the delimiter".to_string(),
+                    )
+                })?;
             match self.keywords.unwrap().get(keyword) {
                 None => {
-                    // TODO: Try to parse the time unit if number_is_optional
                     self.reset(start);
                     Ok(None)
                 }
-                some_time_unit if self.current_byte.is_some() => {
-                    self.try_consume_delimiter(delimiter)?;
+                some_time_unit => {
+                    if let Some(byte) = self.current_byte {
+                        if delimiter(*byte) {
+                            self.try_consume_delimiter(delimiter)?;
+                        }
+                    }
                     Ok(some_time_unit)
                 }
-                some_time_unit => Ok(some_time_unit),
             }
         } else {
+            // SAFETY: we've only parsed valid utf-8 up to this point
             let keyword = unsafe { self.get_remainder_str_unchecked() };
             match self.keywords.unwrap().get(keyword) {
-                // TODO: Try to parse the time unit if number_is_optional
                 None => Ok(None),
                 some_time_unit => {
                     self.finish();
@@ -945,6 +953,7 @@ impl<'a> ReprParser<'a> {
         let mut counter = 0;
         while self.is_8_digits() {
             counter += 8;
+            // SAFETY: we just ensured there are 8 digits
             unsafe { self.advance_by(8) };
         }
 
