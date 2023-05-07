@@ -685,9 +685,7 @@ impl<'a> ReprParser<'a> {
         // unit, the delimiters are consumed before trying to parse the time units
         match (self.current_byte, self.config.allow_delimiter) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => {
-                self.advance();
-                // TODO: replace with try_consume_delimiter
-                self.consume_delimiter(delimiter);
+                self.try_consume_delimiter(delimiter)?;
             }
             (Some(_), _) => {}
             (None, _) => return Ok((duration_repr, None)),
@@ -738,16 +736,6 @@ impl<'a> ReprParser<'a> {
                 format!("Expected end of input, but found: '{}'", *byte as char),
             )),
             (None, _) => Ok((duration_repr, None)),
-        }
-    }
-
-    fn consume_delimiter(&mut self, delimiter: Delimiter) {
-        while let Some(byte) = self.current_byte {
-            if delimiter(*byte) {
-                self.advance()
-            } else {
-                break;
-            }
         }
     }
 

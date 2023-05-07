@@ -253,9 +253,8 @@ impl DurationParser {
     /// If `Some`, allow one or more [`Delimiter`] between the number and the [`TimeUnit`].
     ///
     /// A [`Delimiter`] is defined as closure taking a byte and returning true if the delimiter
-    /// matched. Per default no delimiter is allowed between the number and the [`TimeUnit`]. Note
-    /// this setting implicitly allows the delimiter at the end of the string, but only if no time
-    /// unit was present. As usual the default time unit is assumed.
+    /// matched. Per default no delimiter is allowed between the number and the [`TimeUnit`]. As
+    /// usual the default time unit is assumed if no time unit was present.
     ///
     /// # Examples
     ///
@@ -273,9 +272,11 @@ impl DurationParser {
     ///
     /// parser.allow_delimiter(Some(|byte| byte == b' '));
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123    ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     ///
     /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
-    /// assert_eq!(parser.parse("123 ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123\r\nns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::positive(0, 123)));
     /// ```
     pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {

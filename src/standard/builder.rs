@@ -260,7 +260,8 @@ impl<'a> DurationParserBuilder<'a> {
     ///     parser.parse("123 \t\n\x0C\rns"),
     ///     Ok(Duration::positive(0, 123))
     /// );
-    /// assert_eq!(parser.parse("123\n"), Ok(Duration::positive(123, 0)));
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123   ns"), Ok(Duration::positive(0, 123)));
     /// ```
     pub fn allow_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
         self.config.allow_delimiter = Some(delimiter);

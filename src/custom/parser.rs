@@ -331,6 +331,8 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// parser.allow_delimiter(Some(|byte| byte == b' '));
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123     ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     ///
     /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
     /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::positive(0, 123)));

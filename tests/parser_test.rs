@@ -263,14 +263,12 @@ fn test_parser_when_allow_delimiter(
 #[case::without_spaces("123ns", Duration::positive(0, 123))]
 #[case::single_space("123 ns", Duration::positive(0, 123))]
 #[case::multiple_spaces("123      ns", Duration::positive(0, 123))]
-#[case::space_at_end_when_no_time_unit("123 ", Duration::positive(123, 0))]
-fn test_parser_when_allow_spaces(#[case] input: &str, #[case] expected: Duration) {
+fn test_parser_when_allow_delimiter_then_ok(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(
         DurationParser::with_all_time_units()
             .allow_delimiter(Some(|b| b == b' '))
-            .parse(input)
-            .unwrap(),
-        expected
+            .parse(input),
+        Ok(expected)
     );
 }
 
