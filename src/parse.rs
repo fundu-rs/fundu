@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::ops::Neg;
 use std::time::Duration as StdDuration;
 
-use crate::config::{Config, Delimiter};
+use crate::config::{Config, Delimiter, DEFAULT_CONFIG};
 use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 
@@ -49,7 +49,7 @@ pub(crate) struct Parser {
 impl Parser {
     pub(crate) const fn new() -> Self {
         Self {
-            config: Config::new(),
+            config: DEFAULT_CONFIG,
         }
     }
 

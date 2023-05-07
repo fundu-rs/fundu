@@ -6,6 +6,8 @@
 use crate::time::{Multiplier, DEFAULT_TIME_UNIT};
 use crate::TimeUnit;
 
+pub(crate) const DEFAULT_CONFIG: Config = Config::new();
+
 /// An ascii delimiter defined as closure.
 ///
 /// The [`Delimiter`] is currently a type alias for a closure taking a `u8` byte and returning a

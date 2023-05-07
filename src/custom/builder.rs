@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use super::time_units::{CustomTimeUnits, Identifiers, TimeKeyword};
-use crate::config::Config;
+use crate::config::{Config, DEFAULT_CONFIG};
 use crate::parse::Parser;
 use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 
@@ -74,7 +74,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```
     pub const fn new() -> Self {
         Self {
-            config: Config::new(),
+            config: DEFAULT_CONFIG,
             time_units: None,
             custom_time_units: vec![],
             keywords: vec![],

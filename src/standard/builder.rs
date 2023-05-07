@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use super::time_units::TimeUnits;
-use crate::config::Config;
+use crate::config::{Config, DEFAULT_CONFIG};
 use crate::parse::Parser;
 use crate::{Delimiter, DurationParser, TimeUnit};
 
@@ -85,7 +85,7 @@ impl<'a> DurationParserBuilder<'a> {
     pub const fn new() -> Self {
         Self {
             time_units_choice: TimeUnitsChoice::None,
-            config: Config::new(),
+            config: DEFAULT_CONFIG,
         }
     }
 
