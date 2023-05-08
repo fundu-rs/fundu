@@ -194,23 +194,17 @@
 //!
 //! ```rust
 //! use fundu::TimeUnit::*;
-//! use fundu::{CustomDurationParser, Duration};
+//! use fundu::{CustomTimeUnit, CustomDurationParser, Duration};
 //!
 //! let parser = CustomDurationParser::with_time_units(&[
-//!     (MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
-//!     (Second, &["s", "secs"]),
-//!     (Hour, &["⏳"]),
+//!     CustomTimeUnit::with_default(MilliSecond, &["χιλιοστό του δευτερολέπτου"]),
+//!     CustomTimeUnit::with_default(Second, &["s", "secs"]),
+//!     CustomTimeUnit::with_default(Hour, &["⏳"]),
 //! ]);
-//! for (input, expected) in &[
-//!     (
-//!         ".3χιλιοστό του δευτερολέπτου",
-//!         Duration::positive(0, 300_000),
-//!     ),
-//!     ("1e3secs", Duration::positive(1000, 0)),
-//!     ("1.1⏳", Duration::positive(3960, 0)),
-//! ] {
-//!     assert_eq!(parser.parse(input).unwrap(), *expected);
-//! }
+//!
+//! assert_eq!(parser.parse(".3χιλιοστό του δευτερολέπτου"), Ok(Duration::positive(0, 300_000)));
+//! assert_eq!(parser.parse("1e3secs"), Ok(Duration::positive(1000, 0)));
+//! assert_eq!(parser.parse("1.1⏳"), Ok(Duration::positive(3960, 0)));
 //! ```
 //!
 //! Also, `fundu` tries to give informative error messages
@@ -298,8 +292,7 @@ pub use custom::{
     builder::CustomDurationParserBuilder,
     parser::CustomDurationParser,
     time_units::{
-        CustomTimeUnit, Identifiers, TimeKeyword, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS,
-        SYSTEMD_TIME_UNITS,
+        CustomTimeUnit, TimeKeyword, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
     },
 };
 pub use error::ParseError;

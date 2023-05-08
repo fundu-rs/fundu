@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::cmp::Ordering;
+
 use crate::time::TimeUnitsLike;
 use crate::TimeUnit::*;
 use crate::{
@@ -13,49 +15,46 @@ use crate::{
 
 /// The [`Identifiers`] as defined in
 /// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
-pub const SYSTEMD_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
-    (NanoSecond, &["ns", "nsec"]),
-    (MicroSecond, &["us", "µs", "usec"]),
-    (MilliSecond, &["ms", "msec"]),
-    (Second, &["s", "sec", "second", "seconds"]),
-    (Minute, &["m", "min", "minute", "minutes"]),
-    (Hour, &["h", "hr", "hour", "hours"]),
-    (Day, &["d", "day", "days"]),
-    (Week, &["w", "week", "weeks"]),
-    (Month, &["M", "month", "months"]),
-    (Year, &["y", "year", "years"]),
+pub const SYSTEMD_TIME_UNITS: [CustomTimeUnit<'static>; 10] = [
+    CustomTimeUnit::with_default(NanoSecond, &["ns", "nsec"]),
+    CustomTimeUnit::with_default(MicroSecond, &["us", "µs", "usec"]),
+    CustomTimeUnit::with_default(MilliSecond, &["ms", "msec"]),
+    CustomTimeUnit::with_default(Second, &["s", "sec", "second", "seconds"]),
+    CustomTimeUnit::with_default(Minute, &["m", "min", "minute", "minutes"]),
+    CustomTimeUnit::with_default(Hour, &["h", "hr", "hour", "hours"]),
+    CustomTimeUnit::with_default(Day, &["d", "day", "days"]),
+    CustomTimeUnit::with_default(Week, &["w", "week", "weeks"]),
+    CustomTimeUnit::with_default(Month, &["M", "month", "months"]),
+    CustomTimeUnit::with_default(Year, &["y", "year", "years"]),
 ];
 
 /// The default [`Identifiers`] token from the `standard` feature (without `Month` and `Year`)
-pub const DEFAULT_TIME_UNITS: [(TimeUnit, &[&str]); 8] = [
-    (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
-    (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
-    (MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
-    (Second, &[DEFAULT_ID_SECOND]),
-    (Minute, &[DEFAULT_ID_MINUTE]),
-    (Hour, &[DEFAULT_ID_HOUR]),
-    (Day, &[DEFAULT_ID_DAY]),
-    (Week, &[DEFAULT_ID_WEEK]),
+pub const DEFAULT_TIME_UNITS: [CustomTimeUnit<'static>; 8] = [
+    CustomTimeUnit::with_default(NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
+    CustomTimeUnit::with_default(MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
+    CustomTimeUnit::with_default(MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
+    CustomTimeUnit::with_default(Second, &[DEFAULT_ID_SECOND]),
+    CustomTimeUnit::with_default(Minute, &[DEFAULT_ID_MINUTE]),
+    CustomTimeUnit::with_default(Hour, &[DEFAULT_ID_HOUR]),
+    CustomTimeUnit::with_default(Day, &[DEFAULT_ID_DAY]),
+    CustomTimeUnit::with_default(Week, &[DEFAULT_ID_WEEK]),
 ];
 
 /// All [`Identifiers`] token from the `standard` feature (with `Month` and `Year`)
-pub const DEFAULT_ALL_TIME_UNITS: [(TimeUnit, &[&str]); 10] = [
-    (NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
-    (MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
-    (MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
-    (Second, &[DEFAULT_ID_SECOND]),
-    (Minute, &[DEFAULT_ID_MINUTE]),
-    (Hour, &[DEFAULT_ID_HOUR]),
-    (Day, &[DEFAULT_ID_DAY]),
-    (Week, &[DEFAULT_ID_WEEK]),
-    (Month, &[DEFAULT_ID_MONTH]),
-    (Year, &[DEFAULT_ID_YEAR]),
+pub const DEFAULT_ALL_TIME_UNITS: [CustomTimeUnit<'static>; 10] = [
+    CustomTimeUnit::with_default(NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
+    CustomTimeUnit::with_default(MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
+    CustomTimeUnit::with_default(MilliSecond, &[DEFAULT_ID_MILLI_SECOND]),
+    CustomTimeUnit::with_default(Second, &[DEFAULT_ID_SECOND]),
+    CustomTimeUnit::with_default(Minute, &[DEFAULT_ID_MINUTE]),
+    CustomTimeUnit::with_default(Hour, &[DEFAULT_ID_HOUR]),
+    CustomTimeUnit::with_default(Day, &[DEFAULT_ID_DAY]),
+    CustomTimeUnit::with_default(Week, &[DEFAULT_ID_WEEK]),
+    CustomTimeUnit::with_default(Month, &[DEFAULT_ID_MONTH]),
+    CustomTimeUnit::with_default(Year, &[DEFAULT_ID_YEAR]),
 ];
 
 pub(super) type IdentifiersLookupData<'a> = (LookupData, Vec<&'a str>);
-
-/// A pair consisting of a [`TimeUnit`] and its associated identifiers
-pub type Identifiers<'a> = (TimeUnit, &'a [&'a str]);
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub(super) struct LookupData {
@@ -177,15 +176,9 @@ impl LookupData {
 /// | Year        | Multiplier(31557600, 0) | 584_542_046_090 | i16::MIN | i16::MAX
 #[derive(Debug, Eq, Clone, Copy)]
 pub struct CustomTimeUnit<'a> {
-    base_unit: TimeUnit,
-    multiplier: Multiplier,
-    identifiers: &'a [&'a str],
-}
-
-impl<'a> PartialEq for CustomTimeUnit<'a> {
-    fn eq(&self, other: &Self) -> bool {
-        self.base_unit == other.base_unit && self.multiplier == other.multiplier
-    }
+    pub(super) base_unit: TimeUnit,
+    pub(super) multiplier: Multiplier,
+    pub(super) identifiers: &'a [&'a str],
 }
 
 impl<'a> CustomTimeUnit<'a> {
@@ -220,6 +213,37 @@ impl<'a> CustomTimeUnit<'a> {
             identifiers,
         }
     }
+
+    pub const fn with_default(base_unit: TimeUnit, identifiers: &'a [&'a str]) -> Self {
+        Self::new(base_unit, identifiers, None)
+    }
+}
+
+impl<'a> PartialEq for CustomTimeUnit<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.base_unit == other.base_unit && self.multiplier == other.multiplier
+    }
+}
+
+impl<'a> std::hash::Hash for CustomTimeUnit<'a> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.base_unit.hash(state);
+        self.multiplier.hash(state);
+    }
+}
+
+impl<'a> PartialOrd for CustomTimeUnit<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<'a> Ord for CustomTimeUnit<'a> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let multi_a = self.base_unit.multiplier() * self.multiplier;
+        let multi_b = other.base_unit.multiplier() * other.multiplier;
+        multi_a.cmp(&multi_b)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -234,9 +258,19 @@ impl<'a> CustomTimeUnits<'a> {
         Self::with_capacity(0)
     }
 
-    pub(super) fn with_time_units(units: &[Identifiers<'a>]) -> Self {
+    pub(super) fn with_time_units(units: &[CustomTimeUnit<'a>]) -> Self {
         let mut time_units = Self::with_capacity(units.len());
-        time_units.add_time_units(units);
+        for unit in units {
+            time_units.add_custom_time_unit(*unit);
+        }
+        time_units
+    }
+
+    pub(super) fn with_keywords(keywords: &[TimeKeyword<'a>]) -> Self {
+        let mut time_units = Self::with_capacity(keywords.len());
+        for keyword in keywords {
+            time_units.add_custom_time_unit(keyword.to_custom_time_unit());
+        }
         time_units
     }
 
@@ -245,17 +279,6 @@ impl<'a> CustomTimeUnits<'a> {
             min_length: usize::MAX,
             max_length: 0,
             time_units: Vec::with_capacity(capacity),
-        }
-    }
-
-    pub(super) fn add_time_unit(&mut self, unit: Identifiers<'a>) {
-        let (time_unit, identifiers) = unit;
-        self.add_custom_time_unit(CustomTimeUnit::new(time_unit, identifiers, None));
-    }
-
-    pub(super) fn add_time_units(&mut self, units: &[Identifiers<'a>]) {
-        for unit in units {
-            self.add_time_unit(*unit);
         }
     }
 
@@ -404,49 +427,51 @@ mod tests {
     }
 
     #[rstest]
-    #[case::nano_second(NanoSecond, &["some"], 4, 4)]
-    #[case::nano_second_with_multiple_ids(NanoSecond, &["some", "other", "деякі"], 4, 10)]
-    #[case::micro_second(MicroSecond, &["some"], 4, 4)]
-    #[case::micro_second_with_multiple_ids(MicroSecond, &["some", "other", "деякі"], 4, 10)]
-    #[case::milli_second(MilliSecond, &["some"], 4, 4)]
-    #[case::milli_second_with_multiple_ids(MilliSecond, &["some", "other", "деякі"], 4, 10)]
-    #[case::second(Second, &["some"], 4, 4)]
-    #[case::second_with_multiple_ids(Second, &["some", "other", "деякі"], 4, 10)]
-    #[case::minute(Minute, &["some"], 4, 4)]
-    #[case::minute_with_multiple_ids(Minute, &["some", "other", "деякі"], 4, 10)]
-    #[case::hour(Hour, &["some"], 4, 4)]
-    #[case::hour_with_multiple_ids(Hour, &["some", "other", "деякі"], 4, 10)]
-    #[case::day(Day, &["some"], 4, 4)]
-    #[case::day_with_multiple_ids(Day, &["some", "other", "деякі"], 4, 10)]
-    #[case::week(Week, &["some"], 4, 4)]
-    #[case::week_with_multiple_ids(Week, &["some", "other", "деякі"], 4, 10)]
-    #[case::month(Month, &["some"], 4, 4)]
-    #[case::month_with_multiple_ids(Month, &["some", "other", "деякі"], 4, 10)]
-    #[case::year(Year, &["some"], 4, 4)]
-    #[case::year_with_multiple_ids(Year, &["some", "other", "деякі"], 4, 10)]
+    #[case::nano_second(CustomTimeUnit::with_default(NanoSecond, &["some"]), 4, 4)]
+    #[case::nano_second_with_multiple_ids(CustomTimeUnit::with_default(NanoSecond, &["some", "other", "деякі"]), 4, 10)]
+    #[case::micro_second(CustomTimeUnit::with_default(MicroSecond, &["some"]), 4, 4)]
+    #[case::micro_second_with_multiple_ids(CustomTimeUnit::with_default(MicroSecond, &["some", "other", "деякі"]), 4, 10)]
+    #[case::milli_second(CustomTimeUnit::with_default(MilliSecond, &["some"]), 4, 4)]
+    #[case::milli_second_with_multiple_ids(CustomTimeUnit::with_default(MilliSecond, &["some", "other", "деякі"]), 4, 10)]
+    #[case::second(CustomTimeUnit::with_default(Second, &["some"]), 4, 4)]
+    #[case::second_with_multiple_ids(CustomTimeUnit::with_default(Second, &["some", "other", "деякі"]), 4, 10)]
+    #[case::minute(CustomTimeUnit::with_default(Minute, &["some"]), 4, 4)]
+    #[case::minute_with_multiple_ids(CustomTimeUnit::with_default(Minute, &["some", "other", "деякі"]), 4, 10)]
+    #[case::hour(CustomTimeUnit::with_default(Hour, &["some"]), 4, 4)]
+    #[case::hour_with_multiple_ids(CustomTimeUnit::with_default(Hour, &["some", "other", "деякі"]), 4, 10)]
+    #[case::day(CustomTimeUnit::with_default(Day, &["some"]), 4, 4)]
+    #[case::day_with_multiple_ids(CustomTimeUnit::with_default(Day, &["some", "other", "деякі"]), 4, 10)]
+    #[case::week(CustomTimeUnit::with_default(Week, &["some"]), 4, 4)]
+    #[case::week_with_multiple_ids(CustomTimeUnit::with_default(Week, &["some", "other", "деякі"]), 4, 10)]
+    #[case::month(CustomTimeUnit::with_default(Month, &["some"]), 4, 4)]
+    #[case::month_with_multiple_ids(CustomTimeUnit::with_default(Month, &["some", "other", "деякі"]), 4, 10)]
+    #[case::year(CustomTimeUnit::with_default(Year, &["some"]), 4, 4)]
+    #[case::year_with_multiple_ids(CustomTimeUnit::with_default(Year, &["some", "other", "деякі"]), 4, 10)]
     fn test_custom_time_units_init_with_time_units(
-        #[case] time_unit: TimeUnit,
-        #[case] ids: &[&str],
+        #[case] time_unit: CustomTimeUnit,
         #[case] min_length: usize,
         #[case] max_length: usize,
     ) {
-        let custom = CustomTimeUnits::with_time_units(&[(time_unit, ids)]);
+        let custom = CustomTimeUnits::with_time_units(&[(time_unit)]);
         assert!(!custom.is_empty());
         assert_eq!(
-            custom.lookup(time_unit, Multiplier::default()),
+            custom.lookup(time_unit.base_unit, Multiplier::default()),
             Some(&make_lookup_result(
                 min_length,
                 max_length,
-                time_unit,
+                time_unit.base_unit,
                 Multiplier::default(),
-                Vec::from(ids)
+                Vec::from(time_unit.identifiers)
             ))
         );
     }
 
     #[test]
     fn test_custom_time_units_init_with_time_units_when_multiple_equal_ids() {
-        let custom = CustomTimeUnits::with_time_units(&[(NanoSecond, &["same", "same"])]);
+        let custom = CustomTimeUnits::with_time_units(&[(CustomTimeUnit::with_default(
+            NanoSecond,
+            &["same", "same"],
+        ))]);
         assert!(!custom.is_empty());
         assert_eq!(
             custom.lookup(NanoSecond, Multiplier::default()),
@@ -465,9 +490,9 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_time_units_when_add_time_unit() {
+    fn test_custom_time_units_when_add_custom_time_unit() {
         let mut custom = CustomTimeUnits::new();
-        custom.add_time_unit((MicroSecond, &["some", "ids"]));
+        custom.add_custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["some", "ids"]));
         assert!(
             custom
                 .time_units
@@ -494,7 +519,7 @@ mod tests {
     #[test]
     fn test_custom_time_units_when_adding_time_unit_with_empty_slice_then_not_added() {
         let mut custom = CustomTimeUnits::new();
-        custom.add_time_unit((MicroSecond, &[]));
+        custom.add_custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &[]));
         assert!(custom.is_empty());
         assert_eq!(custom.lookup(MicroSecond, Multiplier::default()), None);
     }
@@ -502,7 +527,7 @@ mod tests {
     #[test]
     fn test_custom_time_units_when_adding_time_unit_with_empty_id_then_not_added() {
         let mut custom = CustomTimeUnits::new();
-        custom.add_time_unit((MicroSecond, &[""]));
+        custom.add_custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &[""]));
         assert!(custom.is_empty());
         assert_eq!(custom.lookup(MicroSecond, Multiplier::default()), None);
     }
@@ -575,7 +600,8 @@ mod tests {
 
     #[test]
     fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_already_exists() {
-        let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
+        let mut custom =
+            CustomTimeUnits::with_time_units(&[CustomTimeUnit::with_default(Second, &["s"])]);
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["ss"], Some(Multiplier(2, 0))));
         assert_eq!(
             custom.lookup(Second, Multiplier::default()),
@@ -603,7 +629,8 @@ mod tests {
 
     #[test]
     fn test_custom_time_units_adding_custom_time_unit_when_normal_time_unit_with_same_id() {
-        let mut custom = CustomTimeUnits::with_time_units(&[(Second, &["s"])]);
+        let mut custom =
+            CustomTimeUnits::with_time_units(&[CustomTimeUnit::with_default(Second, &["s"])]);
         custom.add_custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2, 0))));
         assert_eq!(
             custom.lookup(Second, Multiplier::default()),

@@ -10,6 +10,7 @@ use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 use TimeUnit::*;
 
 use crate::error::TryFromDurationError;
+use crate::util::FloorLog10;
 
 /// The default identifier of [`TimeUnit::NanoSecond`]
 pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
@@ -50,7 +51,7 @@ pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 /// ```
 ///
 /// [`DurationParser`]: crate::DurationParser
-#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
 pub enum TimeUnit {
     /// Represents the lowest possible time unit. The default id is given by
     /// [`DEFAULT_ID_NANO_SECOND`] = `ns`
@@ -145,7 +146,7 @@ pub(crate) trait TimeUnitsLike {
 /// let second = Multiplier(1, 0);
 /// let hour = Multiplier(3600, 0);
 /// ```
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct Multiplier(pub i64, pub i16);
 
 impl Default for Multiplier {
@@ -155,16 +156,24 @@ impl Default for Multiplier {
 }
 
 impl Multiplier {
+    #[inline]
     pub fn coefficient(&self) -> i64 {
         self.0
     }
 
+    #[inline]
     pub fn exponent(&self) -> i16 {
         self.1
     }
 
+    #[inline]
     pub fn is_negative(&self) -> bool {
         self.0.is_negative()
+    }
+
+    #[inline]
+    pub fn is_positive(&self) -> bool {
+        self.0.is_positive()
     }
 }
 
@@ -188,6 +197,31 @@ impl Neg for Multiplier {
 
     fn neg(self) -> Self::Output {
         Multiplier(self.0.saturating_neg(), self.1)
+    }
+}
+
+impl PartialOrd for Multiplier {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Multiplier {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self.coefficient(), other.coefficient()) {
+            (a, b) if a == b || a == 0 && b == 0 => Ordering::Equal,
+            (a, b) if a.is_negative() && b.is_positive() => Ordering::Less,
+            (a, b) if a.is_positive() && b.is_negative() => Ordering::Greater,
+            (a, b) => {
+                let exp_a = a.unsigned_abs().floor_log10() as i32 + self.exponent() as i32;
+                let exp_b = b.unsigned_abs().floor_log10() as i32 + other.exponent() as i32;
+                match exp_a.cmp(&exp_b) {
+                    Ordering::Equal => a.cmp(&b),
+                    ord if a.is_positive() => ord,
+                    ord => ord.reverse(),
+                }
+            }
+        }
     }
 }
 

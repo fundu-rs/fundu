@@ -4,7 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use super::builder::CustomDurationParserBuilder;
-use super::time_units::{CustomTimeUnit, CustomTimeUnits, Identifiers, TimeKeyword};
+use super::time_units::{CustomTimeUnit, CustomTimeUnits, TimeKeyword};
 use crate::parse::Parser;
 use crate::time::{Duration as FunduDuration, Multiplier, TimeUnitsLike};
 use crate::{Delimiter, ParseError, TimeUnit};
@@ -80,12 +80,12 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, Duration, Multiplier};
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier};
     ///
     /// let parser = CustomDurationParser::with_time_units(&[
-    ///     (Second, &["s"]),
-    ///     (Minute, &["Min"]),
-    ///     (Hour, &["ώρα"]),
+    ///     CustomTimeUnit::with_default(Second, &["s"]),
+    ///     CustomTimeUnit::with_default(Minute, &["Min"]),
+    ///     CustomTimeUnit::with_default(Hour, &["ώρα"]),
     /// ]);
     /// assert_eq!(
     ///     parser.get_time_unit_by_id("s"),
@@ -107,7 +107,7 @@ impl<'a> CustomDurationParser<'a> {
     ///     Duration::positive(15120, 0)
     /// );
     /// ```
-    pub fn with_time_units(units: &'a [Identifiers<'a>]) -> Self {
+    pub fn with_time_units(units: &[CustomTimeUnit<'a>]) -> Self {
         Self {
             time_units: CustomTimeUnits::with_time_units(units),
             keywords: CustomTimeUnits::new(),
@@ -318,9 +318,10 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, Duration, ParseError};
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, ParseError};
     ///
-    /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
+    /// let mut parser =
+    ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
     /// assert_eq!(
     ///     parser.parse("123 ns"),
     ///     Err(ParseError::TimeUnit(
@@ -382,9 +383,10 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, Duration, ParseError};
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, ParseError};
     ///
-    /// let mut parser = CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"])]);
+    /// let mut parser =
+    ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
     /// parser.disable_fraction(true);
     ///
     /// assert_eq!(
@@ -497,10 +499,12 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, Multiplier};
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
     ///
-    /// let parser =
-    ///     CustomDurationParser::with_time_units(&[(NanoSecond, &["ns"]), (MicroSecond, &["Ms"])]);
+    /// let parser = CustomDurationParser::with_time_units(&[
+    ///     CustomTimeUnit::with_default(NanoSecond, &["ns"]),
+    ///     CustomTimeUnit::with_default(MicroSecond, &["Ms"]),
+    /// ]);
     ///
     /// assert_eq!(parser.get_time_unit_by_id("does_not_exist"), None);
     ///
@@ -568,11 +572,16 @@ mod tests {
     fn test_custom_duration_parser_init_with_time_units() {
         let parser = CustomDurationParser::with_time_units(&DEFAULT_ALL_TIME_UNITS);
         assert_eq!(parser.inner.config.default_unit, Second);
-        for (time_unit, ids) in DEFAULT_ALL_TIME_UNITS {
-            for id in ids {
+        for unit in DEFAULT_ALL_TIME_UNITS {
+            let CustomTimeUnit {
+                base_unit,
+                multiplier: _,
+                identifiers,
+            } = unit;
+            for id in identifiers {
                 assert_eq!(
                     parser.get_time_unit_by_id(id),
-                    Some((time_unit, Multiplier::default()))
+                    Some((base_unit, Multiplier::default()))
                 );
             }
         }
@@ -628,7 +637,10 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_parse_when_non_ascii() {
-        let parser = CustomDurationParser::with_time_units(&[(MilliSecond, &["мілісекунда"])]);
+        let parser = CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(
+            MilliSecond,
+            &["мілісекунда"],
+        )]);
         assert_eq!(
             parser.parse("1мілісекунда"),
             Ok(Duration::positive(0, 1_000_000))

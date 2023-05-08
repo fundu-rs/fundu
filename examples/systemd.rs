@@ -93,7 +93,7 @@ fn main() {
 
     let delimiter = |byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\r');
     let parser = CustomDurationParser::builder()
-        .time_units(&SYSTEMD_TIME_UNITS)
+        .custom_time_units(&SYSTEMD_TIME_UNITS)
         .disable_exponent()
         .disable_fraction()
         .disable_infinity()
