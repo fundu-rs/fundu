@@ -13,33 +13,11 @@ use std::time::Duration as StdDuration;
 use crate::config::{Config, Delimiter, DEFAULT_CONFIG};
 use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
+use crate::util::POW10;
 
 const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
 // TODO: Rename to ATTOS_PER_NANO_SECOND
 const ATTO_TO_NANO: u64 = 1_000_000_000;
-
-const POW10: [u64; 20] = [
-    1,
-    10,
-    100,
-    1_000,
-    10_000,
-    100_000,
-    1_000_000,
-    10_000_000,
-    100_000_000,
-    1_000_000_000,
-    10_000_000_000,
-    100_000_000_000,
-    1_000_000_000_000,
-    10_000_000_000_000,
-    100_000_000_000_000,
-    1_000_000_000_000_000,
-    10_000_000_000_000_000,
-    100_000_000_000_000_000,
-    1_000_000_000_000_000_000,
-    10_000_000_000_000_000_000,
-];
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Parser {

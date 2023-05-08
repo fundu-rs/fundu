@@ -290,6 +290,7 @@ mod parse;
 #[cfg(feature = "standard")]
 mod standard;
 mod time;
+mod util;
 
 pub use config::Delimiter;
 #[cfg(feature = "custom")]
