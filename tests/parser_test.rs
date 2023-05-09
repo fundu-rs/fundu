@@ -15,6 +15,12 @@ use rstest::rstest;
 const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
 const MONTH: u64 = YEAR / 12;
 
+// #[test]
+// fn just_debugging() {
+//     let parser = DurationParser::without_time_units();
+//     assert_eq!(parser.parse("1"), Ok(Duration::positive(1, 0)));
+// }
+
 #[rstest]
 #[case::empty_string("")]
 #[case::leading_whitespace("  1")]
@@ -175,7 +181,7 @@ fn test_parse_duration_when_arguments_are_infinity_values(#[case] source: &str) 
 #[rstest]
 #[case::negative_infinity_short("-inf", ParseError::NegativeNumber)]
 #[case::negative_infinity_long("-infinity", ParseError::NegativeNumber)]
-#[case::infinity_long_trailing_invalid("infinityINVALID", ParseError::Syntax(8, "Expected end of input but found 'I'".to_string()))]
+#[case::infinity_long_trailing_invalid("infinityINVALID", ParseError::Syntax(8, "Expected end of input but found: 'I'".to_string()))]
 #[case::incomplete_infinity("infin", ParseError::Syntax(5, "Error parsing infinity: Premature end of input".to_string()))]
 #[case::infinity_with_number("inf1.0", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
 fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(
@@ -800,7 +806,7 @@ fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Dura
 #[rstest]
 #[case::just_ago("ago", ParseError::Syntax(0, "Invalid input: 'ago'".to_string()))]
 #[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
-#[case::incomplete_ago("1s ag", ParseError::Syntax(3, "Expected end of input, but found: 'a'".to_string()))]
+#[case::incomplete_ago("1s ag", ParseError::Syntax(3, "Expected end of input but found: 'a'".to_string()))]
 fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {
     let parser = CustomDurationParserBuilder::new()
         .custom_time_units(&SYSTEMD_TIME_UNITS)
