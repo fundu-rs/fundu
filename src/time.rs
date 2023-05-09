@@ -7,6 +7,8 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use TimeUnit::*;
 
 use crate::error::TryFromDurationError;
@@ -52,6 +54,7 @@ pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 ///
 /// [`DurationParser`]: crate::DurationParser
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TimeUnit {
     /// Represents the lowest possible time unit. The default id is given by
     /// [`DEFAULT_ID_NANO_SECOND`] = `ns`
@@ -147,6 +150,7 @@ pub(crate) trait TimeUnitsLike {
 /// let hour = Multiplier(3600, 0);
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Multiplier(pub i64, pub i16);
 
 impl Default for Multiplier {
@@ -234,6 +238,7 @@ pub trait SaturatingInto<T>: Sized {
 }
 
 #[derive(Debug, Eq, Clone, Copy, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Duration {
     is_negative: bool,
     inner: std::time::Duration,

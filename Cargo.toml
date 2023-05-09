@@ -25,12 +25,14 @@ standard = []
 custom = []
 time = ["dep:time"]
 chrono = ["dep:chrono"]
+serde = ["dep:serde"]
 with-iai = []
 with-flamegraph = []
 
 [dependencies]
 time = { version = "<= 0.3.16", optional = true, default-features = false }
 chrono = { version = "0.4.24", optional = true, default-features = false }
+serde = { version = "1.0.162", optional = true, features=["derive"]}
 
 [dev-dependencies]
 rstest = "0.17.0"

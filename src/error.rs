@@ -8,8 +8,12 @@
 use std::error::Error;
 use std::fmt::Display;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[non_exhaustive]
 pub enum ParseError {
     /// Returned, if the input was empty.
@@ -60,6 +64,7 @@ impl Display for ParseError {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TryFromDurationError {
     NegativeNumber,
     #[allow(dead_code)]
