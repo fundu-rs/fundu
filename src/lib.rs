@@ -301,3 +301,61 @@ pub use crate::time::{
     DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_send() {
+        fn assert_send<T: Send>() {}
+        assert_send::<Delimiter>();
+
+        assert_send::<TimeUnit>();
+        assert_send::<Duration>();
+        assert_send::<Multiplier>();
+
+        assert_send::<ParseError>();
+        assert_send::<TryFromDurationError>();
+
+        #[cfg(feature = "custom")]
+        {
+            assert_send::<CustomDurationParserBuilder>();
+            assert_send::<CustomDurationParser>();
+            assert_send::<CustomTimeUnit>();
+            assert_send::<TimeKeyword>();
+        }
+
+        #[cfg(feature = "standard")]
+        {
+            assert_send::<DurationParserBuilder>();
+            assert_send::<DurationParser>();
+        }
+    }
+
+    #[test]
+    fn test_sync() {
+        fn assert_sync<T: Sync>() {}
+        assert_sync::<Delimiter>();
+
+        assert_sync::<TimeUnit>();
+        assert_sync::<Duration>();
+        assert_sync::<Multiplier>();
+
+        assert_sync::<ParseError>();
+        assert_sync::<TryFromDurationError>();
+
+        #[cfg(feature = "custom")]
+        {
+            assert_sync::<CustomDurationParserBuilder>();
+            assert_sync::<CustomDurationParser>();
+            assert_sync::<CustomTimeUnit>();
+            assert_sync::<TimeKeyword>();
+        }
+        #[cfg(feature = "standard")]
+        {
+            assert_sync::<DurationParserBuilder>();
+            assert_sync::<DurationParser>();
+        }
+    }
+}
