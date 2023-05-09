@@ -290,7 +290,7 @@ pub use custom::{
         CustomTimeUnit, TimeKeyword, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
     },
 };
-pub use error::ParseError;
+pub use error::{ParseError, TryFromDurationError};
 #[cfg(feature = "standard")]
 pub use standard::{
     builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,

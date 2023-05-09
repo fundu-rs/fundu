@@ -78,6 +78,23 @@ impl From<TryFromDurationError> for ParseError {
     }
 }
 
+impl Error for TryFromDurationError {}
+
+impl Display for TryFromDurationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let description = match self {
+            TryFromDurationError::NegativeNumber => "Error converting duration: value is negative",
+            TryFromDurationError::PositiveOverflow => {
+                "Error converting duration: value overflows the positive value range"
+            }
+            TryFromDurationError::NegativeOverflow => {
+                "Error converting duration: value overflows the negative value range"
+            }
+        };
+        description.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
