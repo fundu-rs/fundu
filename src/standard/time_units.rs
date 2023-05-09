@@ -78,10 +78,15 @@ impl TimeUnits {
     }
 
     /// Create [`TimeUnits`] with a custom set of [`TimeUnit`]s.
-    pub(super) fn with_time_units(units: &[TimeUnit]) -> Self {
-        let mut time_units = Self::new();
-        time_units.add_time_units(units);
-        time_units
+    pub(super) const fn with_time_units(units: &[TimeUnit]) -> Self {
+        let mut data: [Option<TimeUnit>; 10] = [None; 10];
+        let mut counter = 0;
+        while counter < units.len() {
+            let unit = units[counter];
+            data[unit as usize] = Some(unit);
+            counter += 1;
+        }
+        Self { data }
     }
 
     /// Create [`TimeUnits`] with default [`TimeUnit`]s.
@@ -117,18 +122,6 @@ impl TimeUnits {
                 Some(Month),
                 Some(Year),
             ],
-        }
-    }
-
-    /// Add a [`TimeUnit`] to the set of already present time units.
-    pub(super) fn add_time_unit(&mut self, unit: TimeUnit) {
-        self.data[unit as usize] = Some(unit);
-    }
-
-    /// Add multiple [`TimeUnit`] to the set of already present time units.
-    pub(super) fn add_time_units(&mut self, units: &[TimeUnit]) {
-        for unit in units {
-            self.add_time_unit(*unit);
         }
     }
 
@@ -193,46 +186,58 @@ mod tests {
         );
     }
 
-    #[test]
-    fn test_time_units_with_time_units() {
-        let time_units = TimeUnits::with_time_units(&[NanoSecond]);
-        assert!(!time_units.is_empty());
-        assert_eq!(time_units.get_time_units(), vec![NanoSecond,]);
-    }
-
     #[rstest]
-    #[case::nano_second(NanoSecond, "ns")]
-    #[case::micro_second(MicroSecond, "Ms")]
-    #[case::milli_second(MilliSecond, "ms")]
-    #[case::second(Second, "s")]
-    #[case::minute(Minute, "m")]
-    #[case::hour(Hour, "h")]
-    #[case::day(Day, "d")]
-    #[case::week(Week, "w")]
-    #[case::month(Month, "M")]
-    #[case::year(Year, "y")]
-    fn test_time_units_add_time_unit_when_empty(
-        #[case] time_unit: TimeUnit,
-        #[case] identifier: &str,
+    fn test_time_units_with_time_units_when_single_unit(
+        #[values(
+            NanoSecond,
+            MicroSecond,
+            MilliSecond,
+            Second,
+            Minute,
+            Hour,
+            Day,
+            Week,
+            Month,
+            Year
+        )]
+        time_unit: TimeUnit,
     ) {
-        let mut time_units = TimeUnits::new();
-        time_units.add_time_unit(time_unit);
-        assert_eq!(time_units.get_time_units(), vec![time_unit]);
-        assert_eq!(
-            time_units.get(identifier),
-            Some((time_unit, Multiplier(1, 0)))
-        );
+        let mut expected_data: [Option<TimeUnit>; 10] = [None; 10];
+        expected_data[time_unit as usize] = Some(time_unit);
+
+        let time_units = TimeUnits::with_time_units(&[time_unit]);
+        assert!(!time_units.is_empty());
+        assert_eq!(time_units.data, expected_data);
     }
 
     #[test]
-    fn test_time_units_add_time_unit_twice() {
-        let mut time_units = TimeUnits::new();
-        let time_unit = MicroSecond;
-
-        time_units.add_time_unit(time_unit);
-        time_units.add_time_unit(time_unit);
-
-        assert_eq!(time_units.get_time_units(), vec![time_unit]);
+    fn test_time_units_with_time_units_when_all_time_units() {
+        let expected_data: [Option<TimeUnit>; 10] = [
+            Some(NanoSecond),
+            Some(MicroSecond),
+            Some(MilliSecond),
+            Some(Second),
+            Some(Minute),
+            Some(Hour),
+            Some(Day),
+            Some(Week),
+            Some(Month),
+            Some(Year),
+        ];
+        let time_units = TimeUnits::with_time_units(&[
+            NanoSecond,
+            MicroSecond,
+            MilliSecond,
+            Second,
+            Minute,
+            Hour,
+            Day,
+            Week,
+            Month,
+            Year,
+        ]);
+        assert!(!time_units.is_empty());
+        assert_eq!(time_units.data, expected_data);
     }
 
     #[test]
@@ -258,23 +263,6 @@ mod tests {
     ) {
         let time_units = TimeUnits::with_time_units(&[time_unit]);
         assert!(!time_units.is_empty());
-    }
-
-    #[test]
-    fn test_time_units_add_time_units_when_in_order() {
-        let mut time_units = TimeUnits::new();
-        let units = &[NanoSecond, Second, Month];
-        time_units.add_time_units(units);
-        assert_eq!(time_units.get_time_units(), units);
-    }
-
-    #[test]
-    fn test_time_units_add_time_units_when_not_in_order() {
-        let mut time_units = TimeUnits::new();
-        let mut units = [Month, Second, Hour, NanoSecond];
-        time_units.add_time_units(&units);
-        units.sort();
-        assert_eq!(time_units.get_time_units(), &units);
     }
 
     #[rstest]

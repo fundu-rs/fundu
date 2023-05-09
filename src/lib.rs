@@ -229,33 +229,28 @@
 //! use fundu::TimeUnit::*;
 //! use fundu::{Duration, DurationParser, ParseError};
 //!
-//! let parser = DurationParser::builder()
-//!     .custom_time_units(&[NanoSecond])
+//! const PARSER: DurationParser = DurationParser::builder()
+//!     .time_units(&[NanoSecond])
 //!     .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
 //!     .number_is_optional()
 //!     .disable_fraction()
 //!     .disable_exponent()
 //!     .build();
 //!
-//! for (input, expected) in &[
-//!     ("ns", Duration::positive(0, 1)),
-//!     ("1000\t\n\r ns", Duration::positive(0, 1000)),
-//! ] {
-//!     assert_eq!(parser.parse(input).unwrap(), *expected);
-//! }
+//! assert_eq!(PARSER.parse("ns").unwrap(), Duration::positive(0, 1));
+//! assert_eq!(
+//!     PARSER.parse("1000\t\n\r ns").unwrap(),
+//!     Duration::positive(0, 1000)
+//! );
 //!
-//! for (input, expected) in &[
-//!     (
-//!         "1.0ns",
-//!         ParseError::Syntax(1, "No fraction allowed".to_string()),
-//!     ),
-//!     (
-//!         "1e9ns",
-//!         ParseError::Syntax(1, "No exponent allowed".to_string()),
-//!     ),
-//! ] {
-//!     assert_eq!(parser.parse(input).unwrap_err(), *expected);
-//! }
+//! assert_eq!(
+//!     PARSER.parse("1.0ns").unwrap_err(),
+//!     ParseError::Syntax(1, "No fraction allowed".to_string())
+//! );
+//! assert_eq!(
+//!     PARSER.parse("1e9ns").unwrap_err(),
+//!     ParseError::Syntax(1, "No exponent allowed".to_string())
+//! );
 //! ```
 //!
 //! [`time::Duration`]: <https://docs.rs/time/latest/time/struct.Duration.html>

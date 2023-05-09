@@ -18,9 +18,10 @@ enum TimeUnitsChoice<'a> {
 
 /// An ergonomic builder for a [`DurationParser`].
 ///
-/// The [`DurationParserBuilder`] is more ergonomic in some use cases than using
-/// [`DurationParser`] directly, especially when using the `DurationParser` for parsing multiple
-/// inputs.
+/// The [`DurationParserBuilder`] is more ergonomic in some use cases than using [`DurationParser`]
+/// directly, especially when using the `DurationParser` for parsing multiple inputs. This builder
+/// can also be used in `const` context, so it's possible to create a configured [`DurationParser`]
+/// at compilation time.
 ///
 /// # Examples
 ///
@@ -47,6 +48,18 @@ enum TimeUnitsChoice<'a> {
 /// assert_eq!(parser.parse("1    ns").unwrap(), Duration::positive(0, 1));
 /// assert_eq!(parser.parse("1").unwrap(), Duration::positive(0, 1_000));
 /// ```
+///
+/// The builder in `const` context.
+///
+/// ```rust
+/// use fundu::TimeUnit::*;
+/// use fundu::{DurationParser, DurationParserBuilder};
+///
+/// const PARSER : DurationParser = DurationParserBuilder::new()
+///     .time_units(&[Second, Minute, Hour, Day])
+///     .allow_negative()
+///     .parse_multiple(|byte| byte.is_ascii_whitespace())
+///     .build();
 #[derive(Debug, PartialEq, Eq)]
 pub struct DurationParserBuilder<'a> {
     time_units_choice: TimeUnitsChoice<'a>,
@@ -133,7 +146,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     ]
     /// );
     /// ```
-    pub fn default_time_units(&mut self) -> &mut Self {
+    pub const fn default_time_units(mut self) -> Self {
         self.time_units_choice = TimeUnitsChoice::Default;
         self
     }
@@ -185,7 +198,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     ]
     /// );
     /// ```
-    pub fn all_time_units(&mut self) -> &mut Self {
+    pub const fn all_time_units(mut self) -> Self {
         self.time_units_choice = TimeUnitsChoice::All;
         self
     }
@@ -206,13 +219,13 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// assert_eq!(
     ///     DurationParserBuilder::new()
-    ///         .custom_time_units(&[NanoSecond, Second, Year])
+    ///         .time_units(&[NanoSecond, Second, Year])
     ///         .build()
     ///         .get_current_time_units(),
     ///     vec![NanoSecond, Second, Year]
     /// );
     /// ```
-    pub fn custom_time_units(&mut self, time_units: &'a [TimeUnit]) -> &mut Self {
+    pub const fn time_units(mut self, time_units: &'a [TimeUnit]) -> Self {
         self.time_units_choice = TimeUnitsChoice::Custom(time_units);
         self
     }
@@ -237,7 +250,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Duration::positive(0, 42)
     /// );
     /// ```
-    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
+    pub const fn default_unit(mut self, unit: TimeUnit) -> Self {
         self.config.default_unit = unit;
         self
     }
@@ -263,12 +276,12 @@ impl<'a> DurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123   ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub fn allow_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
+    pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.allow_delimiter = Some(delimiter);
         self
     }
 
-    pub fn allow_negative(&mut self) -> &mut Self {
+    pub const fn allow_negative(mut self) -> Self {
         self.config.allow_negative = true;
         self
     }
@@ -291,7 +304,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Err(ParseError::Syntax(3, "No exponent allowed".to_string()))
     /// );
     /// ```
-    pub fn disable_exponent(&mut self) -> &mut Self {
+    pub const fn disable_exponent(mut self) -> Self {
         self.config.disable_exponent = true;
         self
     }
@@ -321,7 +334,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// );
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub fn disable_fraction(&mut self) -> &mut Self {
+    pub const fn disable_fraction(mut self) -> Self {
         self.config.disable_fraction = true;
         self
     }
@@ -350,7 +363,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
     /// );
     /// ```
-    pub fn disable_infinity(&mut self) -> &mut Self {
+    pub const fn disable_infinity(mut self) -> Self {
         self.config.disable_infinity = true;
         self
     }
@@ -373,7 +386,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
     /// }
     /// ```
-    pub fn number_is_optional(&mut self) -> &mut Self {
+    pub const fn number_is_optional(mut self) -> Self {
         self.config.number_is_optional = true;
         self
     }
@@ -411,7 +424,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub fn parse_multiple(&mut self, delimiter: Delimiter) -> &mut Self {
+    pub const fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
         self.config.parse_multiple = Some(delimiter);
         self
     }
@@ -428,8 +441,8 @@ impl<'a> DurationParserBuilder<'a> {
     ///     assert_eq!(parser.parse(input).unwrap(), Duration::positive(60, 0))
     /// }
     /// ```
-    pub fn build(&mut self) -> DurationParser {
-        let parser = Parser::with_config(self.config.clone());
+    pub const fn build(self) -> DurationParser {
+        let parser = Parser::with_config(self.config);
 
         match self.time_units_choice {
             TimeUnitsChoice::Default => DurationParser {
@@ -469,22 +482,19 @@ mod tests {
 
     #[test]
     fn test_duration_parser_builder_when_default_time_units() {
-        let mut builder = DurationParserBuilder::new();
-        builder.default_time_units();
+        let builder = DurationParserBuilder::new().default_time_units();
         assert_eq!(builder.time_units_choice, TimeUnitsChoice::Default);
     }
 
     #[test]
     fn test_duration_parser_builder_when_all_time_units() {
-        let mut builder = DurationParserBuilder::new();
-        builder.all_time_units();
+        let builder = DurationParserBuilder::new().all_time_units();
         assert_eq!(builder.time_units_choice, TimeUnitsChoice::All);
     }
 
     #[test]
     fn test_duration_parser_builder_when_custom_time_units() {
-        let mut builder = DurationParserBuilder::new();
-        builder.custom_time_units(&[MicroSecond, Hour, Week, Year]);
+        let builder = DurationParserBuilder::new().time_units(&[MicroSecond, Hour, Week, Year]);
         assert_eq!(
             builder.time_units_choice,
             TimeUnitsChoice::Custom(&[MicroSecond, Hour, Week, Year])
@@ -496,16 +506,14 @@ mod tests {
         let mut expected = Config::new();
         expected.default_unit = MicroSecond;
 
-        let mut builder = DurationParserBuilder::new();
-        builder.default_unit(MicroSecond);
+        let builder = DurationParserBuilder::new().default_unit(MicroSecond);
 
         assert_eq!(builder.config, expected);
     }
 
     #[test]
     fn test_duration_parser_builder_when_allow_delimiter() {
-        let mut builder = DurationParserBuilder::new();
-        builder.allow_delimiter(|b| b == b' ');
+        let builder = DurationParserBuilder::new().allow_delimiter(|b| b == b' ');
 
         assert!(builder.config.allow_delimiter.unwrap()(b' '));
     }
@@ -515,8 +523,7 @@ mod tests {
         let mut expected = Config::new();
         expected.disable_fraction = true;
 
-        let mut builder = DurationParserBuilder::new();
-        builder.disable_fraction();
+        let builder = DurationParserBuilder::new().disable_fraction();
 
         assert_eq!(builder.config, expected);
     }
@@ -526,8 +533,7 @@ mod tests {
         let mut expected = Config::new();
         expected.disable_exponent = true;
 
-        let mut builder = DurationParserBuilder::new();
-        builder.disable_exponent();
+        let builder = DurationParserBuilder::new().disable_exponent();
 
         assert_eq!(builder.config, expected);
     }
@@ -537,8 +543,7 @@ mod tests {
         let mut expected = Config::new();
         expected.disable_infinity = true;
 
-        let mut builder = DurationParserBuilder::new();
-        builder.disable_infinity();
+        let builder = DurationParserBuilder::new().disable_infinity();
 
         assert_eq!(builder.config, expected);
     }
@@ -548,16 +553,14 @@ mod tests {
         let mut expected = Config::new();
         expected.number_is_optional = true;
 
-        let mut builder = DurationParserBuilder::new();
-        builder.number_is_optional();
+        let builder = DurationParserBuilder::new().number_is_optional();
 
         assert_eq!(builder.config, expected);
     }
 
     #[test]
     fn test_duration_parser_builder_when_parse_multiple() {
-        let mut builder = DurationParserBuilder::new();
-        builder.parse_multiple(|byte: u8| byte == 0xff);
+        let builder = DurationParserBuilder::new().parse_multiple(|byte: u8| byte == 0xff);
 
         assert!(builder.config.parse_multiple.unwrap()(0xff));
     }
