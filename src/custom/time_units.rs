@@ -186,6 +186,11 @@ impl<'a> CustomTimeUnit<'a> {
     ///
     /// See also the documentation for [`CustomTimeUnit`].
     ///
+    /// # Panics
+    ///
+    /// If the [`Multiplier`] of the `base_unit` multiplied with the optional [`Multiplier`]
+    /// parameter overflows. See also [`Multiplier::checked_mul`].
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -207,7 +212,14 @@ impl<'a> CustomTimeUnit<'a> {
         Self {
             base_unit,
             multiplier: match multiplier {
-                Some(m) => m,
+                Some(m) => {
+                    assert!(
+                        base_unit.multiplier().checked_mul(m).is_some(),
+                        "The time unit multiplier multiplied with the multiplier parameter may \
+                         not overflow"
+                    );
+                    m
+                }
                 None => Multiplier(1, 0),
             },
             identifiers,
