@@ -67,9 +67,7 @@ impl Display for ParseError {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TryFromDurationError {
     NegativeNumber,
-    #[allow(dead_code)]
     PositiveOverflow,
-    #[allow(dead_code)]
     NegativeOverflow,
 }
 
