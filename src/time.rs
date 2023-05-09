@@ -157,23 +157,33 @@ impl Default for Multiplier {
 
 impl Multiplier {
     #[inline]
-    pub fn coefficient(&self) -> i64 {
+    pub const fn coefficient(&self) -> i64 {
         self.0
     }
 
     #[inline]
-    pub fn exponent(&self) -> i16 {
+    pub const fn exponent(&self) -> i16 {
         self.1
     }
 
     #[inline]
-    pub fn is_negative(&self) -> bool {
+    pub const fn is_negative(&self) -> bool {
         self.0.is_negative()
     }
 
     #[inline]
-    pub fn is_positive(&self) -> bool {
+    pub const fn is_positive(&self) -> bool {
         self.0.is_positive()
+    }
+
+    #[inline]
+    pub const fn checked_mul(&self, rhs: Self) -> Option<Self> {
+        if let Some(coefficient) = self.0.checked_mul(rhs.0) {
+            if let Some(exponent) = self.1.checked_add(rhs.1) {
+                return Some(Multiplier(coefficient, exponent));
+            }
+        }
+        None
     }
 }
 
@@ -181,14 +191,8 @@ impl Mul for Multiplier {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        Multiplier(
-            self.0
-                .checked_mul(rhs.0)
-                .expect("Multiplier: Overflow when multiplying coefficient"),
-            self.1
-                .checked_add(rhs.1)
-                .expect("Multiplier: Overflow when adding exponent"),
-        )
+        self.checked_mul(rhs)
+            .expect("Multiplier: Overflow when multiplying")
     }
 }
 
