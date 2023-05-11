@@ -607,13 +607,7 @@ impl<'a> Bytes<'a> {
             })
     }
 
-    // TODO: ignore ascii case like with inf?
     #[inline]
-    fn is_ago(&self) -> bool {
-        self.peek(3) == Some(b"ago")
-    }
-
-    // TODO: Replace usages `is_ago` with this method
     fn is_ago_ignore_ascii_case(&self) -> bool {
         self.peek(3)
             .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"ago"))
@@ -1040,7 +1034,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                 match self.bytes.current_byte {
                     Some(byte) if delimiter(*byte) => {
                         self.try_consume_delimiter(delimiter)?;
-                        if self.bytes.is_ago() {
+                        if self.bytes.is_ago_ignore_ascii_case() {
                             // SAFETY: We have checked with peek that there are at least 3 bytes
                             unsafe { self.bytes.advance_by(3) };
                         }
@@ -1296,7 +1290,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         match (self.bytes.current_byte, config.allow_ago) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => {
                 self.try_consume_delimiter(delimiter)?;
-                if self.bytes.is_ago() {
+                if self.bytes.is_ago_ignore_ascii_case() {
                     // SAFETY: We have checked with peed that there are at least 3 bytes
                     unsafe { self.bytes.advance_by(3) };
                     multiplier = multiplier.neg();
