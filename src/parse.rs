@@ -462,7 +462,6 @@ impl<'a> Bytes<'a> {
         self.current_byte = self.input.get(self.current_pos);
     }
 
-    #[inline]
     fn advance_to<F>(&mut self, delimiter: F) -> &'a [u8]
     where
         F: Fn(u8) -> bool,
@@ -523,7 +522,6 @@ impl<'a> Bytes<'a> {
         })
     }
 
-    #[inline]
     fn parse_digits_strip_zeros(&mut self) -> BytesRange {
         debug_assert!(
             self.current_byte
@@ -566,7 +564,6 @@ impl<'a> Bytes<'a> {
         BytesRange(start, self.current_pos)
     }
 
-    #[inline]
     fn parse_digits(&mut self) -> BytesRange {
         debug_assert!(
             self.current_byte
@@ -582,7 +579,6 @@ impl<'a> Bytes<'a> {
 
     /// This method is based on the work of Daniel Lemire and his blog post
     /// <https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/>
-    #[inline]
     fn parse_8_digits(&mut self) -> Option<u64> {
         self.input
             .get(self.current_pos..(self.current_pos + 8))
@@ -945,6 +941,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         duration_repr
     }
 
+    #[inline]
     fn parse_infinity_remainder(
         &'a mut self,
         mut duration_repr: DurationRepr<'a>,
@@ -981,6 +978,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         self.bytes.check_end_of_input().map(|_| duration_repr)
     }
 
+    #[inline]
     fn parse_keyword(
         &mut self,
         keywords: Option<&dyn TimeUnitsLike>,
@@ -998,6 +996,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
     }
 
+    #[inline]
     fn parse_time_unit(
         &mut self,
         config: &Config,
@@ -1067,6 +1066,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
     }
 
+    #[inline]
     fn parse_number_time_unit(
         &mut self,
         duration_repr: &mut DurationRepr<'a>,
@@ -1127,6 +1127,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         (duration_repr, self.bytes().current_byte.map(|_| self))
     }
 
+    #[inline]
     fn parse_infinity_remainder(
         &'a mut self,
         mut duration_repr: DurationRepr<'a>,
@@ -1192,6 +1193,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         }
     }
 
+    #[inline]
     fn parse_keyword(
         &mut self,
         keywords: Option<&dyn TimeUnitsLike>,
@@ -1230,6 +1232,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         }
     }
 
+    #[inline]
     fn parse_time_unit(
         &mut self,
         config: &Config,
@@ -1290,6 +1293,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         Ok(Some((time_unit, multiplier)))
     }
 
+    #[inline]
     fn parse_number_time_unit(
         &mut self,
         duration_repr: &mut DurationRepr<'a>,
