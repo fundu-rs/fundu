@@ -33,7 +33,7 @@ use crate::{Delimiter, ParseError, TimeUnit};
 pub struct CustomDurationParser<'a> {
     pub(super) time_units: CustomTimeUnits<'a>,
     pub(super) keywords: CustomTimeUnits<'a>,
-    pub(super) inner: Parser,
+    pub(super) inner: Parser<'a>,
 }
 
 impl<'a> CustomDurationParser<'a> {
@@ -457,6 +457,7 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    // TODO:  Update documentation
     /// If set to some [`Delimiter`], parse possibly multiple durations and sum them up.
     ///
     /// See also [`crate::DurationParser::parse_multiple`]
@@ -467,7 +468,7 @@ impl<'a> CustomDurationParser<'a> {
     /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
-    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')));
+    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), None);
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h 2e+2ns"),
@@ -488,8 +489,13 @@ impl<'a> CustomDurationParser<'a> {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub fn parse_multiple(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.parse_multiple = delimiter;
+    pub fn parse_multiple(
+        &mut self,
+        delimiter: Option<Delimiter>,
+        conjunctions: Option<&'a [&'a str]>,
+    ) -> &mut Self {
+        self.inner.config.parse_multiple_delimiter = delimiter;
+        self.inner.config.parse_multiple_conjunctions = conjunctions;
         self
     }
 
@@ -685,9 +691,9 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_setting_parse_multiple() {
         let mut parser = CustomDurationParser::new();
-        parser.parse_multiple(Some(|byte| byte == 0xff));
+        parser.parse_multiple(Some(|byte| byte == 0xff), None);
 
-        assert!(parser.inner.config.parse_multiple.unwrap()(0xff));
+        assert!(parser.inner.config.parse_multiple_delimiter.unwrap()(0xff));
     }
 
     #[test]

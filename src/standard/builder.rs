@@ -16,6 +16,7 @@ enum TimeUnitsChoice<'a> {
     Custom(&'a [TimeUnit]),
 }
 
+// TODO: Update documentation
 /// An ergonomic builder for a [`DurationParser`].
 ///
 /// The [`DurationParserBuilder`] is more ergonomic in some use cases than using [`DurationParser`]
@@ -58,12 +59,12 @@ enum TimeUnitsChoice<'a> {
 /// const PARSER : DurationParser = DurationParserBuilder::new()
 ///     .time_units(&[Second, Minute, Hour, Day])
 ///     .allow_negative()
-///     .parse_multiple(|byte| byte.is_ascii_whitespace())
+///     .parse_multiple(|byte| byte.is_ascii_whitespace(), None)
 ///     .build();
 #[derive(Debug, PartialEq, Eq)]
 pub struct DurationParserBuilder<'a> {
     time_units_choice: TimeUnitsChoice<'a>,
-    config: Config,
+    config: Config<'a>,
 }
 
 impl<'a> Default for DurationParserBuilder<'a> {
@@ -391,6 +392,7 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    // TODO: uPDATE Documentation
     /// Parse possibly multiple durations and sum them up.
     ///
     /// See also [`DurationParser::parse_multiple`].
@@ -402,7 +404,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
-    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'))
+    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), None)
     ///     .build();
     ///
     /// assert_eq!(
@@ -424,8 +426,13 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub const fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
-        self.config.parse_multiple = Some(delimiter);
+    pub const fn parse_multiple(
+        mut self,
+        delimiter: Delimiter,
+        conjunctions: Option<&'a [&'a str]>,
+    ) -> Self {
+        self.config.parse_multiple_delimiter = Some(delimiter);
+        self.config.parse_multiple_conjunctions = conjunctions;
         self
     }
 
@@ -441,7 +448,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     assert_eq!(parser.parse(input).unwrap(), Duration::positive(60, 0))
     /// }
     /// ```
-    pub const fn build(self) -> DurationParser {
+    pub const fn build(self) -> DurationParser<'a> {
         let parser = Parser::with_config(self.config);
 
         match self.time_units_choice {
@@ -560,9 +567,9 @@ mod tests {
 
     #[test]
     fn test_duration_parser_builder_when_parse_multiple() {
-        let builder = DurationParserBuilder::new().parse_multiple(|byte: u8| byte == 0xff);
+        let builder = DurationParserBuilder::new().parse_multiple(|byte: u8| byte == 0xff, None);
 
-        assert!(builder.config.parse_multiple.unwrap()(0xff));
+        assert!(builder.config.parse_multiple_delimiter.unwrap()(0xff));
     }
 
     #[rstest]

@@ -44,12 +44,12 @@ use crate::{DurationParserBuilder, ParseError, TimeUnit};
 /// }
 /// ```
 #[derive(Debug, PartialEq, Eq)]
-pub struct DurationParser {
+pub struct DurationParser<'a> {
     pub(super) time_units: TimeUnits,
-    pub(super) inner: Parser,
+    pub(super) inner: Parser<'a>,
 }
 
-impl DurationParser {
+impl<'a> DurationParser<'a> {
     /// Construct the parser with the default set of [`TimeUnit`]s.
     ///
     /// # Examples
@@ -202,7 +202,7 @@ impl DurationParser {
     /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::positive(0, 1));
     /// assert_eq!(parser.parse("1").unwrap(), Duration::positive(0, 1_000));
     /// ```
-    pub const fn builder<'a>() -> DurationParserBuilder<'a> {
+    pub const fn builder() -> DurationParserBuilder<'a> {
         DurationParserBuilder::new()
     }
 
@@ -394,6 +394,7 @@ impl DurationParser {
         self
     }
 
+    // TODO: Update documentation
     /// If set to some [`Delimiter`], parse possibly multiple durations and sum them up.
     ///
     /// If [`Delimiter`] is set to `None`, this functionality is disabled. The [`Delimiter`] may or
@@ -422,7 +423,7 @@ impl DurationParser {
     /// let delimiter = |byte| matches!(byte, b' ' | b'\t');
     /// let mut parser = DurationParser::new();
     /// parser
-    ///     .parse_multiple(Some(delimiter))
+    ///     .parse_multiple(Some(delimiter), None)
     ///     .number_is_optional(true);
     ///
     /// // Here, the parser parses `1`, `s`, `1` and then `ns` separately
@@ -439,7 +440,7 @@ impl DurationParser {
     /// use fundu::{Duration, DurationParser};
     ///
     /// let mut parser = DurationParser::new();
-    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')));
+    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), None);
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h 2e+2ns"),
@@ -460,8 +461,13 @@ impl DurationParser {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub fn parse_multiple(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.parse_multiple = delimiter;
+    pub fn parse_multiple(
+        &mut self,
+        delimiter: Option<Delimiter>,
+        conjunctions: Option<&'static [&'static str]>,
+    ) -> &mut Self {
+        self.inner.config.parse_multiple_delimiter = delimiter;
+        self.inner.config.parse_multiple_conjunctions = conjunctions;
         self
     }
 
@@ -487,7 +493,7 @@ impl DurationParser {
     }
 }
 
-impl Default for DurationParser {
+impl<'a> Default for DurationParser<'a> {
     fn default() -> Self {
         Self::new()
     }
@@ -581,9 +587,9 @@ mod tests {
     #[test]
     fn test_duration_parser_setting_parse_multiple() {
         let mut parser = DurationParser::new();
-        parser.parse_multiple(Some(|byte: u8| byte == 0xff));
+        parser.parse_multiple(Some(|byte: u8| byte == 0xff), None);
 
-        assert!(parser.inner.config.parse_multiple.unwrap()(0xff));
+        assert!(parser.inner.config.parse_multiple_delimiter.unwrap()(0xff));
     }
 
     #[test]

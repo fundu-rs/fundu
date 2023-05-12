@@ -20,18 +20,18 @@ const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
 const ATTOS_PER_NANO: u64 = 1_000_000_000;
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Parser {
-    pub(crate) config: Config,
+pub(crate) struct Parser<'a> {
+    pub(crate) config: Config<'a>,
 }
 
-impl Parser {
+impl<'a> Parser<'a> {
     pub(crate) const fn new() -> Self {
         Self {
             config: DEFAULT_CONFIG,
         }
     }
 
-    pub(crate) const fn with_config(config: Config) -> Self {
+    pub(crate) const fn with_config(config: Config<'a>) -> Self {
         Self { config }
     }
 
@@ -39,12 +39,13 @@ impl Parser {
         &self,
         source: &str,
         delimiter: Delimiter,
+        conjunctions: &[&str],
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
         let mut duration = Duration::ZERO;
 
-        let mut parser = &mut ReprParserMultiple::new(source, delimiter);
+        let mut parser = &mut ReprParserMultiple::new(source, delimiter, conjunctions);
         loop {
             let (mut duration_repr, maybe_parser) =
                 parser.parse(&self.config, time_units, keywords)?;
@@ -92,8 +93,14 @@ impl Parser {
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
-        if let Some(delimiter) = self.config.parse_multiple {
-            self.parse_multiple(source, delimiter, time_units, keywords)
+        if let Some(delimiter) = self.config.parse_multiple_delimiter {
+            self.parse_multiple(
+                source,
+                delimiter,
+                self.config.parse_multiple_conjunctions.unwrap_or_default(),
+                time_units,
+                keywords,
+            )
         } else {
             self.parse_single(source, time_units, keywords)
         }
@@ -597,15 +604,9 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    fn is_ago_ignore_ascii_case(&self) -> bool {
-        self.peek(3)
-            .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"ago"))
-    }
-
-    #[inline]
-    fn is_inf_ignore_ascii_case(&self) -> bool {
-        self.peek(3)
-            .map_or(false, |bytes| bytes.eq_ignore_ascii_case(b"inf"))
+    fn next_is_ignore_ascii_case(&self, word: &[u8]) -> bool {
+        self.peek(word.len())
+            .map_or(false, |bytes| bytes.eq_ignore_ascii_case(word))
     }
 
     #[inline]
@@ -710,7 +711,9 @@ trait ReprParserTemplate<'a> {
                 duration_repr.whole = Some(self.parse_whole());
             }
             Some(byte) if byte == b'.' => {}
-            Some(_) if !config.disable_infinity && self.bytes().is_inf_ignore_ascii_case() => {
+            Some(_)
+                if !config.disable_infinity && self.bytes().next_is_ignore_ascii_case(b"inf") =>
+            {
                 // SAFETY: We just checked that there are at least 3 bytes
                 unsafe { self.bytes().advance_by(3) }
                 return self.parse_infinity_remainder(duration_repr);
@@ -1037,8 +1040,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                 match self.bytes.current_byte {
                     Some(byte) if delimiter(*byte) => {
                         self.bytes.try_consume_delimiter(delimiter)?;
-                        if self.bytes.is_ago_ignore_ascii_case() {
-                            // SAFETY: We have checked with peek that there are at least 3 bytes
+                        if self.bytes.next_is_ignore_ascii_case(b"ago") {
+                            // SAFETY: We have checked that there are at least 3 bytes
                             unsafe { self.bytes.advance_by(3) };
                         }
                         multiplier = multiplier.neg();
@@ -1102,14 +1105,54 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
 pub(crate) struct ReprParserMultiple<'a> {
     bytes: Bytes<'a>,
     delimiter: Delimiter,
+    conjunctions: &'a [&'a str],
 }
 
 impl<'a> ReprParserMultiple<'a> {
-    fn new(input: &'a str, delimiter: Delimiter) -> Self {
+    fn new(input: &'a str, delimiter: Delimiter, conjunctions: &'a [&'a str]) -> Self {
         Self {
             bytes: Bytes::new(input.as_bytes()),
             delimiter,
+            conjunctions,
         }
+    }
+
+    fn try_consume_connection(&mut self) -> Result<(), ParseError> {
+        let delimiter = self.delimiter;
+        self.bytes.try_consume_delimiter(delimiter)?;
+        let start = self.bytes.current_pos;
+        if self.bytes.current_byte.is_some() {
+            for word in self.conjunctions {
+                if self.bytes.next_is_ignore_ascii_case(word.as_bytes()) {
+                    // SAFETY: We're advancing by the amount of bytes of the word we just found
+                    unsafe { self.bytes.advance_by(word.len()) };
+                    match self.bytes.current_byte {
+                        Some(byte) if delimiter(*byte) => {
+                            self.bytes.try_consume_delimiter(delimiter)?
+                        }
+                        Some(byte) if byte.is_ascii_digit() => {}
+                        Some(byte) => {
+                            return Err(ParseError::Syntax(
+                                self.bytes.current_pos,
+                                format!(
+                                    "A conjunction must be separated by a delimiter or digit but \
+                                     found: '{}'",
+                                    *byte as char
+                                ),
+                            ));
+                        }
+                        None => {
+                            return Err(ParseError::Syntax(
+                                start,
+                                format!("Input may not end with a conjunction but found: '{word}'"),
+                            ));
+                        }
+                    }
+                    break;
+                }
+            }
+        };
+        Ok(())
     }
 }
 
@@ -1137,8 +1180,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
             Some(byte) if delimiter(*byte) => {
                 duration_repr.is_infinite = true;
                 return self
-                    .bytes
-                    .try_consume_delimiter(delimiter)
+                    .try_consume_connection()
                     .map(|_| (duration_repr, Some(self)));
             }
             Some(_) => {}
@@ -1174,7 +1216,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         duration_repr.is_infinite = true;
         match self.bytes.current_byte {
             Some(byte) if delimiter(*byte) => {
-                self.bytes.try_consume_delimiter(delimiter)?;
+                self.try_consume_connection()?;
 
                 match self.bytes.current_byte {
                     Some(_) => Ok((duration_repr, Some(self))),
@@ -1201,13 +1243,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
 
         let delimiter = self.delimiter;
         let start = self.bytes.current_pos;
-        while let Some(byte) = self.bytes.current_byte {
-            if delimiter(*byte) || byte.is_ascii_digit() {
-                break;
-            } else {
-                self.bytes.advance()
-            }
-        }
+        self.bytes
+            .advance_to(|byte: u8| delimiter(byte) || byte.is_ascii_digit());
 
         let keyword = self.bytes.get_current_str(start).map_err(|error| {
             ParseError::Syntax(
@@ -1223,7 +1260,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
             some_time_unit => {
                 if let Some(byte) = self.bytes.current_byte {
                     if delimiter(*byte) {
-                        self.bytes.try_consume_delimiter(delimiter)?;
+                        self.try_consume_connection()?;
                     }
                 }
                 Ok(some_time_unit)
@@ -1278,15 +1315,23 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
 
         match (self.bytes.current_byte, config.allow_ago) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => {
+                let start = self.bytes.current_pos;
                 self.bytes.try_consume_delimiter(delimiter)?;
-                if self.bytes.is_ago_ignore_ascii_case() {
-                    // SAFETY: We have checked with peed that there are at least 3 bytes
+                if self.bytes.next_is_ignore_ascii_case(b"ago") {
+                    // SAFETY: We know that next is `ago` which has 3 bytes
                     unsafe { self.bytes.advance_by(3) };
                     multiplier = multiplier.neg();
+                } else {
+                    self.bytes.reset(start);
                 }
             }
-            // TODO: check
-            (Some(_), _) | (None, _) => {}
+            _ => {}
+        }
+
+        if let Some(byte) = self.bytes.current_byte {
+            if (self.delimiter)(*byte) {
+                self.try_consume_connection()?;
+            }
         }
 
         Ok(Some((time_unit, multiplier)))
@@ -1317,8 +1362,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         let delimiter = self.delimiter;
         match self.bytes().current_byte {
             Some(byte) if delimiter(*byte) => self
-                .bytes
-                .try_consume_delimiter(delimiter)
+                .try_consume_connection()
                 .map(|_| (duration_repr, Some(self))),
             Some(_) => Ok((duration_repr, Some(self))),
             None => Ok((duration_repr, None)),
@@ -1404,10 +1448,11 @@ mod tests {
         let mut parser = ReprParserSingle::new(input);
         assert_eq!(parser.parse_whole(), expected);
 
-        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ');
+        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]);
         assert_eq!(parser.parse_whole(), expected);
     }
 
+    // TODO: add test case for parse_multiple
     #[test]
     fn test_duration_repr_parser_parse_whole_when_more_than_max_exponent() {
         let config = Config::new();
@@ -1418,6 +1463,7 @@ mod tests {
         assert_eq!(duration_repr.fract, None);
     }
 
+    // TODO: use own test case for parse_multiple
     #[test]
     fn test_duration_repr_parser_parse_fract_when_more_than_max_exponent() {
         let input = format!(".{}", "1".repeat(i16::MAX as usize + 100));
@@ -1430,8 +1476,8 @@ mod tests {
 
         let mut config = Config::new();
         let delimiter = |byte| byte == b' ';
-        config.parse_multiple = Some(delimiter);
-        let mut parser = ReprParserMultiple::new(&input, delimiter);
+        config.parse_multiple_delimiter = Some(delimiter);
+        let mut parser = ReprParserMultiple::new(&input, delimiter, &[]);
         let (duration_repr, maybe_parser) = parser.parse(&config, &TimeUnitsFixture, None).unwrap();
         assert!(maybe_parser.is_none());
         assert_eq!(duration_repr.whole, None);
@@ -1454,7 +1500,7 @@ mod tests {
         let mut parser = ReprParserSingle::new(input);
         assert_eq!(parser.parse_fract(), expected);
 
-        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ');
+        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]);
         assert_eq!(parser.parse_fract(), expected);
     }
 }

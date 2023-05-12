@@ -39,7 +39,7 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 /// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParserBuilder<'a> {
-    config: Config,
+    config: Config<'a>,
     custom_time_units: Vec<CustomTimeUnit<'a>>,
     keywords: Vec<TimeKeyword<'a>>,
 }
@@ -320,6 +320,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
+    //TODO: update documentation
     /// Parse possibly multiple durations and sum them up.
     ///
     /// See also [`crate::DurationParser::parse_multiple`].
@@ -331,7 +332,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .custom_time_units(&DEFAULT_TIME_UNITS)
-    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'))
+    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), None)
     ///     .build();
     ///
     /// assert_eq!(
@@ -353,8 +354,13 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub const fn parse_multiple(mut self, delimiter: Delimiter) -> Self {
-        self.config.parse_multiple = Some(delimiter);
+    pub const fn parse_multiple(
+        mut self,
+        delimiter: Delimiter,
+        conjunctions: Option<&'a [&'a str]>,
+    ) -> Self {
+        self.config.parse_multiple_delimiter = Some(delimiter);
+        self.config.parse_multiple_conjunctions = conjunctions;
         self
     }
 
@@ -467,8 +473,8 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_builder_when_parse_multiple() {
-        let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff);
-        assert!(builder.config.parse_multiple.unwrap()(0xff));
+        let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff, None);
+        assert!(builder.config.parse_multiple_delimiter.unwrap()(0xff));
     }
 
     #[test]

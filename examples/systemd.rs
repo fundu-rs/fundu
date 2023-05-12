@@ -98,7 +98,7 @@ fn main() {
         .disable_fraction()
         .disable_infinity()
         .allow_delimiter(delimiter)
-        .parse_multiple(delimiter)
+        .parse_multiple(delimiter, None)
         .build();
 
     let input: &String = matches

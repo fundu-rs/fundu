@@ -13,7 +13,7 @@ const LONG_INFINITY: &str = "infinity";
 
 #[inline(never)]
 #[export_name = "__iai_setup::setup_parser"]
-fn setup_parser() -> DurationParser {
+fn setup_parser<'a>() -> DurationParser<'a> {
     DurationParser::without_time_units()
 }
 
