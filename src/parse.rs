@@ -16,9 +16,8 @@ use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 use crate::util::POW10;
 
-const ATTO_MULTIPLIER: u64 = 1_000_000_000_000_000_000;
-// TODO: Rename to ATTOS_PER_NANO_SECOND
-const ATTO_TO_NANO: u64 = 1_000_000_000;
+const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
+const ATTOS_PER_NANO: u64 = 1_000_000_000;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Parser {
@@ -252,7 +251,7 @@ impl Fract {
             Some(pow) => pow,
             None => return 0,
         };
-        let multi = ATTO_MULTIPLIER / pow;
+        let multi = ATTOS_PER_SEC / pow;
         if multi == 0 {
             return 0;
         }
@@ -406,7 +405,7 @@ impl<'input> DurationRepr<'input> {
         } else if coefficient == 1 || coefficient == -1 {
             Ok(Duration::from_std(
                 duration_is_negative,
-                StdDuration::new(seconds, (attos / ATTO_TO_NANO) as u32),
+                StdDuration::new(seconds, (attos / ATTOS_PER_NANO) as u32),
             ))
         } else {
             let unsigned_coefficient = coefficient.unsigned_abs();
@@ -415,13 +414,13 @@ impl<'input> DurationRepr<'input> {
             Ok(
                 match seconds
                     .checked_mul(unsigned_coefficient)
-                    .and_then(|s| s.checked_add((attos / (ATTO_MULTIPLIER as u128)) as u64))
+                    .and_then(|s| s.checked_add((attos / (ATTOS_PER_SEC as u128)) as u64))
                 {
                     Some(s) => Duration::from_std(
                         duration_is_negative,
                         StdDuration::new(
                             s,
-                            ((attos / (ATTO_TO_NANO as u128)) % 1_000_000_000) as u32,
+                            ((attos / (ATTOS_PER_NANO as u128)) % 1_000_000_000) as u32,
                         ),
                     ),
                     None if duration_is_negative => Duration::MIN,

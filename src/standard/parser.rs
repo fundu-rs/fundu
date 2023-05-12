@@ -482,7 +482,6 @@ impl DurationParser {
     ///     DurationParser::with_time_units(&[NanoSecond]).get_current_time_units(),
     ///     vec![NanoSecond]
     /// );
-    // TODO: rename to current_time_units
     pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
         self.time_units.get_time_units()
     }
