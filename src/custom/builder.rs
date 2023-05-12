@@ -402,6 +402,7 @@ mod tests {
 
     use super::*;
     use crate::config::Config;
+    use crate::time::TimeUnitsLike;
     use crate::TimeUnit::*;
     use crate::{CustomTimeUnit, Multiplier};
 
@@ -540,6 +541,24 @@ mod tests {
         assert_eq!(
             parser.get_time_unit_by_id("d"),
             Some((Day, Multiplier(4, 0)))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_keywords() {
+        let parser = CustomDurationParserBuilder::new()
+            .keywords(&[
+                TimeKeyword::new(Second, &["sec"], None),
+                TimeKeyword::new(Second, &["secs"], Some(Multiplier(2, 0))),
+            ])
+            .build();
+        assert_eq!(
+            parser.keywords.get("sec").unwrap(),
+            (Second, Multiplier(1, 0))
+        );
+        assert_eq!(
+            parser.keywords.get("secs").unwrap(),
+            (Second, Multiplier(2, 0))
         );
     }
 }

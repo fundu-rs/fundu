@@ -483,7 +483,9 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 #[case::valid_then_invalid("1 a", ParseError::Syntax(2, "Invalid input: 'a'".to_string()))]
 #[case::end_with_space("1 1 ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
 #[case::end_with_conjunction("1 and", ParseError::Syntax(2, "Input may not end with a conjunction but found: 'and'".to_string()))]
+#[case::end_with_wrong_conjunction("1 anda", ParseError::Syntax(5, "A conjunction must be separated by a delimiter or digit but found: 'a'".to_string()))]
 #[case::end_with_conjunction_and_delimiter("1 and ", ParseError::Syntax(5, "Input may not end with a delimiter".to_string()))]
+#[case::valid_time_unit_end_with_delimiter("1s ", ParseError::Syntax(2, "Input may not end with a delimiter".to_string()))]
 #[case::two_end_with_conjunction("1 1 and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
 #[case::invalid_then_valid("a 1", ParseError::Syntax(0, "Invalid input: 'a 1'".to_string()))]
 #[case::multiple_invalid("a a", ParseError::Syntax(0, "Invalid input: 'a a'".to_string()))]
@@ -491,6 +493,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 #[case::infinity_then_conjunction("inf and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
 #[case::infinity_short_then_number("inf1", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
 #[case::infinity_long_then_number("infinity1", ParseError::Syntax(8, "Error parsing infinity: Expected a delimiter but found '1'".to_string()))]
+#[case::premature_end_parsing_infininity("infi", ParseError::Syntax(0, "Error parsing infinity: 'infi' is an invalid identifier for infinity".to_string()))]
 fn test_parser_when_setting_parse_multiple_then_error(
     #[case] input: &str,
     #[case] expected: ParseError,
@@ -544,6 +547,45 @@ fn test_parser_when_parse_multiple_with_invalid_delimiter() {
     )
 }
 
+#[test]
+fn test_parser_when_allow_ago_with_invalid_delimiter() {
+    let delimiter = |byte: u8| byte == 0xb5;
+    let parser = CustomDurationParser::builder()
+        .custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
+        .allow_ago(delimiter)
+        .build();
+
+    // The delimiter will split the multibyte µ and produces invalid utf-8
+    // µ = 0xc2 0xb5
+    assert_eq!(
+        parser.parse("1µ ago"),
+        Err(ParseError::TimeUnit(
+            1,
+            "Invalid utf-8 when applying the delimiter".to_string()
+        ))
+    )
+}
+
+#[test]
+fn test_parser_parse_multiple_and_keywords_with_invalid_delimiter() {
+    let delimiter = |byte: u8| byte == 0xb5;
+    let parser = CustomDurationParser::builder()
+        .custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
+        .keyword(TimeKeyword::new(MicroSecond, &["manµ"], None))
+        .parse_multiple(delimiter, None)
+        .build();
+
+    // The delimiter will split the multibyte µ and produces invalid utf-8
+    // µ = 0xc2 0xb5
+    assert_eq!(
+        parser.parse("someµ"),
+        Err(ParseError::Syntax(
+            4,
+            "Invalid utf-8 when applying the delimiter".to_string()
+        ))
+    )
+}
+
 #[rstest]
 #[case::only_numbers("1 1", Ok(Duration::positive(2, 0)))]
 #[case::with_time_units("1ns 1ns", Err(ParseError::Syntax(1, "Invalid input: 'ns 1ns'".to_string())))]
@@ -554,8 +596,9 @@ fn test_parser_when_parse_multiple_without_time_units(
     #[case] expected: Result<Duration, ParseError>,
 ) {
     let delimiter = |byte: u8| byte == b' ';
-    let parser = DurationParser::builder()
+    let parser = CustomDurationParser::builder()
         .parse_multiple(delimiter, Some(&["and"]))
+        .allow_ago(delimiter)
         .build();
     assert_eq!(parser.parse(input), expected);
 }
@@ -761,6 +804,7 @@ fn test_custom_parser_with_keywords_then_error(#[case] input: &str, #[case] expe
 
 #[rstest]
 #[case::single_tomorrow("tomorrow", Duration::positive(60 * 60 * 24, 0))]
+#[case::tomorrow_then_number("tomorrow1.1", Duration::positive(60 * 60 * 24 + 1, 100_000_000))]
 #[case::two_tomorrow("tomorrow tomorrow", Duration::positive(60 * 60 * 24 * 2, 0))]
 #[case::yesterday_tomorrow("yesterday tomorrow", Duration::ZERO)]
 #[case::number_tomorrow("1 tomorrow", Duration::positive(60 * 60 * 24 + 1, 0))]
@@ -828,8 +872,13 @@ fn test_custom_parser_with_negative_keyword_when_not_allow_negative_then_error()
 }
 
 #[rstest]
-#[case::seconds("1s ago", Duration::negative(1, 0))]
-#[case::day("1day ago", Duration::negative(60 * 60 * 24, 0))]
+#[case::one("1", Duration::positive(1, 0))]
+#[case::second("1s", Duration::positive(1, 0))]
+#[case::seconds_ago("1s ago", Duration::negative(1, 0))]
+#[case::seconds_ago_big("1s AGO", Duration::negative(1, 0))]
+#[case::seconds_ago_mixed("1s aGO", Duration::negative(1, 0))]
+#[case::negative_seconds_ago("-1s ago", Duration::positive(1, 0))]
+#[case::day_ago("1day ago", Duration::negative(60 * 60 * 24, 0))]
 #[case::with_delimiter_between_number_and_time_unit("1 s ago", Duration::negative(1, 0))]
 fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Duration) {
     let parser = CustomDurationParserBuilder::new()
@@ -842,14 +891,16 @@ fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Dura
 }
 
 #[rstest]
+#[case::ago_without_time_unit("1 :ago", ParseError::Syntax(2, "Expected end of input but found: ':'".to_string()))] // TODO: Improve the error message
+#[case::ago_as_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::just_ago("ago", ParseError::Syntax(0, "Invalid input: 'ago'".to_string()))]
-#[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
-#[case::incomplete_ago("1s ag", ParseError::Syntax(3, "Expected end of input but found: 'a'".to_string()))]
+#[case::incomplete_ago("1s:ag", ParseError::TimeUnit(3, "Found unexpected keyword: 'ag'".to_string()))]
+#[case::one_second_twice("1s:1s", ParseError::TimeUnit(3, "Found unexpected keyword: '1s'".to_string()))]
 fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {
     let parser = CustomDurationParserBuilder::new()
         .custom_time_units(&SYSTEMD_TIME_UNITS)
         .allow_delimiter(|byte| byte.is_ascii_whitespace())
-        .allow_ago(|byte| byte.is_ascii_whitespace())
+        .allow_ago(|byte| matches!(byte, b':'))
         .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Err(expected));

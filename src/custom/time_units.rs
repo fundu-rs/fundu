@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 use crate::time::TimeUnitsLike;
 use crate::TimeUnit::*;
@@ -213,11 +213,13 @@ impl<'a> CustomTimeUnit<'a> {
             base_unit,
             multiplier: match multiplier {
                 Some(m) => {
-                    assert!(
-                        base_unit.multiplier().checked_mul(m).is_some(),
-                        "The time unit multiplier multiplied with the multiplier parameter may \
-                         not overflow"
-                    );
+                    // expect is stable yet in const context so we use panic! here
+                    if base_unit.multiplier().checked_mul(m).is_none() {
+                        panic!(
+                            "The time unit multiplier multiplied with the multiplier parameter \
+                             may not overflow"
+                        )
+                    }
                     m
                 }
                 None => Multiplier(1, 0),
@@ -237,24 +239,10 @@ impl<'a> PartialEq for CustomTimeUnit<'a> {
     }
 }
 
-impl<'a> std::hash::Hash for CustomTimeUnit<'a> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl<'a> Hash for CustomTimeUnit<'a> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.base_unit.hash(state);
         self.multiplier.hash(state);
-    }
-}
-
-impl<'a> PartialOrd for CustomTimeUnit<'a> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<'a> Ord for CustomTimeUnit<'a> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let multi_a = self.base_unit.multiplier() * self.multiplier;
-        let multi_b = other.base_unit.multiplier() * other.multiplier;
-        multi_a.cmp(&multi_b)
     }
 }
 
@@ -409,6 +397,8 @@ impl<'a> TimeKeyword<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map::DefaultHasher;
+
     use rstest::rstest;
 
     use super::*;
@@ -440,25 +430,63 @@ mod tests {
 
     #[rstest]
     #[case::nano_second(CustomTimeUnit::with_default(NanoSecond, &["some"]), 4, 4)]
-    #[case::nano_second_with_multiple_ids(CustomTimeUnit::with_default(NanoSecond, &["some", "other", "деякі"]), 4, 10)]
-    #[case::micro_second(CustomTimeUnit::with_default(MicroSecond, &["some"]), 4, 4)]
-    #[case::micro_second_with_multiple_ids(CustomTimeUnit::with_default(MicroSecond, &["some", "other", "деякі"]), 4, 10)]
-    #[case::milli_second(CustomTimeUnit::with_default(MilliSecond, &["some"]), 4, 4)]
-    #[case::milli_second_with_multiple_ids(CustomTimeUnit::with_default(MilliSecond, &["some", "other", "деякі"]), 4, 10)]
-    #[case::second(CustomTimeUnit::with_default(Second, &["some"]), 4, 4)]
-    #[case::second_with_multiple_ids(CustomTimeUnit::with_default(Second, &["some", "other", "деякі"]), 4, 10)]
-    #[case::minute(CustomTimeUnit::with_default(Minute, &["some"]), 4, 4)]
-    #[case::minute_with_multiple_ids(CustomTimeUnit::with_default(Minute, &["some", "other", "деякі"]), 4, 10)]
-    #[case::hour(CustomTimeUnit::with_default(Hour, &["some"]), 4, 4)]
-    #[case::hour_with_multiple_ids(CustomTimeUnit::with_default(Hour, &["some", "other", "деякі"]), 4, 10)]
-    #[case::day(CustomTimeUnit::with_default(Day, &["some"]), 4, 4)]
-    #[case::day_with_multiple_ids(CustomTimeUnit::with_default(Day, &["some", "other", "деякі"]), 4, 10)]
-    #[case::week(CustomTimeUnit::with_default(Week, &["some"]), 4, 4)]
-    #[case::week_with_multiple_ids(CustomTimeUnit::with_default(Week, &["some", "other", "деякі"]), 4, 10)]
-    #[case::month(CustomTimeUnit::with_default(Month, &["some"]), 4, 4)]
-    #[case::month_with_multiple_ids(CustomTimeUnit::with_default(Month, &["some", "other", "деякі"]), 4, 10)]
-    #[case::year(CustomTimeUnit::with_default(Year, &["some"]), 4, 4)]
-    #[case::year_with_multiple_ids(CustomTimeUnit::with_default(Year, &["some", "other", "деякі"]), 4, 10)]
+    #[case::nano_second_with_multiple_ids(
+        CustomTimeUnit::with_default(NanoSecond, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::micro_second(
+        CustomTimeUnit::with_default(MicroSecond, &["some"]), 4, 4
+    )]
+    #[case::micro_second_with_multiple_ids(
+        CustomTimeUnit::with_default(MicroSecond, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::milli_second(
+        CustomTimeUnit::with_default(MilliSecond, &["some"]), 4, 4
+    )]
+    #[case::milli_second_with_multiple_ids(
+        CustomTimeUnit::with_default(MilliSecond, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::second(
+        CustomTimeUnit::with_default(Second, &["some"]), 4, 4
+    )]
+    #[case::second_with_multiple_ids(
+        CustomTimeUnit::with_default(Second, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::minute(
+        CustomTimeUnit::with_default(Minute, &["some"]), 4, 4
+    )]
+    #[case::minute_with_multiple_ids(
+        CustomTimeUnit::with_default(Minute, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::hour(
+        CustomTimeUnit::with_default(Hour, &["some"]), 4, 4
+    )]
+    #[case::hour_with_multiple_ids(
+        CustomTimeUnit::with_default(Hour, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::day(
+        CustomTimeUnit::with_default(Day, &["some"]), 4, 4
+    )]
+    #[case::day_with_multiple_ids(
+        CustomTimeUnit::with_default(Day, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::week(
+        CustomTimeUnit::with_default(Week, &["some"]), 4, 4
+    )]
+    #[case::week_with_multiple_ids(
+        CustomTimeUnit::with_default(Week, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::month(
+        CustomTimeUnit::with_default(Month, &["some"]), 4, 4
+    )]
+    #[case::month_with_multiple_ids(
+        CustomTimeUnit::with_default(Month, &["some", "other", "деякі"]), 4, 10
+    )]
+    #[case::year(
+        CustomTimeUnit::with_default(Year, &["some"]), 4, 4
+    )]
+    #[case::year_with_multiple_ids(
+        CustomTimeUnit::with_default(Year, &["some", "other", "деякі"]), 4, 10
+    )]
     fn test_custom_time_units_init_with_time_units(
         #[case] time_unit: CustomTimeUnit,
         #[case] min_length: usize,
@@ -692,10 +720,26 @@ mod tests {
         );
     }
 
+    #[test]
+    #[should_panic = "The time unit multiplier multiplied with the multiplier parameter may not \
+                      overflow"]
+    fn test_custom_time_unit_new_when_overflow_then_panic() {
+        CustomTimeUnit::new(Year, &["year"], Some(Multiplier(i64::MAX, 0)));
+    }
+
     #[rstest]
-    #[case::none_and_default_multiplier_when_same_ids(CustomTimeUnit::new(Second, &["s"], None), CustomTimeUnit::new(Second, &["s"], Some(Multiplier::default())))]
-    #[case::none_and_default_multiplier_when_different_ids(CustomTimeUnit::new(Second, &["s"], None), CustomTimeUnit::new(Second, &["secs"], Some(Multiplier::default())))]
-    #[case::same_multipliers(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2,0))), CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2,0))))]
+    #[case::none_and_default_multiplier_when_same_ids(
+        CustomTimeUnit::new(Second, &["s"], None),
+        CustomTimeUnit::new(Second, &["s"], Some(Multiplier::default()))
+    )]
+    #[case::none_and_default_multiplier_when_different_ids(
+        CustomTimeUnit::new(Second, &["s"], None),
+        CustomTimeUnit::new(Second, &["secs"], Some(Multiplier::default()))
+    )]
+    #[case::same_multipliers(
+        CustomTimeUnit::new(Second, &["s"], Some(Multiplier(2,0))),
+        CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2,0)))
+    )]
     fn test_custom_time_unit_equality_when_equal(
         #[case] time_unit: CustomTimeUnit,
         #[case] other: CustomTimeUnit,
@@ -704,12 +748,47 @@ mod tests {
     }
 
     #[rstest]
-    #[case::different_time_units(CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1,0))), CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0))))]
-    #[case::different_multipliers(CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1000,0))), CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0))))]
+    #[case::different_time_units(
+        CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1,0))),
+        CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1,0)))
+    )]
+    #[case::different_multipliers(
+        CustomTimeUnit::new(MilliSecond, &["ms"], Some(Multiplier(1000,0))),
+        CustomTimeUnit::new(Second, &["ms"], Some(Multiplier(1, 0)))
+    )]
     fn test_custom_time_unit_equality_when_not_equal(
         #[case] time_unit: CustomTimeUnit,
         #[case] other: CustomTimeUnit,
     ) {
         assert_ne!(time_unit, other);
+    }
+
+    #[rstest]
+    #[case::second(
+        CustomTimeUnit::new(Second, &["some"], Some(Multiplier(1, 0))),
+        CustomTimeUnit::new(Second, &["other"], Some(Multiplier(1, 0)))
+    )]
+    #[case::day(
+        CustomTimeUnit::new(Day, &["some"], None),
+        CustomTimeUnit::with_default(Day, &["other"])
+    )]
+    #[case::day_with_multiplier(
+        CustomTimeUnit::new(Day, &["some"], Some(Multiplier(123, 4))),
+        CustomTimeUnit::new(Day, &["other"], Some(Multiplier(123, 4)))
+    )]
+    fn test_custom_time_unit_hash_when_equal(
+        #[case] time_unit: CustomTimeUnit,
+        #[case] other: CustomTimeUnit,
+    ) {
+        assert_eq!(time_unit, other);
+        assert_eq!(other, time_unit);
+
+        let mut hasher = DefaultHasher::new();
+        time_unit.hash(&mut hasher);
+
+        let mut other_hasher = DefaultHasher::new();
+        other.hash(&mut other_hasher);
+
+        assert_eq!(hasher.finish(), other_hasher.finish());
     }
 }

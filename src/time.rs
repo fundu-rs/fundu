@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use TimeUnit::*;
 
 use crate::error::TryFromDurationError;
-use crate::util::FloorLog10;
 
 /// The default identifier of [`TimeUnit::NanoSecond`]
 pub const DEFAULT_ID_NANO_SECOND: &str = "ns";
@@ -172,12 +171,12 @@ impl Multiplier {
 
     #[inline]
     pub const fn is_negative(&self) -> bool {
-        self.0.is_negative()
+        !self.is_positive()
     }
 
     #[inline]
     pub const fn is_positive(&self) -> bool {
-        self.0.is_positive()
+        self.0 == 0 || self.0.is_positive()
     }
 
     #[inline]
@@ -189,6 +188,11 @@ impl Multiplier {
         }
         None
     }
+
+    #[inline]
+    pub const fn saturating_neg(&self) -> Self {
+        Multiplier(self.0.saturating_neg(), self.1)
+    }
 }
 
 impl Mul for Multiplier {
@@ -197,39 +201,6 @@ impl Mul for Multiplier {
     fn mul(self, rhs: Self) -> Self::Output {
         self.checked_mul(rhs)
             .expect("Multiplier: Overflow when multiplying")
-    }
-}
-
-impl Neg for Multiplier {
-    type Output = Self;
-
-    fn neg(self) -> Self::Output {
-        Multiplier(self.0.saturating_neg(), self.1)
-    }
-}
-
-impl PartialOrd for Multiplier {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Multiplier {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self.coefficient(), other.coefficient()) {
-            (a, b) if a == b || a == 0 && b == 0 => Ordering::Equal,
-            (a, b) if a.is_negative() && b.is_positive() => Ordering::Less,
-            (a, b) if a.is_positive() && b.is_negative() => Ordering::Greater,
-            (a, b) => {
-                let exp_a = a.unsigned_abs().floor_log10() as i32 + self.exponent() as i32;
-                let exp_b = b.unsigned_abs().floor_log10() as i32 + other.exponent() as i32;
-                match exp_a.cmp(&exp_b) {
-                    Ordering::Equal => a.cmp(&b),
-                    ord if a.is_positive() => ord,
-                    ord => ord.reverse(),
-                }
-            }
-        }
     }
 }
 
@@ -261,45 +232,37 @@ impl Duration {
     };
 
     // TODO: If inner is zero then return a positive zero duration ??
-    pub fn from_std(is_negative: bool, inner: std::time::Duration) -> Self {
+    pub const fn from_std(is_negative: bool, inner: std::time::Duration) -> Self {
         Self { is_negative, inner }
     }
 
-    // TODO: Remove ??
-    pub fn new(is_negative: bool, secs: u64, nanos: u32) -> Self {
-        Self {
-            is_negative,
-            inner: std::time::Duration::new(secs, nanos),
-        }
-    }
-
-    pub fn positive(secs: u64, nanos: u32) -> Self {
+    pub const fn positive(secs: u64, nanos: u32) -> Self {
         Self {
             is_negative: false,
             inner: std::time::Duration::new(secs, nanos),
         }
     }
 
-    pub fn negative(secs: u64, nanos: u32) -> Self {
+    pub const fn negative(secs: u64, nanos: u32) -> Self {
         Self {
             is_negative: true,
             inner: std::time::Duration::new(secs, nanos),
         }
     }
 
-    pub fn is_negative(&self) -> bool {
+    pub const fn is_negative(&self) -> bool {
         self.is_negative
     }
 
-    pub fn is_positive(&self) -> bool {
+    pub const fn is_positive(&self) -> bool {
         !self.is_negative
     }
 
-    pub fn is_zero(&self) -> bool {
+    pub const fn is_zero(&self) -> bool {
         self.inner.is_zero()
     }
 
-    pub fn abs(&self) -> Self {
+    pub const fn abs(&self) -> Self {
         Self::from_std(false, self.inner)
     }
 
@@ -557,7 +520,7 @@ impl SaturatingInto<chrono::Duration> for Duration {
             Ok(duration) => duration,
             Err(TryFromDurationError::NegativeOverflow) => chrono::Duration::min_value(),
             Err(TryFromDurationError::PositiveOverflow) => chrono::Duration::max_value(),
-            Err(_) => unreachable!(),
+            Err(_) => unreachable!(), // cov:excl-line
         }
     }
 }
@@ -565,9 +528,15 @@ impl SaturatingInto<chrono::Duration> for Duration {
 #[cfg(feature = "chrono")]
 impl From<chrono::Duration> for Duration {
     fn from(duration: chrono::Duration) -> Self {
-        Self {
-            is_negative: duration.num_seconds() < 0,
-            inner: duration.abs().to_std().unwrap(),
+        match duration.to_std() {
+            Ok(inner) => Self {
+                is_negative: false,
+                inner,
+            },
+            Err(_) => Self {
+                is_negative: true,
+                inner: duration.abs().to_std().unwrap(),
+            },
         }
     }
 }
@@ -575,13 +544,80 @@ impl From<chrono::Duration> for Duration {
 #[cfg(test)]
 mod tests {
     use std::collections::hash_map::DefaultHasher;
-    use std::time::Duration as StdDuration;
 
     #[cfg(feature = "chrono")]
     use chrono::Duration as ChronoDuration;
     use rstest::rstest;
+    use rstest_reuse::{apply, template};
+    use serde_test::{assert_tokens, Token};
 
     use super::*;
+
+    #[cfg(feature = "chrono")]
+    const CHRONO_MIN_DURATION: Duration =
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000);
+    #[cfg(feature = "chrono")]
+    const CHRONO_MAX_DURATION: Duration = Duration::positive(i64::MAX as u64 / 1000, 807_000_000);
+
+    #[test]
+    fn test_time_unit_serde() {
+        let time_unit = TimeUnit::Day;
+
+        assert_tokens(
+            &time_unit,
+            &[
+                Token::Enum { name: "TimeUnit" },
+                Token::Str("Day"),
+                Token::Unit,
+            ],
+        )
+    }
+
+    #[test]
+    fn test_serde_multiplier() {
+        let multiplier = Multiplier(1, 2);
+
+        assert_tokens(
+            &multiplier,
+            &[
+                Token::TupleStruct {
+                    name: "Multiplier",
+                    len: 2,
+                },
+                Token::I64(1),
+                Token::I16(2),
+                Token::TupleStructEnd,
+            ],
+        )
+    }
+
+    #[test]
+    fn test_serde_duration() {
+        let duration = Duration::positive(1, 2);
+
+        assert_tokens(
+            &duration,
+            &[
+                Token::Struct {
+                    name: "Duration",
+                    len: 2,
+                },
+                Token::Str("is_negative"),
+                Token::Bool(false),
+                Token::Str("inner"),
+                Token::Struct {
+                    name: "Duration",
+                    len: 2,
+                },
+                Token::Str("secs"),
+                Token::U64(1),
+                Token::Str("nanos"),
+                Token::U32(2),
+                Token::StructEnd,
+                Token::StructEnd,
+            ],
+        )
+    }
 
     #[rstest]
     #[case::nano_second(NanoSecond, "ns")]
@@ -613,72 +649,6 @@ mod tests {
         assert_eq!(time_unit.multiplier(), expected);
     }
 
-    #[cfg(feature = "time")]
-    #[rstest]
-    #[case::positive_zero(Duration::ZERO, time::Duration::ZERO)]
-    #[case::negative_zero(Duration::negative(0, 0), time::Duration::ZERO)]
-    #[case::positive_one(Duration::positive(1, 0), time::Duration::new(1, 0))]
-    #[case::negative_one(Duration::negative(1, 0), time::Duration::new(-1, 0))]
-    #[case::negative_barely_no_overflow(
-        Duration::negative(i64::MIN.unsigned_abs(), 999_999_999),
-        time::Duration::MIN
-    )]
-    #[case::negative_barely_overflow(
-        Duration::negative(i64::MIN.unsigned_abs() + 1, 0),
-        time::Duration::MIN
-    )]
-    #[case::negative_max_overflow(Duration::negative(u64::MAX, 999_999_999), time::Duration::MIN)]
-    #[case::positive_barely_no_overflow(
-        Duration::positive(i64::MAX as u64, 999_999_999),
-        time::Duration::MAX
-    )]
-    #[case::positive_barely_overflow(
-        Duration::positive(i64::MAX as u64 + 1, 999_999_999),
-        time::Duration::MAX
-    )]
-    #[case::positive_max_overflow(Duration::positive(u64::MAX, 999_999_999), time::Duration::MAX)]
-    fn test_fundu_duration_saturating_into_time_duration(
-        #[case] duration: Duration,
-        #[case] expected: time::Duration,
-    ) {
-        assert_eq!(
-            SaturatingInto::<time::Duration>::saturating_into(duration),
-            expected
-        );
-    }
-
-    #[cfg(feature = "time")]
-    #[test]
-    fn test_duration_try_from_duration_for_time_duration() {
-        let duration = Duration::from_std(false, std::time::Duration::new(1, 0));
-        let time_duration: time::Duration = duration.try_into().unwrap();
-        assert_eq!(time_duration, time::Duration::new(1, 0));
-    }
-
-    #[rstest]
-    #[case::zero(
-        std::time::Duration::ZERO,
-        Duration::from_std(false, std::time::Duration::ZERO)
-    )]
-    #[case::one(
-        std::time::Duration::new(1, 0),
-        Duration::from_std(false, std::time::Duration::new(1, 0))
-    )]
-    #[case::with_nano_seconds(
-        std::time::Duration::new(1, 123_456_789),
-        Duration::from_std(false, std::time::Duration::new(1, 123_456_789))
-    )]
-    #[case::max(
-        std::time::Duration::MAX,
-        Duration::from_std(false, std::time::Duration::MAX)
-    )]
-    fn test_from_std_time_duration_for_duration(
-        #[case] std_duration: std::time::Duration,
-        #[case] expected: Duration,
-    ) {
-        assert_eq!(Duration::from(std_duration), expected);
-    }
-
     #[test]
     fn test_multiplier_get_coefficient() {
         let multi = Multiplier(1234, 0);
@@ -697,8 +667,12 @@ mod tests {
     #[case::positive(Multiplier(1, 0), false)]
     #[case::negative_exponent(Multiplier(1, -1), false)]
     #[case::positive_exponent(Multiplier(-1, 1), true)]
-    fn test_multiplier_is_negative(#[case] multi: Multiplier, #[case] expected: bool) {
+    fn test_multiplier_is_negative_and_is_positive(
+        #[case] multi: Multiplier,
+        #[case] expected: bool,
+    ) {
         assert_eq!(multi.is_negative(), expected);
+        assert_eq!(multi.is_positive(), !expected);
     }
 
     #[rstest]
@@ -738,179 +712,209 @@ mod tests {
     }
 
     #[rstest]
+    #[case::positive_zero(Duration::positive(0, 0), true)]
+    #[case::negative_zero(Duration::negative(0, 0), false)] // FIXME: This should return true
+    #[case::positive_one(Duration::positive(1, 0), true)]
+    #[case::negative_one(Duration::negative(1, 0), false)]
+    fn test_fundu_duration_is_positive_and_is_negative(
+        #[case] duration: Duration,
+        #[case] expected: bool,
+    ) {
+        assert_eq!(duration.is_positive(), expected);
+        assert_eq!(duration.is_negative(), !expected);
+    }
+
+    #[rstest]
+    #[case::positive_zero(Duration::positive(0, 0), Duration::positive(0, 0))]
+    #[case::negative_zero(Duration::negative(0, 0), Duration::positive(0, 0))]
+    #[case::positive_one(Duration::positive(1, 0), Duration::positive(1, 0))]
+    #[case::positive_one_nano(Duration::positive(0, 1), Duration::positive(0, 1))]
+    #[case::negative_one(Duration::negative(1, 0), Duration::positive(1, 0))]
+    #[case::negative_one_nano(Duration::negative(0, 1), Duration::positive(0, 1))]
+    #[case::negative_one_one(Duration::negative(1, 1), Duration::positive(1, 1))]
+    fn test_fundu_duration_abs(#[case] duration: Duration, #[case] expected: Duration) {
+        assert_eq!(duration.abs(), expected);
+    }
+
+    #[template]
+    #[rstest]
     #[case::both_standard_zero(Duration::ZERO, Duration::ZERO, Duration::ZERO)]
     #[case::both_positive_zero(
-        Duration::from_std(false, StdDuration::ZERO),
-        Duration::from_std(false, StdDuration::ZERO),
-        Duration::from_std(false, StdDuration::ZERO)
+        Duration::positive(0, 0),
+        Duration::positive(0, 0),
+        Duration::positive(0, 0)
     )]
-    #[case::both_negative_zero(
-        Duration::from_std(true, StdDuration::ZERO),
-        Duration::from_std(true, StdDuration::ZERO),
-        Duration::from_std(true, StdDuration::ZERO)
-    )]
-    #[case::one_add_zero(
-        Duration::from_std(false, StdDuration::new(1, 0)),
-        Duration::ZERO,
-        Duration::from_std(false, StdDuration::new(1, 0))
-    )]
-    #[case::minus_one_add_zero(
-        Duration::from_std(true, StdDuration::new(1, 0)),
-        Duration::ZERO,
-        Duration::from_std(true, StdDuration::new(1, 0))
-    )]
+    #[case::both_negative_zero(Duration::negative(0, 0), Duration::negative(0, 0), Duration::ZERO)]
+    #[case::one_add_zero(Duration::positive(1, 0), Duration::ZERO, Duration::positive(1, 0))]
+    #[case::minus_one_add_zero(Duration::negative(1, 0), Duration::ZERO, Duration::negative(1, 0))]
     #[case::minus_one_add_plus_one(
-        Duration::from_std(true, StdDuration::new(1, 0)),
-        Duration::from_std(false, StdDuration::new(1, 0)),
+        Duration::negative(1, 0),
+        Duration::positive(1, 0),
         Duration::ZERO
     )]
     #[case::minus_one_add_plus_two_then_carry(
-        Duration::from_std(true, StdDuration::new(1, 0)),
-        Duration::from_std(false, StdDuration::new(2, 0)),
-        Duration::from_std(false, StdDuration::new(1, 0))
+        Duration::negative(1, 0),
+        Duration::positive(2, 0),
+        Duration::positive(1, 0)
     )]
     #[case::minus_one_nano_add_one_then_carry(
-        Duration::from_std(true, StdDuration::new(0, 1)),
-        Duration::from_std(false, StdDuration::new(1, 0)),
-        Duration::from_std(false, StdDuration::new(0, 999_999_999))
+        Duration::negative(0, 1),
+        Duration::positive(1, 0),
+        Duration::positive(0, 999_999_999)
     )]
     #[case::plus_one_nano_add_minus_one_then_carry(
-        Duration::from_std(false, StdDuration::new(0, 1)),
-        Duration::from_std(true, StdDuration::new(1, 0)),
-        Duration::from_std(true, StdDuration::new(0, 999_999_999))
+        Duration::positive(0, 1),
+        Duration::negative(1, 0),
+        Duration::negative(0, 999_999_999)
     )]
     #[case::plus_one_add_minus_two_then_carry(
-        Duration::from_std(false, StdDuration::new(1, 0)),
-        Duration::from_std(true, StdDuration::new(2, 0)),
-        Duration::from_std(true, StdDuration::new(1, 0))
+        Duration::positive(1, 0),
+        Duration::negative(2, 0),
+        Duration::negative(1, 0)
     )]
     #[case::one_sec_below_min_add_max(
-        Duration::from_std(true, StdDuration::new(u64::MAX - 1, 999_999_999)),
+        Duration::negative(u64::MAX - 1, 999_999_999),
         Duration::MAX,
-        Duration::from_std(false, StdDuration::new(1, 0)))
-    ]
+        Duration::positive(1, 0),
+    )]
     #[case::one_nano_below_min_add_max(
-        Duration::from_std(true, StdDuration::new(u64::MAX, 999_999_998)),
+        Duration::negative(u64::MAX, 999_999_998),
         Duration::MAX,
-        Duration::from_std(false, StdDuration::new(0, 1))
+        Duration::positive(0, 1)
     )]
     #[case::one_sec_below_max_add_min(
-        Duration::from_std(false, StdDuration::new(u64::MAX - 1, 999_999_999)),
+        Duration::positive(u64::MAX - 1, 999_999_999),
         Duration::MIN,
-        Duration::from_std(true, StdDuration::new(1, 0)))
-    ]
+        Duration::negative(1, 0)
+    )]
     #[case::one_nano_below_max_add_min(
-        Duration::from_std(false, StdDuration::new(u64::MAX, 999_999_998)),
+        Duration::positive(u64::MAX, 999_999_998),
         Duration::MIN,
-        Duration::from_std(true, StdDuration::new(0, 1))
+        Duration::negative(0, 1)
     )]
     #[case::min_and_max(Duration::MIN, Duration::MAX, Duration::ZERO)]
-    fn test_fundu_duration_checked_add_then_is_some(
+    fn test_fundu_duration_add_no_overflow_template(
         #[case] lhs: Duration,
         #[case] rhs: Duration,
         #[case] expected: Duration,
     ) {
-        assert_eq!(Some(expected), lhs.checked_add(rhs));
-        assert_eq!(Some(expected), rhs.checked_add(lhs));
     }
 
-    // TODO: add more tests
+    #[apply(test_fundu_duration_add_no_overflow_template)]
+    fn test_fundu_duration_add(lhs: Duration, rhs: Duration, expected: Duration) {
+        assert_eq!(lhs + rhs, expected);
+        assert_eq!(rhs + lhs, expected);
+    }
+
+    #[apply(test_fundu_duration_add_no_overflow_template)]
+    fn test_fundu_duration_add_assign(lhs: Duration, rhs: Duration, expected: Duration) {
+        let mut res = lhs;
+        res += rhs;
+        assert_eq!(res, expected);
+        let mut res = rhs;
+        res += lhs;
+        assert_eq!(res, expected);
+    }
+
+    #[apply(test_fundu_duration_add_no_overflow_template)]
+    fn test_fundu_duration_checked_add(lhs: Duration, rhs: Duration, expected: Duration) {
+        assert_eq!(lhs.checked_add(rhs), Some(expected));
+        assert_eq!(rhs.checked_add(lhs), Some(expected));
+    }
+
+    #[apply(test_fundu_duration_add_no_overflow_template)]
+    fn test_fundu_duration_sub(lhs: Duration, rhs: Duration, expected: Duration) {
+        assert_eq!(lhs - rhs.neg(), expected);
+        assert_eq!(rhs - lhs.neg(), expected);
+    }
+
+    #[apply(test_fundu_duration_add_no_overflow_template)]
+    fn test_fundu_duration_sub_assign(lhs: Duration, rhs: Duration, expected: Duration) {
+        let mut res = lhs;
+        res -= rhs.neg();
+        assert_eq!(res, expected);
+        let mut res = rhs;
+        res -= lhs.neg();
+        assert_eq!(res, expected);
+    }
+
+    #[apply(test_fundu_duration_add_no_overflow_template)]
+    fn test_fundu_duration_checked_sub(lhs: Duration, rhs: Duration, expected: Duration) {
+        assert_eq!(lhs.checked_sub(rhs.neg()), Some(expected));
+        assert_eq!(rhs.checked_sub(lhs.neg()), Some(expected));
+    }
+
+    #[template]
     #[rstest]
     #[case::min(Duration::MIN, Duration::MIN)]
+    #[case::min_minus_one(Duration::MIN, Duration::negative(1, 0))]
+    #[case::min_minus_one_nano(Duration::MIN, Duration::negative(0, 1))]
     #[case::max(Duration::MAX, Duration::MAX)]
-    fn test_fundu_duration_checked_add_then_return_none(
-        #[case] lhs: Duration,
-        #[case] rhs: Duration,
-    ) {
-        assert_eq!(None, lhs.checked_add(rhs));
+    #[case::max_plus_one(Duration::MAX, Duration::positive(1, 0))]
+    #[case::max_plus_one_nano(Duration::MAX, Duration::positive(0, 1))]
+    #[case::positive_middle_nano_overflow(
+        Duration::positive(u64::MAX / 2 + 1, 999_999_999 / 2 + 1),
+        Duration::positive(u64::MAX / 2, 999_999_999 / 2 + 1)
+    )]
+    #[case::positive_middle_secs_overflow(
+        Duration::positive(u64::MAX / 2 + 1, 999_999_999 / 2 + 1),
+        Duration::positive(u64::MAX / 2 + 1, 999_999_999 / 2)
+    )]
+    #[case::negative_middle_nano_overflow(
+        Duration::negative(u64::MAX / 2 + 1, 999_999_999 / 2 + 1),
+        Duration::negative(u64::MAX / 2, 999_999_999 / 2 + 1)
+    )]
+    #[case::negative_middle_secs_overflow(
+        Duration::negative(u64::MAX / 2 + 1, 999_999_999 / 2 + 1),
+         Duration::negative(u64::MAX / 2 + 1, 999_999_999 / 2)
+    )]
+    fn test_fundu_duration_add_overflow_template(#[case] lhs: Duration, #[case] rhs: Duration) {}
+
+    #[apply(test_fundu_duration_add_overflow_template)]
+    #[should_panic = "Overflow when adding duration"]
+    fn test_fundu_duration_add_and_add_assign_then_overflow(mut lhs: Duration, rhs: Duration) {
+        lhs += rhs;
     }
 
-    #[cfg(feature = "chrono")]
-    #[rstest]
-    #[case::zero(Duration::ZERO, ChronoDuration::zero())]
-    #[case::negative_zero(Duration::negative(0, 0), ChronoDuration::zero())]
-    #[case::positive_one_sec(Duration::positive(1, 0), ChronoDuration::seconds(1))]
-    #[case::positive_one_sec_and_nano(
-        Duration::positive(1, 1),
-        ChronoDuration::nanoseconds(1_000_000_001)
-    )]
-    #[case::negative_one_sec(Duration::negative(1, 0), ChronoDuration::seconds(-1))]
-    #[case::negative_one_sec_and_nano(
-        Duration::negative(1, 1),
-        ChronoDuration::nanoseconds(-1_000_000_001)
-    )]
-    #[case::max_nanos(
-        Duration::positive(0, 999_999_999),
-        ChronoDuration::nanoseconds(999_999_999)
-    )]
-    #[case::min_nanos(
-        Duration::negative(0, 999_999_999),
-        ChronoDuration::nanoseconds(-999_999_999)
-    )]
-    #[case::max_secs(
-        Duration::positive(i64::MAX as u64 / 1000, 0),
-        ChronoDuration::seconds(i64::MAX / 1000))
-    ]
-    #[case::max_secs_and_nanos(
-        Duration::positive(i64::MAX as u64 / 1000, 807_000_000),
-        ChronoDuration::max_value())
-    ]
-    #[case::secs_and_nanos_one_below_max(
-        Duration::positive(i64::MAX as u64 / 1000, 807_000_000 - 1),
-        ChronoDuration::max_value().checked_sub(&ChronoDuration::nanoseconds(1)).unwrap())
-    ]
-    #[case::min_secs(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 0),
-        ChronoDuration::seconds(i64::MIN / 1000))
-    ]
-    #[case::min_secs_and_nanos(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000),
-        ChronoDuration::min_value())
-    ]
-    #[case::secs_and_nanos_one_above_min(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000 - 1),
-        ChronoDuration::min_value().checked_add(&ChronoDuration::nanoseconds(1)).unwrap())
-    ]
-    fn test_chrono_try_from_fundu_duration(
-        #[case] duration: Duration,
-        #[case] expected: ChronoDuration,
-    ) {
-        let chrono_duration: ChronoDuration = duration.try_into().unwrap();
-        assert_eq!(chrono_duration, expected)
+    #[apply(test_fundu_duration_add_overflow_template)]
+    #[should_panic = "Overflow when subtracting duration"]
+    #[allow(clippy::no_effect)]
+    fn test_fundu_duration_sub_and_sub_assign_then_overflow(mut lhs: Duration, rhs: Duration) {
+        lhs -= rhs.neg();
     }
 
-    #[cfg(feature = "chrono")]
-    #[rstest]
-    #[case::positive_overflow_secs(
-        Duration::positive(i64::MAX as u64 / 1000 + 1, 0),
-        TryFromDurationError::PositiveOverflow)
-    ]
-    #[case::positive_overflow_secs_and_nanos(
-        Duration::positive(i64::MAX as u64 / 1000, 807_000_000 + 1),
-        TryFromDurationError::PositiveOverflow)
-    ]
-    #[case::positive_overflow_max_fundu_duration(
-        Duration::MAX,
-        TryFromDurationError::PositiveOverflow
-    )]
-    #[case::negative_overflow_secs(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000 + 1, 0),
-        TryFromDurationError::NegativeOverflow)
-    ]
-    #[case::negative_overflow_secs_and_nanos(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_001),
-        TryFromDurationError::NegativeOverflow)
-    ]
-    #[case::negative_overflow_min_fundu_duration(
-        Duration::MIN,
-        TryFromDurationError::NegativeOverflow
-    )]
-    fn test_chrono_try_from_fundu_duration_then_error(
-        #[case] duration: Duration,
-        #[case] expected: TryFromDurationError,
-    ) {
-        let result: Result<ChronoDuration, TryFromDurationError> = duration.try_into();
-        assert_eq!(result.unwrap_err(), expected)
+    #[apply(test_fundu_duration_add_overflow_template)]
+    fn test_fundu_duration_checked_add_then_overflow(lhs: Duration, rhs: Duration) {
+        assert_eq!(lhs.checked_add(rhs), None);
+        assert_eq!(rhs.checked_add(lhs), None);
+    }
+
+    #[apply(test_fundu_duration_add_overflow_template)]
+    fn test_fundu_duration_checked_sub_then_overflow(lhs: Duration, rhs: Duration) {
+        assert_eq!(lhs.checked_sub(rhs.neg()), None);
+    }
+
+    #[apply(test_fundu_duration_add_overflow_template)]
+    fn test_fundu_duration_saturating_add_then_saturate(lhs: Duration, rhs: Duration) {
+        let expected = if lhs.checked_add(rhs).is_none() && lhs.is_positive() && rhs.is_positive() {
+            Duration::MAX
+        } else {
+            Duration::MIN
+        };
+        assert_eq!(lhs.saturating_add(rhs), expected);
+        assert_eq!(rhs.saturating_add(lhs), expected);
+    }
+
+    #[apply(test_fundu_duration_add_overflow_template)]
+    fn test_fundu_duration_saturating_sub_then_saturate(lhs: Duration, rhs: Duration) {
+        let expected =
+            if lhs.checked_sub(rhs.neg()).is_none() && lhs.is_negative() && rhs.neg().is_positive()
+            {
+                Duration::MIN
+            } else {
+                Duration::MAX
+            };
+        assert_eq!(lhs.saturating_sub(rhs.neg()), expected);
     }
 
     #[rstest]
@@ -1027,5 +1031,251 @@ mod tests {
         other.hash(&mut other_hasher);
 
         assert_ne!(hasher.finish(), other_hasher.finish());
+    }
+
+    #[cfg(feature = "time")]
+    #[rstest]
+    #[case::positive_zero(Duration::ZERO, time::Duration::ZERO)]
+    #[case::negative_zero(Duration::negative(0, 0), time::Duration::ZERO)]
+    #[case::positive_one(Duration::positive(1, 0), time::Duration::new(1, 0))]
+    #[case::negative_one(Duration::negative(1, 0), time::Duration::new(-1, 0))]
+    #[case::negative_barely_no_overflow(
+        Duration::negative(i64::MIN.unsigned_abs(), 999_999_999),
+        time::Duration::MIN
+    )]
+    #[case::negative_barely_overflow(
+        Duration::negative(i64::MIN.unsigned_abs() + 1, 0),
+        time::Duration::MIN
+    )]
+    #[case::negative_max_overflow(Duration::negative(u64::MAX, 999_999_999), time::Duration::MIN)]
+    #[case::positive_barely_no_overflow(
+        Duration::positive(i64::MAX as u64, 999_999_999),
+        time::Duration::MAX
+    )]
+    #[case::positive_barely_overflow(
+        Duration::positive(i64::MAX as u64 + 1, 999_999_999),
+        time::Duration::MAX
+    )]
+    #[case::positive_max_overflow(Duration::positive(u64::MAX, 999_999_999), time::Duration::MAX)]
+    fn test_fundu_duration_saturating_into_time_duration(
+        #[case] duration: Duration,
+        #[case] expected: time::Duration,
+    ) {
+        assert_eq!(
+            SaturatingInto::<time::Duration>::saturating_into(duration),
+            expected
+        );
+    }
+
+    #[cfg(feature = "chrono")]
+    #[rstest]
+    #[case::positive_zero(Duration::ZERO, chrono::Duration::zero())]
+    #[case::negative_zero(Duration::negative(0, 0), chrono::Duration::zero())]
+    #[case::positive_one(Duration::positive(1, 0), chrono::Duration::seconds(1))]
+    #[case::negative_one(Duration::negative(1, 0), chrono::Duration::seconds(-1))]
+    #[case::negative_barely_no_overflow(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000),
+        chrono::Duration::min_value()
+    )]
+    #[case::negative_barely_overflow(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000 + 1, 0),
+        chrono::Duration::min_value()
+    )]
+    #[case::negative_max_overflow(
+        Duration::negative(u64::MAX, 999_999_999),
+        chrono::Duration::min_value()
+    )]
+    #[case::positive_barely_no_overflow(
+        Duration::positive(i64::MAX as u64 / 1000, 807_000_000),
+        chrono::Duration::max_value()
+    )]
+    #[case::positive_barely_overflow(
+        Duration::positive(i64::MAX as u64 / 1000 + 1, 807_000_000),
+        chrono::Duration::max_value()
+    )]
+    #[case::positive_max_overflow(
+        Duration::positive(u64::MAX, 999_999_999),
+        chrono::Duration::max_value()
+    )]
+    fn test_fundu_duration_saturating_into_chrono_duration(
+        #[case] duration: Duration,
+        #[case] expected: chrono::Duration,
+    ) {
+        assert_eq!(
+            SaturatingInto::<chrono::Duration>::saturating_into(duration),
+            expected
+        );
+    }
+
+    #[rstest]
+    #[case::negative_one(Duration::negative(1, 0))]
+    #[case::negative_one_nano(Duration::negative(0, 1))]
+    #[case::one_one(Duration::negative(1, 1))]
+    #[case::min(Duration::MIN)]
+    fn test_std_duration_try_from_for_fundu_duration_then_error(#[case] duration: Duration) {
+        assert_eq!(
+            TryInto::<std::time::Duration>::try_into(duration).unwrap_err(),
+            TryFromDurationError::NegativeNumber
+        );
+    }
+
+    #[cfg(feature = "chrono")]
+    #[rstest]
+    #[case::zero(Duration::ZERO, ChronoDuration::zero())]
+    #[case::negative_zero(Duration::negative(0, 0), ChronoDuration::zero())]
+    #[case::positive_one_sec(Duration::positive(1, 0), ChronoDuration::seconds(1))]
+    #[case::positive_one_sec_and_nano(
+        Duration::positive(1, 1),
+        ChronoDuration::nanoseconds(1_000_000_001)
+    )]
+    #[case::negative_one_sec(Duration::negative(1, 0), ChronoDuration::seconds(-1))]
+    #[case::negative_one_sec_and_nano(
+        Duration::negative(1, 1),
+        ChronoDuration::nanoseconds(-1_000_000_001)
+    )]
+    #[case::max_nanos(
+        Duration::positive(0, 999_999_999),
+        ChronoDuration::nanoseconds(999_999_999)
+    )]
+    #[case::min_nanos(
+        Duration::negative(0, 999_999_999),
+        ChronoDuration::nanoseconds(-999_999_999)
+    )]
+    #[case::max_secs(
+        Duration::positive(i64::MAX as u64 / 1000, 0),
+        ChronoDuration::seconds(i64::MAX / 1000))
+    ]
+    #[case::max_secs_and_nanos(
+        Duration::positive(i64::MAX as u64 / 1000, 807_000_000),
+        ChronoDuration::max_value())
+    ]
+    #[case::secs_and_nanos_one_below_max(
+        Duration::positive(i64::MAX as u64 / 1000, 807_000_000 - 1),
+        ChronoDuration::max_value().checked_sub(&ChronoDuration::nanoseconds(1)).unwrap())
+    ]
+    #[case::min_secs(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 0),
+        ChronoDuration::seconds(i64::MIN / 1000))
+    ]
+    #[case::min_secs_and_nanos(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000),
+        ChronoDuration::min_value())
+    ]
+    #[case::secs_and_nanos_one_above_min(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000 - 1),
+        ChronoDuration::min_value().checked_add(&ChronoDuration::nanoseconds(1)).unwrap())
+    ]
+    fn test_chrono_duration_try_from_fundu_duration(
+        #[case] duration: Duration,
+        #[case] expected: ChronoDuration,
+    ) {
+        let chrono_duration: ChronoDuration = duration.try_into().unwrap();
+        assert_eq!(chrono_duration, expected)
+    }
+
+    #[cfg(feature = "chrono")]
+    #[rstest]
+    #[case::positive_overflow_secs(
+        Duration::positive(i64::MAX as u64 / 1000 + 1, 0),
+        TryFromDurationError::PositiveOverflow)
+    ]
+    #[case::positive_overflow_secs_and_nanos(
+        Duration::positive(i64::MAX as u64 / 1000, 807_000_000 + 1),
+        TryFromDurationError::PositiveOverflow)
+    ]
+    #[case::positive_overflow_max_fundu_duration(
+        Duration::MAX,
+        TryFromDurationError::PositiveOverflow
+    )]
+    #[case::negative_overflow_secs(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000 + 1, 0),
+        TryFromDurationError::NegativeOverflow)
+    ]
+    #[case::negative_overflow_secs_and_nanos(
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_001),
+        TryFromDurationError::NegativeOverflow)
+    ]
+    #[case::negative_overflow_min_fundu_duration(
+        Duration::MIN,
+        TryFromDurationError::NegativeOverflow
+    )]
+    fn test_chrono_duration_try_from_fundu_duration_then_error(
+        #[case] duration: Duration,
+        #[case] expected: TryFromDurationError,
+    ) {
+        let result: Result<ChronoDuration, TryFromDurationError> = duration.try_into();
+        assert_eq!(result.unwrap_err(), expected)
+    }
+
+    #[cfg(feature = "time")]
+    #[test]
+    fn test_time_duration_try_from_fundu_duration() {
+        let duration = Duration::from_std(false, std::time::Duration::new(1, 0));
+        let time_duration: time::Duration = duration.try_into().unwrap();
+        assert_eq!(time_duration, time::Duration::new(1, 0));
+    }
+
+    #[rstest]
+    #[case::zero(
+        std::time::Duration::ZERO,
+        Duration::from_std(false, std::time::Duration::ZERO)
+    )]
+    #[case::one(
+        std::time::Duration::new(1, 0),
+        Duration::from_std(false, std::time::Duration::new(1, 0))
+    )]
+    #[case::with_nano_seconds(
+        std::time::Duration::new(1, 123_456_789),
+        Duration::from_std(false, std::time::Duration::new(1, 123_456_789))
+    )]
+    #[case::max(
+        std::time::Duration::MAX,
+        Duration::from_std(false, std::time::Duration::MAX)
+    )]
+    fn test_fundu_duration_from_std_time_duration(
+        #[case] std_duration: std::time::Duration,
+        #[case] expected: Duration,
+    ) {
+        assert_eq!(Duration::from(std_duration), expected);
+    }
+
+    #[cfg(feature = "time")]
+    #[rstest]
+    #[case::zero(time::Duration::ZERO, Duration::ZERO)]
+    #[case::positive_one(time::Duration::new(1, 0), Duration::positive(1, 0))]
+    #[case::positive_one_nano(time::Duration::new(0, 1), Duration::positive(0, 1))]
+    #[case::negative_one(time::Duration::new(-1, 0), Duration::negative(1, 0))]
+    #[case::negative_one_nano(time::Duration::new(0, -1), Duration::negative(0, 1))]
+    #[case::positive_one_negative_one_nano(
+        time::Duration::new(1, -1),
+        Duration::positive(0, 999_999_999)
+    )]
+    #[case::negative_one_positive_one_nano(
+        time::Duration::new(-1, 1),
+        Duration::negative(0, 999_999_999)
+    )]
+    #[case::min(time::Duration::MIN, Duration::negative(i64::MIN.unsigned_abs(), 999_999_999))]
+    #[case::max(time::Duration::MAX, Duration::positive(i64::MAX as u64, 999_999_999))]
+    fn test_fundu_duration_from_time_duration(
+        #[case] time_duration: time::Duration,
+        #[case] expected: Duration,
+    ) {
+        assert_eq!(Duration::from(time_duration), expected);
+    }
+
+    #[cfg(feature = "chrono")]
+    #[rstest]
+    #[case::zero(chrono::Duration::zero(), Duration::ZERO)]
+    #[case::positive_one(chrono::Duration::seconds(1), Duration::positive(1, 0))]
+    #[case::positive_one_nano(chrono::Duration::nanoseconds(1), Duration::positive(0, 1))]
+    #[case::negative_one(chrono::Duration::seconds(-1), Duration::negative(1, 0))]
+    #[case::negative_one_nano(chrono::Duration::nanoseconds(-1), Duration::negative(0, 1))]
+    #[case::min(chrono::Duration::min_value(), CHRONO_MIN_DURATION)]
+    #[case::max(chrono::Duration::max_value(), CHRONO_MAX_DURATION)]
+    fn test_fundu_duration_from_chrono_duration(
+        #[case] chrono_duration: chrono::Duration,
+        #[case] expected: Duration,
+    ) {
+        assert_eq!(Duration::from(chrono_duration), expected)
     }
 }

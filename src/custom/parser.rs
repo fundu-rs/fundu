@@ -551,6 +551,7 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::config::Config;
     use crate::custom::builder::CustomDurationParserBuilder;
     use crate::custom::time_units::DEFAULT_ALL_TIME_UNITS;
     use crate::time::Duration;
@@ -729,5 +730,56 @@ mod tests {
 
         custom.custom_time_units(&[]);
         assert!(custom.is_empty());
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_keyword() {
+        let mut custom = CustomDurationParser::new();
+        custom.keyword(TimeKeyword::new(Second, &["sec"], Some(Multiplier(2, 0))));
+        assert_eq!(
+            custom.keywords.get("sec").unwrap(),
+            (Second, Multiplier(2, 0))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_keywords() {
+        let mut custom = CustomDurationParser::new();
+        custom.keywords(&[
+            TimeKeyword::new(Second, &["sec"], Some(Multiplier(1, 0))),
+            TimeKeyword::new(Second, &["secs"], Some(Multiplier(2, 0))),
+        ]);
+        assert_eq!(
+            custom.keywords.get("sec").unwrap(),
+            (Second, Multiplier(1, 0))
+        );
+        assert_eq!(
+            custom.keywords.get("secs").unwrap(),
+            (Second, Multiplier(2, 0))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_allow_negative() {
+        let mut expected = Config::new();
+        expected.allow_negative = true;
+
+        let mut parser = CustomDurationParser::new();
+        parser.allow_negative(true);
+
+        assert_eq!(parser.inner.config, expected);
+    }
+
+    #[test]
+    fn test_custom_duration_parser_allow_ago() {
+        let delimiter = |byte: u8| byte.is_ascii_whitespace();
+        let mut expected = Config::new();
+        expected.allow_ago = Some(delimiter);
+        expected.allow_negative = true;
+
+        let mut parser = CustomDurationParser::new();
+        parser.allow_ago(Some(delimiter));
+
+        assert_eq!(parser.inner.config, expected);
     }
 }

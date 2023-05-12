@@ -101,6 +101,7 @@ impl Display for TryFromDurationError {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+    use serde_test::{assert_tokens, Token};
 
     use super::*;
 
@@ -128,7 +129,7 @@ mod tests {
         "Invalid input: Unexpected"
     )]
     #[case::empty(ParseError::Empty, "Empty input")]
-    fn test_error_messages(#[case] error: ParseError, #[case] expected: &str) {
+    fn test_error_messages_parse_error(#[case] error: ParseError, #[case] expected: &str) {
         assert_eq!(error.to_string(), expected);
     }
 
@@ -138,5 +139,57 @@ mod tests {
     #[case::negative_number(TryFromDurationError::NegativeNumber, ParseError::NegativeNumber)]
     fn test_from_for_parse_error(#[case] from: TryFromDurationError, #[case] expected: ParseError) {
         assert_eq!(ParseError::from(from), expected);
+    }
+
+    #[rstest]
+    #[case::negative_number(
+        TryFromDurationError::NegativeNumber,
+        "Error converting duration: value is negative"
+    )]
+    #[case::positive_overflow(
+        TryFromDurationError::PositiveOverflow,
+        "Error converting duration: value overflows the positive value range"
+    )]
+    #[case::positive_overflow(
+        TryFromDurationError::NegativeOverflow,
+        "Error converting duration: value overflows the negative value range"
+    )]
+    fn test_error_messages_try_from_duration_error(
+        #[case] error: TryFromDurationError,
+        #[case] expected: &str,
+    ) {
+        assert_eq!(error.to_string(), expected);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_try_from_duration_error() {
+        let error = TryFromDurationError::NegativeNumber;
+
+        assert_tokens(
+            &error,
+            &[
+                Token::Enum {
+                    name: "TryFromDurationError",
+                },
+                Token::Str("NegativeNumber"),
+                Token::Unit,
+            ],
+        )
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_parse_error() {
+        let error = ParseError::Empty;
+
+        assert_tokens(
+            &error,
+            &[
+                Token::Enum { name: "ParseError" },
+                Token::Str("Empty"),
+                Token::Unit,
+            ],
+        )
     }
 }

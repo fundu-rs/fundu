@@ -36,9 +36,11 @@ serde = { version = "1.0.162", optional = true, features=["derive"]}
 
 [dev-dependencies]
 rstest = "0.17.0"
+rstest_reuse = "0.5.0"
 criterion = "0.4.0"
 chrono = { version = "0.4.23", default-features = false }
 clap = { version = "<=3.2.23", features = ["cargo", "derive"] }
+serde_test  = "1.0.162"
 
 [target.'cfg(unix)'.dev-dependencies]
 pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }

@@ -7,7 +7,6 @@
 //! the main library `lib.rs`.
 
 use std::cmp::Ordering::{Equal, Greater, Less};
-use std::ops::Neg;
 use std::str::Utf8Error;
 use std::time::Duration as StdDuration;
 
@@ -767,7 +766,9 @@ trait ReprParserTemplate<'a> {
         }
 
         if !self.parse_number_time_unit(&mut duration_repr, config, time_units)? {
-            return Ok(self.make_output(duration_repr));
+            // Currently unreachable but let's keep it for clarity and safety especially because
+            // the parse_number_time_unit must be implemented by this traits implementations
+            return Ok(self.make_output(duration_repr)); // cov:excl-line
         }
 
         self.finalize(duration_repr)
@@ -1021,8 +1022,6 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                         )
                     })?;
 
-                // TODO: maybe change that to improve error message when `ago` is found without time
-                // unit
                 let (time_unit, mut multiplier) = if string.is_empty() {
                     return Ok(None);
                 } else {
@@ -1037,16 +1036,24 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                     }
                 };
 
-                match self.bytes.current_byte {
-                    Some(byte) if delimiter(*byte) => {
-                        self.bytes.try_consume_delimiter(delimiter)?;
-                        if self.bytes.next_is_ignore_ascii_case(b"ago") {
-                            // SAFETY: We have checked that there are at least 3 bytes
-                            unsafe { self.bytes.advance_by(3) };
-                        }
-                        multiplier = multiplier.neg();
+                // At this point, either there are one or more bytes of which the first is the
+                // delimiter or we've reached the end of input
+                if self.bytes.current_byte.is_some() {
+                    self.bytes.try_consume_delimiter(delimiter)?;
+                    if self.bytes.next_is_ignore_ascii_case(b"ago") {
+                        // SAFETY: We have checked that there are at least 3 bytes
+                        unsafe { self.bytes.advance_by(3) };
+                        // We're applying the negation on the multiplier only once so we don't need
+                        // the operation to be reflexive and using saturating neg is fine
+                        multiplier = multiplier.saturating_neg();
+                    } else {
+                        return Err(ParseError::TimeUnit(
+                            self.bytes.current_pos,
+                            format!("Found unexpected keyword: '{}'", unsafe {
+                                self.bytes.get_remainder_str_unchecked()
+                            }),
+                        ));
                     }
-                    Some(_) | None => {}
                 };
 
                 Ok(Some((time_unit, multiplier)))
@@ -1092,7 +1099,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                     }),
                 ))
             }
-            None => Ok(false),
+            // This branch is excluded from coverage because parsing with parse_number_delimiter
+            // already ensures that there's at least 1 byte.
+            None => Ok(false), // cov:excl-line
         }
     }
 
@@ -1119,39 +1128,40 @@ impl<'a> ReprParserMultiple<'a> {
 
     fn try_consume_connection(&mut self) -> Result<(), ParseError> {
         let delimiter = self.delimiter;
+        debug_assert!(delimiter(*self.bytes.current_byte.unwrap()));
+
         self.bytes.try_consume_delimiter(delimiter)?;
         let start = self.bytes.current_pos;
-        if self.bytes.current_byte.is_some() {
-            for word in self.conjunctions {
-                if self.bytes.next_is_ignore_ascii_case(word.as_bytes()) {
-                    // SAFETY: We're advancing by the amount of bytes of the word we just found
-                    unsafe { self.bytes.advance_by(word.len()) };
-                    match self.bytes.current_byte {
-                        Some(byte) if delimiter(*byte) => {
-                            self.bytes.try_consume_delimiter(delimiter)?
-                        }
-                        Some(byte) if byte.is_ascii_digit() => {}
-                        Some(byte) => {
-                            return Err(ParseError::Syntax(
-                                self.bytes.current_pos,
-                                format!(
-                                    "A conjunction must be separated by a delimiter or digit but \
-                                     found: '{}'",
-                                    *byte as char
-                                ),
-                            ));
-                        }
-                        None => {
-                            return Err(ParseError::Syntax(
-                                start,
-                                format!("Input may not end with a conjunction but found: '{word}'"),
-                            ));
-                        }
+        // try_consume_delimiter ensures there's at least one byte here
+        for word in self.conjunctions {
+            if self.bytes.next_is_ignore_ascii_case(word.as_bytes()) {
+                // SAFETY: We're advancing by the amount of bytes of the word we just found
+                unsafe { self.bytes.advance_by(word.len()) };
+                match self.bytes.current_byte {
+                    Some(byte) if delimiter(*byte) => {
+                        self.bytes.try_consume_delimiter(delimiter)?
                     }
-                    break;
+                    Some(byte) if byte.is_ascii_digit() => {}
+                    Some(byte) => {
+                        return Err(ParseError::Syntax(
+                            self.bytes.current_pos,
+                            format!(
+                                "A conjunction must be separated by a delimiter or digit but \
+                                 found: '{}'",
+                                *byte as char
+                            ),
+                        ));
+                    }
+                    None => {
+                        return Err(ParseError::Syntax(
+                            start,
+                            format!("Input may not end with a conjunction but found: '{word}'"),
+                        ));
+                    }
                 }
+                break;
             }
-        };
+        }
         Ok(())
     }
 }
@@ -1190,8 +1200,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
             }
         }
 
-        let expected = b"inity";
-        for byte in expected.iter() {
+        let expected = "inity";
+        let start = self.bytes.current_pos;
+        for byte in expected.as_bytes().iter() {
             match self.bytes.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.bytes.advance(),
                 // wrong character
@@ -1206,8 +1217,13 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                 }
                 None => {
                     return Err(ParseError::Syntax(
-                        self.bytes.current_pos,
-                        "Error parsing infinity: Premature end of input".to_string(),
+                        // This subtraction is safe since we're here only if there's at least `inf`
+                        // present
+                        start - 3,
+                        format!(
+                            "Error parsing infinity: 'inf{}' is an invalid identifier for infinity",
+                            self.bytes.get_current_str(start).unwrap() // unwrap is safe
+                        ),
                     ));
                 }
             }
@@ -1217,11 +1233,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         match self.bytes.current_byte {
             Some(byte) if delimiter(*byte) => {
                 self.try_consume_connection()?;
-
-                match self.bytes.current_byte {
-                    Some(_) => Ok((duration_repr, Some(self))),
-                    None => Ok((duration_repr, None)),
-                }
+                Ok((duration_repr, Some(self)))
             }
             Some(byte) => Err(ParseError::Syntax(
                 self.bytes.current_pos,
@@ -1320,7 +1332,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                 if self.bytes.next_is_ignore_ascii_case(b"ago") {
                     // SAFETY: We know that next is `ago` which has 3 bytes
                     unsafe { self.bytes.advance_by(3) };
-                    multiplier = multiplier.neg();
+                    // We're applying the negation on the multiplier only once so we don't need
+                    // the operation to be reflexive and using saturating neg is fine
+                    multiplier = multiplier.saturating_neg();
                 } else {
                     self.bytes.reset(start);
                 }
@@ -1352,7 +1366,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                 }
             }
             Some(_) => {}
-            None => return Ok(false),
+            // This branch is excluded from coverage because parse_number_delimiter already ensures
+            // that there's at least 1 byte.
+            None => return Ok(false), // cov:excl-line
         }
         Ok(true)
     }
@@ -1373,6 +1389,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+    use rstest_reuse::{apply, template};
 
     use super::*;
 
@@ -1426,6 +1443,7 @@ mod tests {
         assert_eq!(parser.bytes.current_pos, 8);
     }
 
+    #[template]
     #[rstest]
     #[case::zero("0", Whole(1, 1))]
     #[case::one("1", Whole(0, 1))]
@@ -1444,11 +1462,17 @@ mod tests {
     #[case::eight_zero_digits_end("1111111100000000", Whole(0, 16))]
     #[case::eight_zero_digits_middle("11111111000000001", Whole(0, 17))]
     #[case::max_16_digits("9999999999999999", Whole(0, 16))]
-    fn test_duration_repr_parser_parse_whole(#[case] input: &str, #[case] expected: Whole) {
+    fn test_duration_repr_parser_parse_whole(#[case] input: &str, #[case] expected: Whole) {}
+
+    #[apply(test_duration_repr_parser_parse_whole)]
+    fn test_duration_repr_parser_parse_whole_single(input: &str, expected: Whole) {
         let mut parser = ReprParserSingle::new(input);
         assert_eq!(parser.parse_whole(), expected);
+    }
 
-        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]);
+    #[apply(test_duration_repr_parser_parse_whole)]
+    fn test_duration_repr_parser_parse_whole_multiple(input: &str, expected: Whole) {
+        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]); // cov:excl-line
         assert_eq!(parser.parse_whole(), expected);
     }
 
@@ -1484,6 +1508,7 @@ mod tests {
         assert_eq!(duration_repr.fract, Some(Fract(1, i16::MAX as usize + 101)));
     }
 
+    #[template]
     #[rstest]
     #[case::zero("0", Fract(0, 1))]
     #[case::one("1", Fract(0, 1))]
@@ -1496,11 +1521,17 @@ mod tests {
     #[case::max_8_digits("99999999", Fract(0, 8))]
     #[case::max_8_digits_minus_one("99999998", Fract(0, 8))]
     #[case::nine_digits("123456789", Fract(0, 9))]
-    fn test_duration_repr_parser_parse_fract(#[case] input: &str, #[case] expected: Fract) {
+    fn test_duration_repr_parser_parse_fract(#[case] input: &str, #[case] expected: Fract) {}
+
+    #[apply(test_duration_repr_parser_parse_fract)]
+    fn test_duration_repr_parser_parse_fract_single(input: &str, expected: Fract) {
         let mut parser = ReprParserSingle::new(input);
         assert_eq!(parser.parse_fract(), expected);
+    }
 
-        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]);
+    #[apply(test_duration_repr_parser_parse_fract)]
+    fn test_duration_repr_parser_parse_fract_multiple(input: &str, expected: Fract) {
+        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]); // cov:excl-line
         assert_eq!(parser.parse_fract(), expected);
     }
 }

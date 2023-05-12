@@ -291,6 +291,8 @@ pub use custom::{
     },
 };
 pub use error::{ParseError, TryFromDurationError};
+#[cfg(test)]
+pub use rstest_reuse;
 #[cfg(feature = "standard")]
 pub use standard::{
     builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,
