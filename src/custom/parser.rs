@@ -771,6 +771,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_allow_ago() {
         let delimiter = |byte: u8| byte.is_ascii_whitespace();
         let mut expected = Config::new();
