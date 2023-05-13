@@ -68,6 +68,7 @@
     "rustfmt",
     "rustup",
     "seccomp",
+    "serde",
     "simd",
     "softfloat",
     "sparcv",

@@ -22,7 +22,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
-  FEATURES: standard,custom,time,chrono
+  FEATURES: standard,custom,time,chrono,serde
 
 jobs:
   deny:
@@ -59,8 +59,8 @@ jobs:
         include:
           - components: clippy
             toolchain: stable
-          - features: standard,custom,time,chrono,with-iai,with-flamegraph
-          - features: standard,custom,time,chrono
+          - features: standard,custom,time,chrono,serde,with-iai,with-flamegraph
+          - features: standard,custom,time,chrono,serde
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
