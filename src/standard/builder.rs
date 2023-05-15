@@ -16,7 +16,6 @@ enum TimeUnitsChoice<'a> {
     Custom(&'a [TimeUnit]),
 }
 
-// TODO: Update documentation
 /// An ergonomic builder for a [`DurationParser`].
 ///
 /// The [`DurationParserBuilder`] is more ergonomic in some use cases than using [`DurationParser`]
@@ -82,7 +81,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// * [`DurationParserBuilder::default_time_units`]
     /// * [`DurationParserBuilder::all_time_units`]
-    /// * [`DurationParserBuilder::custom_time_units`]
+    /// * [`DurationParserBuilder::time_units`]
     ///
     /// to add time units.
     ///
@@ -106,10 +105,10 @@ impl<'a> DurationParserBuilder<'a> {
     /// Configure [`DurationParserBuilder`] to build the [`DurationParser`] with default time
     /// units.
     ///
-    /// Setting the time units with this method overwrites any previously made choices with
+    /// Setting the time units with this method overwrites any previous choices with
     ///
     /// * [`DurationParserBuilder::all_time_units`]
-    /// * [`DurationParserBuilder::custom_time_units`]
+    /// * [`DurationParserBuilder::time_units`]
     ///
     /// The default time units with their identifiers are:
     ///
@@ -154,10 +153,10 @@ impl<'a> DurationParserBuilder<'a> {
 
     /// Configure [`DurationParserBuilder`] to build the [`DurationParser`] with all time units.
     ///
-    /// Setting the time units with this method overwrites any previously made choices with
+    /// Setting the time units with this method overwrites any previous choices with
     ///
     /// * [`DurationParserBuilder::default_time_units`]
-    /// * [`DurationParserBuilder::custom_time_units`]
+    /// * [`DurationParserBuilder::time_units`]
     ///
     /// The time units with their identifiers are:
     ///
@@ -207,7 +206,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// Configure the [`DurationParserBuilder`] to build the [`DurationParser`] with a custom set
     /// of time units.
     ///
-    /// Setting the time units with this method overwrites any previously made choices with
+    /// Setting the time units with this method overwrites any previous choices with
     ///
     /// * [`DurationParserBuilder::default_time_units`]
     /// * [`DurationParserBuilder::all_time_units`]
@@ -282,6 +281,20 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    /// If set, parsing negative durations is possible
+    ///
+    /// See also [`DurationParser::allow_negative`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParserBuilder, ParseError};
+    ///
+    /// let parser = DurationParserBuilder::new().allow_negative().build();
+    ///
+    /// assert_eq!(parser.parse("-123"), Ok(Duration::negative(123, 0)));
+    /// assert_eq!(parser.parse("-1.23e-7"), Ok(Duration::negative(0, 123)));
+    /// ```
     pub const fn allow_negative(mut self) -> Self {
         self.config.allow_negative = true;
         self
@@ -392,7 +405,6 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
-    // TODO: uPDATE Documentation
     /// Parse possibly multiple durations and sum them up.
     ///
     /// See also [`DurationParser::parse_multiple`].
@@ -404,7 +416,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
-    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), None)
+    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), Some(&["and"]))
     ///     .build();
     ///
     /// assert_eq!(
@@ -415,7 +427,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///     parser.parse("55s500ms"),
     ///     Ok(Duration::positive(55, 500_000_000))
     /// );
-    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::positive(2, 0)));
+    /// assert_eq!(parser.parse("1m and 1ns"), Ok(Duration::positive(60, 1)));
     /// assert_eq!(
     ///     parser.parse("1.   .1"),
     ///     Ok(Duration::positive(1, 100_000_000))

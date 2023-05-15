@@ -6,23 +6,21 @@
 use super::builder::CustomDurationParserBuilder;
 use super::time_units::{CustomTimeUnit, CustomTimeUnits, TimeKeyword};
 use crate::parse::Parser;
-use crate::time::{Duration as FunduDuration, Multiplier, TimeUnitsLike};
+use crate::time::{Duration, Multiplier, TimeUnitsLike};
 use crate::{Delimiter, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
 ///
-/// See also [`CustomDurationParser::with_time_units`]. See
-/// [`CustomDurationParser::custom_time_unit`] to define completely new time units.
+/// See also [`CustomDurationParser::with_time_units`].
 ///
 /// # Problems
 ///
-/// It's possible to choose identifiers very freely within the `utf-8` range. However, some
-/// identifiers interact badly with the parser and may lead to unexpected results if they
-/// start with:
+/// It's possible to choose identifiers very freely as long as they are valid utf-8. However, some
+/// identifiers interact badly with the parser and may lead to problems if they start with:
 ///
 /// * `e` or `E` which is also indicating an exponent. If [`CustomDurationParser::disable_exponent`]
 /// is set to true this problem does not occur.
-/// * `inf` and in consequence `infinity` (lowercase and uppercase). These are reserved words as
+/// * `inf` and in consequence `infinity` case-insensitive. These are reserved words as
 /// long as [`CustomDurationParser::disable_infinity`] isn't set to true.
 /// * ascii digits from `0` to `9`
 /// * `.` which is also indicating a fraction. If [`CustomDurationParser::disable_fraction`] is set
@@ -40,7 +38,7 @@ impl<'a> CustomDurationParser<'a> {
     /// Create a new empty [`CustomDurationParser`] without any time units.
     ///
     /// There's also [`CustomDurationParser::with_time_units`] which initializes the parser with a
-    /// set time units with custom `ids`.
+    /// set of [`CustomTimeUnit`]s.
     ///
     /// # Examples
     ///
@@ -60,15 +58,14 @@ impl<'a> CustomDurationParser<'a> {
         }
     }
 
-    /// Create a new [`CustomDurationParser`] with an initial set of custom identifiers for each
-    /// [`TimeUnit`]s in `units`.
+    /// Create a new [`CustomDurationParser`] with an initial set of [`CustomTimeUnit`]s.
     ///
     /// Not all time units need to be defined, so if there is no intention to include a specific
-    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this method does not check
-    /// the validity of identifiers, so besides the need to be a valid `utf-8` sequence there
-    /// are no other hard limitations but see also the `Problems` section in
-    /// [`CustomDurationParser`]. There is also no check for duplicate `ids` but empty `ids`
-    /// are ignored. Note the ids for time units are case sensitive.
+    /// [`TimeUnit`] just leave it out of the `units`. Be aware, that this method does not check the
+    /// validity of identifiers, so besides the need to be a valid `utf-8` sequence there are no
+    /// other hard limitations but see also the `Problems` section in [`CustomDurationParser`].
+    /// There is also no check for duplicate `ids`, however [`CustomTimeUnit`]s with empty `ids` are
+    /// ignored. Note the ids for time units are case sensitive.
     ///
     /// You may find it helpful to start with a pre-defined custom sets of [`TimeUnit`]:
     /// * [`crate::SYSTEMD_TIME_UNITS`]: This is the set of time units as specified in the [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
@@ -152,13 +149,10 @@ impl<'a> CustomDurationParser<'a> {
         CustomDurationParserBuilder::new()
     }
 
-    /// Add a custom time unit to the current set of [`TimeUnit`]s.
+    /// Add a [`CustomTimeUnit`] to the current set of time units.
     ///
-    /// Custom time units have a base [`TimeUnit`] and a [`Multiplier`] in addition to their
+    /// [`CustomTimeUnit`]s have a base [`TimeUnit`] and a [`Multiplier`] in addition to their
     /// identifiers.
-    ///
-    /// # Panics
-    ///
     ///
     /// # Examples
     ///
@@ -168,17 +162,17 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// let mut parser = CustomDurationParser::new();
     /// parser
-    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///     .time_unit(CustomTimeUnit::new(
     ///         Week,
     ///         &["fortnight", "fortnights"],
     ///         Some(Multiplier(2, 0)),
     ///     ))
-    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///     .time_unit(CustomTimeUnit::new(
     ///         Second,
     ///         &["kilosecond", "kiloseconds", "kilos"],
     ///         Some(Multiplier(1000, 0)),
     ///     ))
-    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///     .time_unit(CustomTimeUnit::new(
     ///         Second,
     ///         &["shakes"],
     ///         Some(Multiplier(1, -8)),
@@ -199,25 +193,28 @@ impl<'a> CustomDurationParser<'a> {
     /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
-    /// // The common year is usually defined as 365 days
-    /// parser.custom_time_unit(CustomTimeUnit::new(
+    ///
+    /// // The common year is usually defined as 365 days instead of the Julian Year with `365.25`
+    /// // days.
+    ///
+    /// parser.time_unit(CustomTimeUnit::new(
     ///     Day,
     ///     &["y", "year", "years"],
-    ///     Some(Multiplier(356, 0)),
+    ///     Some(Multiplier(365, 0)),
     /// ));
     /// assert_eq!(
     ///     parser.parse("1year").unwrap(),
-    ///     Duration::positive(356 * 24 * 60 * 60, 0),
+    ///     Duration::positive(365 * 24 * 60 * 60, 0),
     /// );
     /// ```
-    pub fn custom_time_unit(&mut self, time_unit: CustomTimeUnit<'a>) -> &mut Self {
+    pub fn time_unit(&mut self, time_unit: CustomTimeUnit<'a>) -> &mut Self {
         self.time_units.add_custom_time_unit(time_unit);
         self
     }
 
     /// Add multiple [`CustomTimeUnit`]s at once.
     ///
-    /// See also [`CustomDurationParser::custom_time_unit`]
+    /// See also [`CustomDurationParser::time_unit`]
     ///
     /// # Example
     ///
@@ -231,26 +228,82 @@ impl<'a> CustomDurationParser<'a> {
     /// ];
     ///
     /// let mut parser = CustomDurationParser::new();
-    /// parser.custom_time_units(&CUSTOM_TIME_UNITS);
+    /// parser.time_units(&CUSTOM_TIME_UNITS);
     ///
     /// assert_eq!(
     ///     parser.parse("1fortnight").unwrap(),
     ///     Duration::positive(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
-    pub fn custom_time_units(&mut self, time_units: &[CustomTimeUnit<'a>]) -> &mut Self {
+    pub fn time_units(&mut self, time_units: &[CustomTimeUnit<'a>]) -> &mut Self {
         for time_unit in time_units {
-            self.custom_time_unit(*time_unit);
+            self.time_unit(*time_unit);
         }
         self
     }
 
+    /// Add a [`TimeKeyword`] to the current set of keywords
+    ///
+    /// [`TimeKeyword`]s are almost the same like [`CustomTimeUnit`]s and can be defined in the same
+    /// way like [`CustomTimeUnit`]s. However, they are parsed differently and don't accept a number
+    /// in front of them.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{
+    ///     CustomDurationParser, CustomTimeUnit, Duration, Multiplier, ParseError, TimeKeyword,
+    /// };
+    ///
+    /// let mut parser =
+    ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
+    /// parser.keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))));
+    ///
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(
+    ///     parser.parse("tomorrow"),
+    ///     Ok(Duration::positive(60 * 60 * 24, 0))
+    /// );
+    ///
+    /// // but not
+    /// assert_eq!(
+    ///     parser.parse("123tomorrow"),
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: 'tomorrow'".to_string()
+    ///     ))
+    /// );
+    /// ```
     pub fn keyword(&mut self, keyword: TimeKeyword<'a>) -> &mut Self {
         self.keywords
             .add_custom_time_unit(keyword.to_custom_time_unit());
         self
     }
 
+    /// Add multiple [`TimeKeyword`]s to the current set of keywords
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, Duration, Multiplier, ParseError, TimeKeyword};
+    ///
+    /// let mut parser = CustomDurationParser::new();
+    /// parser.allow_negative(true).keywords(&[
+    ///     TimeKeyword::new(Day, &["yesterday"], Some(Multiplier(-1, 0))),
+    ///     TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))),
+    /// ]);
+    ///
+    /// assert_eq!(
+    ///     parser.parse("yesterday"),
+    ///     Ok(Duration::negative(60 * 60 * 24, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("tomorrow"),
+    ///     Ok(Duration::positive(60 * 60 * 24, 0))
+    /// );
+    /// ```
     pub fn keywords(&mut self, keywords: &[TimeKeyword<'a>]) -> &mut Self {
         for keyword in keywords {
             self.keyword(*keyword);
@@ -258,8 +311,7 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
-    /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
-    /// configured [`TimeUnit`]s.
+    /// Parse the `source` string into a [`crate::Duration`].
     ///
     /// See the [module level documentation](crate) for more information on the format.
     ///
@@ -274,7 +326,7 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     #[inline]
-    pub fn parse(&self, source: &str) -> Result<FunduDuration, ParseError> {
+    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         self.inner.parse(
             source,
             &self.time_units,
@@ -343,11 +395,118 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// If true, parsing negative durations is possible
+    ///
+    /// This setting must be enabled if a [`CustomTimeUnit`] has a negative [`Multiplier`], a
+    /// [`CustomDurationParser::keyword`] is negative or the [`CustomDurationParser::allow_ago`]
+    /// setting is enabled. If `allow_negative` is disabled and a negative time unit, keyword etc.
+    /// is encountered a [`ParseError::NegativeNumber`] is returned.
+    ///
+    /// See also [`crate::DurationParser::allow_negative`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, TimeKeyword};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[
+    ///     CustomTimeUnit::with_default(NanoSecond, &["ns"]),
+    ///     CustomTimeUnit::new(Second, &["neg"], Some(Multiplier(-1, 0))),
+    /// ]);
+    /// parser.allow_negative(true).keyword(TimeKeyword::new(
+    ///     Day,
+    ///     &["yesterday"],
+    ///     Some(Multiplier(-1, 0)),
+    /// ));
+    ///
+    /// assert_eq!(parser.parse("-123ns"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(parser.parse("1.23e-7neg"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(
+    ///     parser.parse("yesterday"),
+    ///     Ok(Duration::negative(60 * 60 * 24, 0))
+    /// );
+    /// ```
     pub fn allow_negative(&mut self, value: bool) -> &mut Self {
         self.inner.config.allow_negative = value;
         self
     }
 
+    /// If the delimiter is set, the `ago` keyword can follow a time unit and a [`Delimiter`] to
+    /// denote a negative duration
+    ///
+    /// The `ago` keyword is allowed in the source string after a time unit and only if a time unit
+    /// was encountered. The time unit and `ago` must be delimited by the specified delimiter. In
+    /// contrast to [`CustomTimeUnit`]'s, an encountered [`TimeKeyword`] doesn't allow for the `ago`
+    /// keyword. Note that setting this option automatically sets
+    /// [`CustomDurationParser::allow_negative`] to true.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, TimeKeyword};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[
+    ///     CustomTimeUnit::with_default(NanoSecond, &["ns"]),
+    ///     CustomTimeUnit::new(Second, &["neg"], Some(Multiplier(-1, 0))),
+    /// ]);
+    /// parser
+    ///     .allow_ago(Some(|byte: u8| byte.is_ascii_whitespace()))
+    ///     .keyword(TimeKeyword::new(
+    ///         Day,
+    ///         &["yesterday"],
+    ///         Some(Multiplier(-1, 0)),
+    ///     ));
+    ///
+    /// assert_eq!(parser.parse("123ns ago"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(parser.parse("-123ns ago"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123neg ago"), Ok(Duration::positive(123, 0)));
+    /// ```
+    ///
+    /// And some illegal usages of `ago`
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier, ParseError, TimeKeyword};
+    ///
+    /// let mut parser =
+    ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
+    /// parser
+    ///     .allow_ago(Some(|byte: u8| byte.is_ascii_whitespace()))
+    ///     .keyword(TimeKeyword::new(
+    ///         Day,
+    ///         &["yesterday"],
+    ///         Some(Multiplier(-1, 0)),
+    ///     ));
+    ///
+    /// // Error because no time unit was specified
+    /// assert_eq!(
+    ///     parser.parse("123 ago"),
+    ///     Err(ParseError::Syntax(
+    ///         3,
+    ///         "Expected end of input but found: ' '".to_string()
+    ///     ))
+    /// );
+    ///
+    /// // Error because ago was specified multiple times
+    /// assert_eq!(
+    ///     parser.parse("123ns ago ago"),
+    ///     Err(ParseError::Syntax(
+    ///         9,
+    ///         "Expected end of input but found: ' '".to_string()
+    ///     ))
+    /// );
+    ///
+    /// // Error because `yesterday` is a [`TimeKeyword`]
+    /// assert_eq!(
+    ///     parser.parse("yesterday ago"),
+    ///     Err(ParseError::Syntax(
+    ///         0,
+    ///         "Invalid input: 'yesterday ago'".to_string()
+    ///     ))
+    /// );
+    /// ```
     pub fn allow_ago(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
         self.inner.config.allow_ago = delimiter;
         self.inner.config.allow_negative = true;
@@ -457,7 +616,6 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
-    // TODO:  Update documentation
     /// If set to some [`Delimiter`], parse possibly multiple durations and sum them up.
     ///
     /// See also [`crate::DurationParser::parse_multiple`]
@@ -468,7 +626,7 @@ impl<'a> CustomDurationParser<'a> {
     /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
-    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), None);
+    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), Some(&["and"]));
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h 2e+2ns"),
@@ -478,7 +636,7 @@ impl<'a> CustomDurationParser<'a> {
     ///     parser.parse("55s500ms"),
     ///     Ok(Duration::positive(55, 500_000_000))
     /// );
-    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::positive(2, 0)));
+    /// assert_eq!(parser.parse("1m and 1ns"), Ok(Duration::positive(60, 1)));
     /// assert_eq!(
     ///     parser.parse("1.   .1"),
     ///     Ok(Duration::positive(1, 100_000_000))
@@ -605,7 +763,7 @@ mod tests {
     fn test_custom_duration_parser_when_add_custom_time_units() {
         let ids = ["century", "centuries"];
         let mut parser = CustomDurationParser::new();
-        parser.custom_time_unit(CustomTimeUnit::new(Year, &ids, Some(Multiplier(100, 0))));
+        parser.time_unit(CustomTimeUnit::new(Year, &ids, Some(Multiplier(100, 0))));
         for id in ids {
             assert_eq!(
                 parser.get_time_unit_by_id(id),
@@ -712,7 +870,7 @@ mod tests {
             CustomTimeUnit::new(Second, &["secs"], Some(Multiplier(2, 0))),
         ];
         let mut custom = CustomDurationParser::new();
-        custom.custom_time_units(&time_units);
+        custom.time_units(&time_units);
         assert_eq!(
             custom.get_time_unit_by_id("sec"),
             Some((Second, Multiplier(1, 0)))
@@ -728,7 +886,7 @@ mod tests {
         let mut custom = CustomDurationParser::new();
         assert!(custom.is_empty());
 
-        custom.custom_time_units(&[]);
+        custom.time_units(&[]);
         assert!(custom.is_empty());
     }
 

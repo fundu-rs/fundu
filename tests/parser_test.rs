@@ -532,7 +532,7 @@ fn test_parser_when_parse_multiple_number_is_optional_not_allow_delimiter() {
 fn test_parser_when_parse_multiple_with_invalid_delimiter() {
     let delimiter = |byte: u8| byte == 0xb5;
     let parser = CustomDurationParser::builder()
-        .custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
+        .time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
         .parse_multiple(delimiter, None)
         .build();
 
@@ -551,7 +551,7 @@ fn test_parser_when_parse_multiple_with_invalid_delimiter() {
 fn test_parser_when_allow_ago_with_invalid_delimiter() {
     let delimiter = |byte: u8| byte == 0xb5;
     let parser = CustomDurationParser::builder()
-        .custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
+        .time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
         .allow_ago(delimiter)
         .build();
 
@@ -570,7 +570,7 @@ fn test_parser_when_allow_ago_with_invalid_delimiter() {
 fn test_parser_parse_multiple_and_keywords_with_invalid_delimiter() {
     let delimiter = |byte: u8| byte == 0xb5;
     let parser = CustomDurationParser::builder()
-        .custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
+        .time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
         .keyword(TimeKeyword::new(MicroSecond, &["manµ"], None))
         .parse_multiple(delimiter, None)
         .build();
@@ -733,7 +733,7 @@ fn test_custom_parser_when_disable_infinity_then_no_problems_with_infinity_like_
     let parser = CustomDurationParserBuilder::new()
         .disable_infinity()
         .number_is_optional()
-        .custom_time_units(&[CustomTimeUnit::with_default(NanoSecond, ids)])
+        .time_units(&[CustomTimeUnit::with_default(NanoSecond, ids)])
         .build();
     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
 }
@@ -751,7 +751,7 @@ fn test_custom_parser_when_disable_infinity_then_no_problems_with_infinity_like_
 #[case::negative_overflow(&format!("-{}s", u128::MAX), Duration::MAX)]
 fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expected: Duration) {
     let parser = CustomDurationParserBuilder::new()
-        .custom_time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(-1, 0))))
+        .time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(-1, 0))))
         .allow_negative()
         .build();
     let actual = parser.parse(input).unwrap();
@@ -775,7 +775,7 @@ fn test_custom_parser_with_keywords(#[case] input: &str, #[case] expected: Durat
         ))
         .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
         .keyword(TimeKeyword::new(Day, &["today"], Some(Multiplier(0, 0))))
-        .custom_time_units(&[
+        .time_units(&[
             CustomTimeUnit::with_default(NanoSecond, &["ns"]),
             CustomTimeUnit::with_default(Second, &["s", "second"]),
         ])
@@ -794,7 +794,7 @@ fn test_custom_parser_with_keywords(#[case] input: &str, #[case] expected: Durat
 fn test_custom_parser_with_keywords_then_error(#[case] input: &str, #[case] expected: ParseError) {
     let parser = CustomDurationParserBuilder::new()
         .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
-        .custom_time_units(&[
+        .time_units(&[
             CustomTimeUnit::with_default(NanoSecond, &["ns"]),
             CustomTimeUnit::with_default(Second, &["s", "second"]),
         ])
@@ -823,7 +823,7 @@ fn test_custom_parser_with_keywords_when_parse_multiple(
             Some(Multiplier(-1, 0)),
         ))
         .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
-        .custom_time_units(&[
+        .time_units(&[
             CustomTimeUnit::with_default(NanoSecond, &["ns"]),
             CustomTimeUnit::with_default(Second, &["s", "second"]),
         ])
@@ -849,7 +849,7 @@ fn test_custom_parser_with_keywords_when_parse_multiple_and_number_is_optional(
 ) {
     let parser = CustomDurationParserBuilder::new()
         .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
-        .custom_time_units(&[
+        .time_units(&[
             CustomTimeUnit::with_default(NanoSecond, &["ns"]),
             CustomTimeUnit::with_default(Second, &["s", "second"]),
         ])
@@ -882,7 +882,7 @@ fn test_custom_parser_with_negative_keyword_when_not_allow_negative_then_error()
 #[case::with_delimiter_between_number_and_time_unit("1 s ago", Duration::negative(1, 0))]
 fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Duration) {
     let parser = CustomDurationParserBuilder::new()
-        .custom_time_units(&SYSTEMD_TIME_UNITS)
+        .time_units(&SYSTEMD_TIME_UNITS)
         .allow_delimiter(|byte| byte.is_ascii_whitespace())
         .allow_ago(|byte| byte.is_ascii_whitespace())
         .allow_negative()
@@ -898,7 +898,7 @@ fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Dura
 #[case::one_second_twice("1s:1s", ParseError::TimeUnit(3, "Found unexpected keyword: '1s'".to_string()))]
 fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {
     let parser = CustomDurationParserBuilder::new()
-        .custom_time_units(&SYSTEMD_TIME_UNITS)
+        .time_units(&SYSTEMD_TIME_UNITS)
         .allow_delimiter(|byte| byte.is_ascii_whitespace())
         .allow_ago(|byte| matches!(byte, b':'))
         .allow_negative()
@@ -941,7 +941,7 @@ fn test_custom_parser_with_allow_ago_when_parse_multiple(
     #[case] expected: Duration,
 ) {
     let parser = CustomDurationParserBuilder::new()
-        .custom_time_units(&SYSTEMD_TIME_UNITS)
+        .time_units(&SYSTEMD_TIME_UNITS)
         .allow_delimiter(|byte| byte.is_ascii_whitespace())
         .allow_ago(|byte| byte.is_ascii_whitespace())
         .allow_negative()

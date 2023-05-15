@@ -5,18 +5,29 @@
 
 //! # Overview
 //!
-//! Parse a rust string into a [`std::time::Duration`] or for negative numbers into a
-//! [`time::Duration`].
+//! Parse a rust string into a [`crate::Duration`].
 //!
 //! `fundu` is a configurable, precise and blazingly fast duration parser
 //!
-//! * with the flexibility to customize [`TimeUnit`]s, the number format and other aspects
+//! * with the flexibility to customize [`TimeUnit`]s, or even create own time units with a
+//! [`CustomTimeUnit`] (the `custom` feature is needed)
 //! * without floating point calculations. What you put in is what you get out.
 //! * with sound limit handling. Infinity and numbers larger than [`Duration::MAX`] evaluate to
 //! [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
-//! * with the option to parse negative numbers to negative durations if the `negative` feature is
-//! enabled
-//! * and with informative error messages
+//! * with many options to customize the number format and other aspects of the parsing process like
+//! parsing negative durations
+//! * and with meaningful error messages
+//!
+//! # Fundu's Duration
+//!
+//! This [`crate::Duration`] is returned by the parser of this library and can be converted to a
+//! [`std::time::Duration`] and if the feature is activated into a [`time::Duration`] respectively
+//! [`chrono::Duration`]. This crates duration is a superset of the aforementioned durations, so
+//! converting to fundu's duration with `From` or `Into` is lossless. Converting from
+//! [`crate::Duration`] to any of the other durations can overflow or can't be negative, so
+//! conversions must be done with `TryFrom` or `TryInto`. Additionally, fundu's duration implements
+//! [`SaturatingInto`] for the above durations, so conversions saturate at the maximum or minimum of
+//! these durations.
 //!
 //! # Features
 //!
@@ -32,19 +43,26 @@
 //! with fully customizable identifiers for each [`TimeUnit`]. With the [`CustomDurationParser`]
 //! it is also possible to define completely new time units, a [`CustomTimeUnit`].
 //!
-//! ## `negative`
+//! ## `chrono` and `time`
 //!
-//! Enable parsing negative numbers with [`DurationParser::parse_negative`] and
-//! [`CustomDurationParser::parse_negative`] into negative durations represented by
-//! [`time::Duration`]. If not activated, negative numbers produce a
-//! [`ParseError::NegativeNumber`].
+//! The `chrono` feature activates methods of [`Duration`] to convert from and to a
+//! [`chrono::Duration`]. The `time` feature activates methods of [`Duration`] to convert from and
+//! to a [`time::Duration`]. Both of these durations allow for negative durations. Enable parsing
+//! negative numbers with [`DurationParser::allow_negative`] or
+//! [`CustomDurationParser::allow_negative`] into negative durations represented by [`Duration`].
+//! If not activated, negative numbers produce a [`ParseError::NegativeNumber`].
+//!
+//! ## serde
+//!
+//! Some structs and enums can be serialized and deserialized with `serde` if the feature is
+//! activated.
 //!
 //! # Configuration and Format
 //!
-//! This parser can be configured to accept strings with a default set of time units
-//! [`DurationParser::new`], with all time units [`DurationParser::with_all_time_units`] or
-//! without [`DurationParser::without_time_units`]. A custom set of time units is also possible
-//! with [`DurationParser::with_time_units`]. All these parsers accept strings such as
+//! The `standard` parser can be configured to accept strings with a default set of time units
+//! [`DurationParser::new`], with all time units [`DurationParser::with_all_time_units`] or without
+//! [`DurationParser::without_time_units`]. A custom set of time units is also possible with
+//! [`DurationParser::with_time_units`]. All these parsers accept strings such as
 //!
 //! * `1.41`
 //! * `42`
@@ -123,8 +141,8 @@
 //! assert_eq!(parse_duration(input).unwrap(), Duration::new(100, 0));
 //! ```
 //!
-//! When a customization of the accepted [`TimeUnit`]s is required, then the builder
-//! [`DurationParser`] can be used.
+//! When a customization of the accepted [`TimeUnit`]s is required, then [`DurationParser`] can be
+//! used.
 //!
 //! ```rust
 //! use fundu::{Duration, DurationParser};
@@ -189,6 +207,7 @@
 //!     Duration::positive(1, 0)
 //! );
 //! ```
+//!
 //! The identifiers for time units can be fully customized with any number of valid
 //! [utf-8](https://en.wikipedia.org/wiki/UTF-8) sequences if the `custom` feature is activated:
 //!
@@ -206,6 +225,9 @@
 //! assert_eq!(parser.parse("1e3secs"), Ok(Duration::positive(1000, 0)));
 //! assert_eq!(parser.parse("1.1⏳"), Ok(Duration::positive(3960, 0)));
 //! ```
+//!
+//! The `custom` feature can be used to customize a lot more. See the documentation of the exported
+//! items of the `custom` feature (like [`CustomTimeUnit`], [`TimeKeyword`]) for more information.
 //!
 //! Also, `fundu` tries to give informative error messages
 //!
@@ -299,9 +321,9 @@ pub use standard::{
 };
 
 pub use crate::time::{
-    Duration, Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
-    DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
-    DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
+    Duration, Multiplier, SaturatingInto, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR,
+    DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH,
+    DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
 
 #[cfg(test)]

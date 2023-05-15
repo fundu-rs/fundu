@@ -10,10 +10,10 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 
 /// An ascii delimiter defined as closure.
 ///
-/// The [`Delimiter`] is currently a type alias for a closure taking a `u8` byte and returning a
-/// `bool`. Most likely, the [`Delimiter`] is used to define some whitespace but whitespace
-/// definitions differ, so a closure provides the most flexible definition of a delimiter. For
-/// example the definition of whitespace from rust [`u8::is_ascii_whitespace`]:
+/// The [`Delimiter`] is a type alias for a closure taking a `u8` byte and returning a `bool`. Most
+/// likely, the [`Delimiter`] is used to define some whitespace but whitespace definitions differ,
+/// so a closure provides the most flexible definition of a delimiter. For example the definition of
+/// whitespace from rust [`u8::is_ascii_whitespace`]:
 ///
 /// ```text
 /// Checks if the value is an ASCII whitespace character: U+0020 SPACE, U+0009 HORIZONTAL TAB,
@@ -29,9 +29,7 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 /// # Problems
 ///
 /// The delimiter takes a `u8` as input, but matching any non-ascii (`0x80 - 0xff`) bytes may lead
-/// to serious problems if the input string contains multi-byte utf-8 characters. It's always a good
-/// idea to consider this, especially, if the input for the parser comes from an untrusted source.
-/// So, as a general rule of thumb, don't match any byte within the `0x80 - 0xff` range.
+/// to a [`crate::ParseError`] if the input string contains multi-byte utf-8 characters.
 ///
 /// # Examples
 ///

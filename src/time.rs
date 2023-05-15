@@ -159,26 +159,88 @@ impl Default for Multiplier {
 }
 
 impl Multiplier {
+    /// Return the coefficient component of the `Multiplier`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Multiplier;
+    ///
+    /// let multiplier = Multiplier(123, 45);
+    /// assert_eq!(multiplier.coefficient(), 123);
+    /// ```
     #[inline]
     pub const fn coefficient(&self) -> i64 {
         self.0
     }
 
+    /// Return the exponent component of the `Multiplier`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Multiplier;
+    ///
+    /// let multiplier = Multiplier(123, 45);
+    /// assert_eq!(multiplier.exponent(), 45);
+    /// ```
     #[inline]
     pub const fn exponent(&self) -> i16 {
         self.1
     }
 
+    /// Return true if the `Multiplier` is negative
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Multiplier;
+    ///
+    /// let multiplier = Multiplier(-123, 45);
+    /// assert!(multiplier.is_negative());
+    /// ```
     #[inline]
     pub const fn is_negative(&self) -> bool {
         !self.is_positive()
     }
 
+    /// Return true if the `Multiplier` is positive
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Multiplier;
+    ///
+    /// let multiplier = Multiplier(123, 45);
+    /// assert!(multiplier.is_positive());
+    /// ```
     #[inline]
     pub const fn is_positive(&self) -> bool {
         self.0 == 0 || self.0.is_positive()
     }
 
+    /// Checked `Multiplier` multiplication. Computes `self * other`, returning `None` if an
+    /// overflow occurred.
+    ///
+    /// Let `a, b` be multipliers, with `m` being the coefficient and `e` the exponent. The
+    /// multiplication is performed such that `(x.m, x.e) = (a.m * b.m, a.e + b.e)`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Multiplier;
+    ///
+    /// assert_eq!(
+    ///     Multiplier(1, 2).checked_mul(Multiplier(3, 4)),
+    ///     Some(Multiplier(3, 6))
+    /// );
+    /// assert_eq!(
+    ///     Multiplier(-1, 2).checked_mul(Multiplier(3, -4)),
+    ///     Some(Multiplier(-3, -2))
+    /// );
+    /// assert_eq!(Multiplier(2, 0).checked_mul(Multiplier(i64::MAX, 1)), None);
+    /// assert_eq!(Multiplier(1, 2).checked_mul(Multiplier(1, i16::MAX)), None);
+    /// ```
     #[inline]
     pub const fn checked_mul(&self, rhs: Self) -> Option<Self> {
         if let Some(coefficient) = self.0.checked_mul(rhs.0) {
@@ -189,6 +251,21 @@ impl Multiplier {
         None
     }
 
+    /// Saturating negation. Computes `-self`, returning `i64::MAX` if `self.coefficient() ==
+    /// i64::MIN` instead of overflowing.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Multiplier;
+    ///
+    /// assert_eq!(Multiplier(1, 2).saturating_neg(), Multiplier(-1, 2));
+    /// assert_eq!(Multiplier(-1, 2).saturating_neg(), Multiplier(1, 2));
+    /// assert_eq!(
+    ///     Multiplier(i64::MIN, 2).saturating_neg(),
+    ///     Multiplier(i64::MAX, 2)
+    /// );
+    /// ```
     #[inline]
     pub const fn saturating_neg(&self) -> Self {
         Multiplier(self.0.saturating_neg(), self.1)
@@ -204,10 +281,43 @@ impl Mul for Multiplier {
     }
 }
 
+/// Conversion which saturates at the maximum or maximum instead of overflowing
 pub trait SaturatingInto<T>: Sized {
+    /// Performs the saturating conversion
     fn saturating_into(self) -> T;
 }
 
+/// The duration which is returned by the parser
+///
+/// The `Duration` of this library implements conversions to a [`std::time::Duration`] and if the
+/// feature is activated into a [`time::Duration`] respectively [`chrono::Duration`]. This crates
+/// duration is a superset of the aforementioned durations, so converting to fundu's duration with
+/// `From` or `Into` is lossless. Converting from [`crate::Duration`] to the other durations can
+/// overflow the other duration's value range, but `TryFrom` is implement for all of these
+/// durations. Note that fundu's duration also implements [`SaturatingInto`] for the above durations
+/// which performs the conversion saturating at the maximum or minimum of these durations.
+///
+/// # Examples
+///
+/// Basic conversions from [`Duration`] to [`std::time::Duration`].
+///
+/// ```rust
+/// use std::time::Duration as StdDuration;
+///
+/// use fundu::{Duration, SaturatingInto, TryFromDurationError};
+///
+/// let result: Result<StdDuration, TryFromDurationError> = Duration::positive(1, 2).try_into();
+/// assert_eq!(result, Ok(StdDuration::new(1, 2)));
+///
+/// let result: Result<StdDuration, TryFromDurationError> = Duration::negative(1, 2).try_into();
+/// assert_eq!(result, Err(TryFromDurationError::NegativeDuration));
+///
+/// let duration: StdDuration = Duration::negative(1, 2).saturating_into();
+/// assert_eq!(duration, StdDuration::ZERO);
+///
+/// let duration: StdDuration = Duration::MAX.saturating_into();
+/// assert_eq!(duration, StdDuration::MAX);
+/// ```
 #[derive(Debug, Eq, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Duration {
@@ -216,26 +326,86 @@ pub struct Duration {
 }
 
 impl Duration {
+    /// A duration of zero time
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::ZERO;
+    /// assert!(duration.is_zero());
+    /// ```
     pub const ZERO: Self = Self {
         is_negative: false,
         inner: std::time::Duration::ZERO,
     };
 
+    /// The minimum duration
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::MIN;
+    /// assert_eq!(Duration::negative(u64::MAX, 999_999_999), duration);
+    /// ```
     pub const MIN: Self = Self {
         is_negative: true,
         inner: std::time::Duration::MAX,
     };
 
+    /// The maximum duration
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::MAX;
+    /// assert_eq!(Duration::positive(u64::MAX, 999_999_999), duration);
+    /// ```
     pub const MAX: Self = Self {
         is_negative: false,
         inner: std::time::Duration::MAX,
     };
 
-    // TODO: If inner is zero then return a positive zero duration ??
+    /// Creates a new `Duration` from a [`std::time::Duration`] which can be negative or positive
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::from_std(false, std::time::Duration::new(1, 0));
+    /// assert_eq!(Duration::positive(1, 0), duration);
+    ///
+    /// let duration = Duration::from_std(true, std::time::Duration::new(1, 0));
+    /// assert_eq!(Duration::negative(1, 0), duration);
+    /// ```
     pub const fn from_std(is_negative: bool, inner: std::time::Duration) -> Self {
         Self { is_negative, inner }
     }
 
+    /// Creates a new positive `Duration`
+    ///
+    /// # Panics
+    ///
+    /// This constructor will panic if creating a [`std::time::Duration`] with the same parameters
+    /// would panic
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::positive(1, 0);
+    /// assert!(duration.is_positive());
+    ///
+    /// let duration = Duration::positive(0, 0);
+    /// assert!(duration.is_positive());
+    /// ```
     pub const fn positive(secs: u64, nanos: u32) -> Self {
         Self {
             is_negative: false,
@@ -243,6 +413,21 @@ impl Duration {
         }
     }
 
+    /// Creates a new negative `Duration`
+    ///
+    /// # Panics
+    ///
+    /// This constructor will panic if creating a [`std::time::Duration`] with the same parameters
+    /// would panic
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::negative(1, 0);
+    /// assert!(duration.is_negative());
+    /// ```
     pub const fn negative(secs: u64, nanos: u32) -> Self {
         Self {
             is_negative: true,
@@ -250,22 +435,106 @@ impl Duration {
         }
     }
 
+    /// Returns true if the `Duration` is negative
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::MIN;
+    /// assert!(duration.is_negative());
+    ///
+    /// let duration = Duration::negative(0, 1);
+    /// assert!(duration.is_negative());
+    /// ```
+    #[inline]
     pub const fn is_negative(&self) -> bool {
         self.is_negative
     }
 
+    /// Returns true if the `Duration` is positive
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::ZERO;
+    /// assert!(duration.is_positive());
+    ///
+    /// let duration = Duration::positive(0, 1);
+    /// assert!(duration.is_positive());
+    /// ```
+    #[inline]
     pub const fn is_positive(&self) -> bool {
         !self.is_negative
     }
 
+    /// Returns true if the `Duration` is zero
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::ZERO;
+    /// assert!(duration.is_zero());
+    ///
+    /// let duration = Duration::positive(0, 0);
+    /// assert!(duration.is_zero());
+    ///
+    /// let duration = Duration::negative(0, 0);
+    /// assert!(duration.is_zero());
+    /// ```
+    #[inline]
     pub const fn is_zero(&self) -> bool {
         self.inner.is_zero()
     }
 
+    /// Returns the absolute value of the duration
+    ///
+    /// This operation is lossless.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// let duration = Duration::MIN;
+    /// assert_eq!(duration.abs(), Duration::MAX);
+    ///
+    /// let duration = Duration::negative(1, 0);
+    /// assert_eq!(duration.abs(), Duration::positive(1, 0));
+    ///
+    /// let duration = Duration::positive(1, 0);
+    /// assert_eq!(duration.abs(), Duration::positive(1, 0));
+    /// ```
+    #[inline]
     pub const fn abs(&self) -> Self {
         Self::from_std(false, self.inner)
     }
 
+    /// Sums this duration with the `other` duration, returning None if an overflow occurred
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// assert_eq!(
+    ///     Duration::positive(1, 0).checked_add(Duration::positive(1, 0)),
+    ///     Some(Duration::positive(2, 0))
+    /// );
+    /// assert_eq!(
+    ///     Duration::positive(u64::MAX, 0).checked_add(Duration::positive(1, 0)),
+    ///     None
+    /// );
+    /// assert_eq!(
+    ///     Duration::negative(u64::MAX, 0).checked_add(Duration::negative(1, 0)),
+    ///     None
+    /// );
+    /// ```
     pub fn checked_add(&self, other: Self) -> Option<Self> {
         match (
             self.is_negative,
@@ -296,10 +565,44 @@ impl Duration {
         }
     }
 
+    /// Subtracts this duration with the `other` duration, returning None if an overflow occurred
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// assert_eq!(
+    ///     Duration::positive(1, 0).checked_sub(Duration::positive(1, 0)),
+    ///     Some(Duration::ZERO)
+    /// );
+    /// assert_eq!(
+    ///     Duration::negative(u64::MAX, 0).checked_sub(Duration::positive(1, 0)),
+    ///     None
+    /// );
+    /// ```
+    #[inline]
     pub fn checked_sub(&self, other: Self) -> Option<Self> {
         self.checked_add(other.neg())
     }
 
+    /// Saturating [`Duration`] addition. Computes `self + other`, returning [`Duration::MAX`] or
+    /// [`Duration::MIN`] if an overflow occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// assert_eq!(
+    ///     Duration::positive(1, 0).saturating_add(Duration::positive(0, 1)),
+    ///     Duration::positive(1, 1)
+    /// );
+    /// assert_eq!(
+    ///     Duration::positive(u64::MAX, 0).saturating_add(Duration::positive(1, 0)),
+    ///     Duration::MAX
+    /// );
+    /// ```
     pub fn saturating_add(&self, other: Self) -> Self {
         match self.checked_add(other) {
             Some(d) => d,
@@ -310,6 +613,24 @@ impl Duration {
         }
     }
 
+    /// Saturating [`Duration`] subtraction. Computes `self - other`, returning [`Duration::MAX`] or
+    /// [`Duration::MIN`] if an overflow occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    ///
+    /// assert_eq!(
+    ///     Duration::positive(1, 0).saturating_sub(Duration::positive(1, 0)),
+    ///     Duration::ZERO
+    /// );
+    /// assert_eq!(
+    ///     Duration::negative(u64::MAX, 0).saturating_sub(Duration::positive(1, 0)),
+    ///     Duration::MIN
+    /// );
+    /// ```
+    #[inline]
     pub fn saturating_sub(&self, other: Self) -> Self {
         self.saturating_add(other.neg())
     }
@@ -393,6 +714,7 @@ impl Ord for Duration {
     }
 }
 
+/// Convert a [`std::time::Duration`] into a [`Duration`]
 impl From<std::time::Duration> for Duration {
     fn from(duration: std::time::Duration) -> Self {
         Self {
@@ -402,12 +724,22 @@ impl From<std::time::Duration> for Duration {
     }
 }
 
+impl SaturatingInto<std::time::Duration> for Duration {
+    fn saturating_into(self) -> std::time::Duration {
+        self.try_into().unwrap_or_else(|error| match error {
+            TryFromDurationError::NegativeDuration => std::time::Duration::ZERO,
+            _ => unreachable!(), // cov:excl-line
+        })
+    }
+}
+
+/// Convert a [`Duration`] into a [`std::time::Duration`]
 impl TryFrom<Duration> for std::time::Duration {
     type Error = TryFromDurationError;
 
     fn try_from(duration: Duration) -> Result<Self, Self::Error> {
-        if duration.is_negative {
-            Err(TryFromDurationError::NegativeNumber)
+        if !duration.is_zero() && duration.is_negative {
+            Err(TryFromDurationError::NegativeDuration)
         } else {
             Ok(duration.inner)
         }
@@ -415,6 +747,9 @@ impl TryFrom<Duration> for std::time::Duration {
 }
 
 #[cfg(feature = "time")]
+/// Convert a [`time::Duration`] into a [`Duration`]
+///
+/// [`time::Duration`]: <https://docs.rs/time/latest/time/struct.Duration.html>
 impl From<time::Duration> for Duration {
     fn from(duration: time::Duration) -> Self {
         Self {
@@ -428,6 +763,9 @@ impl From<time::Duration> for Duration {
 }
 
 #[cfg(feature = "time")]
+/// Convert a [`Duration`] into a [`time::Duration`]
+///
+/// [`time::Duration`]: <https://docs.rs/time/latest/time/struct.Duration.html>
 impl TryFrom<Duration> for time::Duration {
     type Error = TryFromDurationError;
 
@@ -437,6 +775,9 @@ impl TryFrom<Duration> for time::Duration {
 }
 
 #[cfg(feature = "time")]
+/// Convert a [`Duration`] into a [`time::Duration`]
+///
+/// [`time::Duration`]: <https://docs.rs/time/latest/time/struct.Duration.html>
 impl TryFrom<&Duration> for time::Duration {
     type Error = TryFromDurationError;
 
@@ -461,16 +802,16 @@ impl TryFrom<&Duration> for time::Duration {
 #[cfg(feature = "time")]
 impl SaturatingInto<time::Duration> for Duration {
     fn saturating_into(self) -> time::Duration {
-        match self.try_into() {
-            Ok(duration) => duration,
-            Err(TryFromDurationError::NegativeOverflow) => time::Duration::MIN,
-            Err(TryFromDurationError::PositiveOverflow) => time::Duration::MAX,
-            Err(_) => unreachable!(), // cov:excl-line
-        }
+        self.try_into().unwrap_or_else(|error| match error {
+            TryFromDurationError::PositiveOverflow => time::Duration::MAX,
+            TryFromDurationError::NegativeOverflow => time::Duration::MIN,
+            _ => unreachable!(), // cov:excl-line
+        })
     }
 }
 
 #[cfg(feature = "chrono")]
+/// Convert a [`Duration`] into a [`chrono::Duration`]
 impl TryFrom<Duration> for chrono::Duration {
     type Error = TryFromDurationError;
 
@@ -480,6 +821,7 @@ impl TryFrom<Duration> for chrono::Duration {
 }
 
 #[cfg(feature = "chrono")]
+/// Convert a [`Duration`] into a [`chrono::Duration`]
 impl TryFrom<&Duration> for chrono::Duration {
     type Error = TryFromDurationError;
 
@@ -516,16 +858,16 @@ impl TryFrom<&Duration> for chrono::Duration {
 #[cfg(feature = "chrono")]
 impl SaturatingInto<chrono::Duration> for Duration {
     fn saturating_into(self) -> chrono::Duration {
-        match self.try_into() {
-            Ok(duration) => duration,
-            Err(TryFromDurationError::NegativeOverflow) => chrono::Duration::min_value(),
-            Err(TryFromDurationError::PositiveOverflow) => chrono::Duration::max_value(),
-            Err(_) => unreachable!(), // cov:excl-line
-        }
+        self.try_into().unwrap_or_else(|error| match error {
+            TryFromDurationError::PositiveOverflow => chrono::Duration::max_value(),
+            TryFromDurationError::NegativeOverflow => chrono::Duration::min_value(),
+            _ => unreachable!(), // cov:excl-line
+        })
     }
 }
 
 #[cfg(feature = "chrono")]
+/// Convert a [`chrono::Duration`] into a [`Duration`]
 impl From<chrono::Duration> for Duration {
     fn from(duration: chrono::Duration) -> Self {
         match duration.to_std() {
@@ -544,11 +886,13 @@ impl From<chrono::Duration> for Duration {
 #[cfg(test)]
 mod tests {
     use std::collections::hash_map::DefaultHasher;
+    use std::time::Duration as StdDuration;
 
     #[cfg(feature = "chrono")]
     use chrono::Duration as ChronoDuration;
     use rstest::rstest;
     use rstest_reuse::{apply, template};
+    #[cfg(feature = "serde")]
     use serde_test::{assert_tokens, Token};
 
     use super::*;
@@ -559,6 +903,7 @@ mod tests {
     #[cfg(feature = "chrono")]
     const CHRONO_MAX_DURATION: Duration = Duration::positive(i64::MAX as u64 / 1000, 807_000_000);
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_time_unit_serde() {
         let time_unit = TimeUnit::Day;
@@ -573,6 +918,7 @@ mod tests {
         )
     }
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_serde_multiplier() {
         let multiplier = Multiplier(1, 2);
@@ -591,6 +937,7 @@ mod tests {
         )
     }
 
+    #[cfg(feature = "serde")]
     #[test]
     fn test_serde_duration() {
         let duration = Duration::positive(1, 2);
@@ -1033,6 +1380,24 @@ mod tests {
         assert_ne!(hasher.finish(), other_hasher.finish());
     }
 
+    #[rstest]
+    #[case::positive_zero(Duration::ZERO, StdDuration::ZERO)]
+    #[case::negative_zero(Duration::negative(0, 0), StdDuration::ZERO)]
+    #[case::positive_one(Duration::positive(1, 0), StdDuration::new(1, 0))]
+    #[case::positive_one_nano(Duration::positive(0, 1), StdDuration::new(0, 1))]
+    #[case::negative_one(Duration::negative(1, 0), StdDuration::ZERO)]
+    #[case::negative_one_nano(Duration::negative(0, 1), StdDuration::ZERO)]
+    #[case::max(Duration::MAX, StdDuration::MAX)]
+    fn test_fundu_duration_saturating_into_std_duration(
+        #[case] duration: Duration,
+        #[case] expected: StdDuration,
+    ) {
+        assert_eq!(
+            SaturatingInto::<std::time::Duration>::saturating_into(duration),
+            expected
+        );
+    }
+
     #[cfg(feature = "time")]
     #[rstest]
     #[case::positive_zero(Duration::ZERO, time::Duration::ZERO)]
@@ -1115,7 +1480,7 @@ mod tests {
     fn test_std_duration_try_from_for_fundu_duration_then_error(#[case] duration: Duration) {
         assert_eq!(
             TryInto::<std::time::Duration>::try_into(duration).unwrap_err(),
-            TryFromDurationError::NegativeNumber
+            TryFromDurationError::NegativeDuration
         );
     }
 

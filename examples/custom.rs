@@ -74,7 +74,7 @@ fn main() {
         .get_matches();
 
     let parser = CustomDurationParser::builder()
-        .custom_time_units(&CUSTOM_TIME_UNITS)
+        .time_units(&CUSTOM_TIME_UNITS)
         .default_unit(NanoSecond)
         .disable_exponent()
         .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))

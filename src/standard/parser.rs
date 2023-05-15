@@ -29,7 +29,6 @@ use crate::{DurationParserBuilder, ParseError, TimeUnit};
 ///
 /// The parser is reusable and the set of time units is fully customizable
 ///
-///
 /// ```rust
 /// use fundu::{Duration, DurationParser, TimeUnit::*};
 //
@@ -114,7 +113,7 @@ impl<'a> DurationParser<'a> {
         }
     }
 
-    /// Return a parser without [`TimeUnit`]s.
+    /// Return a new parser without [`TimeUnit`]s.
     ///
     /// # Examples
     ///
@@ -206,8 +205,7 @@ impl<'a> DurationParser<'a> {
         DurationParserBuilder::new()
     }
 
-    /// Parse the `source` string into a [`std::time::Duration`] depending on the current set of
-    /// configured [`TimeUnit`]s.
+    /// Parse the `source` string into a [`crate::Duration`].
     ///
     /// See the [module-level documentation](crate) for more information on the format.
     ///
@@ -284,6 +282,22 @@ impl<'a> DurationParser<'a> {
         self
     }
 
+    /// If true, then parsing negative durations is possible
+    ///
+    /// Without setting this option the parser returns [`ParseError::NegativeNumber`] if it
+    /// encounters a negative number.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParser, ParseError};
+    ///
+    /// let mut parser = DurationParser::new();
+    /// parser.allow_negative(true);
+    ///
+    /// assert_eq!(parser.parse("-123"), Ok(Duration::negative(123, 0)));
+    /// assert_eq!(parser.parse("-1.23e-7"), Ok(Duration::negative(0, 123)));
+    /// ```
     pub fn allow_negative(&mut self, value: bool) -> &mut Self {
         self.inner.config.allow_negative = value;
         self
@@ -314,7 +328,8 @@ impl<'a> DurationParser<'a> {
     /// If true, disable parsing a fraction in the source string.
     ///
     /// This setting will disable parsing a fraction and a point delimiter will cause an error
-    /// [`ParseError::Syntax`]. It does not prevent [`Duration`]s from being smaller than seconds.
+    /// [`ParseError::Syntax`]. It does not prevent [`crate::Duration`]s from being smaller than
+    /// seconds.
     ///
     /// # Examples
     ///
@@ -374,7 +389,7 @@ impl<'a> DurationParser<'a> {
     /// If true, this setting makes a number in the source string optional.
     ///
     /// If no number is present, then `1` is assumed. If a number is present then it must still
-    /// consist of either a whole part or fraction part, if not disabled with
+    /// consist of either a whole part and/or fraction part, if not disabled with
     /// [`DurationParser::disable_fraction`].
     ///
     /// # Examples
@@ -394,28 +409,31 @@ impl<'a> DurationParser<'a> {
         self
     }
 
-    // TODO: Update documentation
     /// If set to some [`Delimiter`], parse possibly multiple durations and sum them up.
     ///
     /// If [`Delimiter`] is set to `None`, this functionality is disabled. The [`Delimiter`] may or
     /// may not occur to separate the durations. If the delimiter does not occur the next duration
-    /// is recognized by a leading digit.
+    /// is recognized by a leading digit. It's also possible to use complete words, like `and` as
+    /// conjunctions between durations. Note that the [`Delimiter`] is still needed to be set if
+    /// conjunctions are used in order to separate the conjunctions from durations.
     ///
-    /// Like a single duration, the summed up durations saturate at [`Duration::MAX`]. Parsing
-    /// multiple durations is short-circuiting and parsing stops after the first [`ParseError`]
-    /// was encountered. Note that parsing doesn't stop when reaching [`Duration::MAX`], so any
-    /// [`ParseError`]s later in the input string are still reported.
+    /// Like a single duration, the summed durations saturate at [`crate::Duration::MAX`].
+    /// Parsing multiple durations is short-circuiting and parsing stops after the first
+    /// [`ParseError`] was encountered. Note that parsing doesn't stop when reaching
+    /// [`crate::Duration::MAX`], so any [`ParseError`]s later in the input string are still
+    /// reported.
     ///
     /// # Usage together with number format customizations
     ///
     /// The number format and other aspects can be customized as usual via the methods within this
-    /// struct and have the known effect. However, there are some interesting constellations:
+    /// struct and have the known effect. However, there is a notable constellation which has an
+    /// effect on how durations are parsed:
     ///
     /// If [`DurationParser::allow_delimiter`] is set to some delimiter, the [`Delimiter`] of this
     /// method and the [`Delimiter`] of the `allow_delimiter` method can be equal either in parts or
     /// in a whole without having side-effects on each other. But, if simultaneously
-    /// [`DurationParser::number_is_optional`] is set to true, then the resulting [`Duration`] will
-    /// differ:
+    /// [`DurationParser::number_is_optional`] is set to true, then the resulting
+    /// [`crate::Duration`] will differ:
     ///
     /// ```rust
     /// use fundu::{Duration, DurationParser};
@@ -440,7 +458,7 @@ impl<'a> DurationParser<'a> {
     /// use fundu::{Duration, DurationParser};
     ///
     /// let mut parser = DurationParser::new();
-    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), None);
+    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), Some(&["and"]));
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h 2e+2ns"),
@@ -450,7 +468,7 @@ impl<'a> DurationParser<'a> {
     ///     parser.parse("55s500ms"),
     ///     Ok(Duration::positive(55, 500_000_000))
     /// );
-    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::positive(2, 0)));
+    /// assert_eq!(parser.parse("1m and 1ns"), Ok(Duration::positive(60, 1)));
     /// assert_eq!(
     ///     parser.parse("1.   .1"),
     ///     Ok(Duration::positive(1, 100_000_000))
@@ -502,10 +520,10 @@ impl<'a> Default for DurationParser<'a> {
 /// Parse a string into a [`std::time::Duration`] by accepting a `string` similar to floating
 /// point with the default set of time units.
 ///
-/// This method is basically the same like [`DurationParser::new`] providing a simple to setup
-/// onetime parser. It is generally a better idea to use the [`DurationParser`] builder if
-/// multiple inputs with the same set of time units need to be parsed or a customization of the
-/// time format is wished.
+/// This method is providing a simple onetime parser. In contrast to [`DurationParser::parse`] it
+/// returns a [`std::time::Duration`]. It is generally a better idea to use the [`DurationParser`]
+/// builder if multiple inputs with the same set of time units need to be parsed or a customization
+/// of the time format is needed.
 ///
 /// See also the [module level documentation](crate) for more details and more information about
 /// the format.

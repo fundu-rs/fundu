@@ -13,7 +13,7 @@ use crate::{
     DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
 };
 
-/// The [`Identifiers`] as defined in
+/// The identifiers as defined in
 /// [`systemd.time`](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html)
 pub const SYSTEMD_TIME_UNITS: [CustomTimeUnit<'static>; 10] = [
     CustomTimeUnit::with_default(NanoSecond, &["ns", "nsec"]),
@@ -28,7 +28,8 @@ pub const SYSTEMD_TIME_UNITS: [CustomTimeUnit<'static>; 10] = [
     CustomTimeUnit::with_default(Year, &["y", "year", "years"]),
 ];
 
-/// The default [`Identifiers`] token from the `standard` feature (without `Month` and `Year`)
+/// The default identifiers taken from the `standard` feature (without `Month` and
+/// `Year`)
 pub const DEFAULT_TIME_UNITS: [CustomTimeUnit<'static>; 8] = [
     CustomTimeUnit::with_default(NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
     CustomTimeUnit::with_default(MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
@@ -40,7 +41,7 @@ pub const DEFAULT_TIME_UNITS: [CustomTimeUnit<'static>; 8] = [
     CustomTimeUnit::with_default(Week, &[DEFAULT_ID_WEEK]),
 ];
 
-/// All [`Identifiers`] token from the `standard` feature (with `Month` and `Year`)
+/// All identifiers taken from the `standard` feature with `Month` and `Year`
 pub const DEFAULT_ALL_TIME_UNITS: [CustomTimeUnit<'static>; 10] = [
     CustomTimeUnit::with_default(NanoSecond, &[DEFAULT_ID_NANO_SECOND]),
     CustomTimeUnit::with_default(MicroSecond, &[DEFAULT_ID_MICRO_SECOND]),
@@ -94,10 +95,44 @@ impl LookupData {
 /// [`Multiplier`].
 ///
 /// Custom time units have a base [`TimeUnit`] (which has an inherent [`Multiplier`]) and an
-/// optional [`Multiplier`] which acts as an additional [`Multiplier`] to the multiplier of the
-/// `base_unit`. Using a multiplier with `Multiplier(1, 0)` is equivalent to using no multiplier at
-/// all but see also the `Problems` section. A [`CustomTimeUnit`] also consists of identifiers which
-/// are used to identify the [`CustomTimeUnit`] during the parsing process.
+/// optional [`Multiplier`] which acts as an additional [`Multiplier`] in addition to the multiplier
+/// of the `base_unit`. Using a multiplier with `Multiplier(1, 0)` is equivalent to using no
+/// multiplier at all but see also the `Problems` section. A [`CustomTimeUnit`] also consists of
+/// identifiers which are used to identify the [`CustomTimeUnit`] during the parsing process.
+///
+/// # Panics
+///
+/// For `base_unit`s other than `Second` and `multipliers` other than `Multiplier(1,0)` there may
+/// occur a panic during the creation of a [`CustomTimeUnit`]. The Multiplier boundaries are chosen
+/// as high as possible but if the `base_unit` multiplier multiplied with `multiplier` exceeds
+/// `(u64::MAX, i16::MIN)` or `(u64::MAX, i16::MAX)` this multiplication overflows. By example, with
+/// `Multiplier(m, e)` two multipliers x, y are multiplied as follows : `m = x.m * y.m, e = x.e +
+/// y.e`:
+///
+/// If the `base_unit` is `Year`, which has a multiplier of `m = 31557600, e = 0`, then this
+/// restricts the `multiplier` to `m = u64::MAX / 31557600 = 584_542_046_090, e = 32767 or e =
+/// -32768`.
+///
+/// If the `base_unit` is `NanoSecond`, which has a multiplier of `m = 1, e = -9`, then this
+/// restricts the `multiplier` to `m = u64::MAX, e = -32768 + 9 = -32,759 or e = i16::MAX = 32767`.
+///
+/// The `base_unit`s are `Second`s based what results in the following table with limits for the
+/// `multiplier`:
+///
+/// | `base_unit`    | `base_unit Multiplier` | Limit m | Limit -e | Limit +e
+/// | --------------- | ----------:| -------:| --------:| ------:|
+/// | Nanosecond  | Multiplier(1, -9) | u64::MAX | -32,759 | i16::MAX
+/// | Microsecond | Multiplier(1, -6) | u64::MAX | -32,762 | i16::MAX
+/// | Millisecond | Multiplier(1, -3) | u64::MAX | -32,765 | i16::MAX
+/// | Second      | Multiplier(1, 0) | u64::MAX | i16::MIN | i16::MAX
+/// | Minute      | Multiplier(60, 0) | 307_445_734_561_825_860 | i16::MIN | i16::MAX
+/// | Hour        | Multiplier(3600, 0) | 5_124_095_576_030_431 | i16::MIN | i16::MAX
+/// | Day         | Multiplier(86400, 0) | 213_503_982_334_601 | i16::MIN | i16::MAX
+/// | Week        | Multiplier(604800, 0) | 30_500_568_904_943  | i16::MIN | i16::MAX
+/// | Month       | Multiplier(2629800, 0) | 7_014_504_553_087 | i16::MIN | i16::MAX
+/// | Year        | Multiplier(31557600, 0) | 584_542_046_090 | i16::MIN | i16::MAX
+///
+/// # Examples
 ///
 /// To create a [`CustomTimeUnit`] representing two weeks there are multiple solutions. Just to show
 /// two very obvious examples:
@@ -123,7 +158,7 @@ impl LookupData {
 /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier};
 ///
 /// let parser = CustomDurationParser::builder()
-///     .custom_time_units(&[
+///     .time_units(&[
 ///         CustomTimeUnit::new(Week, &["fortnight", "fortnights"], Some(Multiplier(2, 0))),
 ///         CustomTimeUnit::new(Day, &["fortnight", "fortnights"], Some(Multiplier(14, 0))),
 ///     ])
@@ -143,37 +178,6 @@ impl LookupData {
 /// ```ignore
 /// base_unit == other.base_unit && multiplier == other.multiplier
 /// ```
-///
-/// # Problems
-///
-/// For `base_unit`s other than `Second` there may occur an overflow (and panic) during the parsing
-/// process.  The Multiplier boundaries are chosen as high as possible but if the `base_unit`
-/// multiplier multiplied with `multiplier` exceeds `(u64::MAX, i16::MIN)` or `(u64::MAX, i16::MAX)`
-/// this multiplication overflows. By example, with `Multiplier(m, e)` two multipliers x, y are
-/// multiplied as follows : `m = x.m * y.m, e = x.e + y.e`:
-///
-/// If the `base_unit` is `Year`, which has a multiplier of `m = 31557600, e = 0`, then this
-/// restricts the `multiplier` to `m = u64::MAX / 31557600 = 584_542_046_090, e = 32767 or e =
-/// -32768`.
-///
-/// If the `base_unit` is `NanoSecond`, which has a multiplier of `m = 1, e = -9`, then this
-/// restricts the `multiplier` to `m = u64::MAX, e = -32768 + 9 = -32,759 or e = i16::MAX = 32767`.
-///
-/// The `base_unit`s are `Second`s based what results in the following table with limits for the
-/// `multiplier`:
-///
-/// | `base_unit`    | [`Multiplier`] | Limit m | Limit -e | Limit +e
-/// | --------------- | ----------:| -------:| --------:| ------:|
-/// | Nanosecond  | Multiplier(1, -9) | u64::MAX | -32,759 | i16::MAX
-/// | Microsecond | Multiplier(1, -6) | u64::MAX | -32,762 | i16::MAX
-/// | Millisecond | Multiplier(1, -3) | u64::MAX | -32,765 | i16::MAX
-/// | Second      | Multiplier(1, 0) | u64::MAX | i16::MIN | i16::MAX
-/// | Minute      | Multiplier(60, 0) | 307_445_734_561_825_860 | i16::MIN | i16::MAX
-/// | Hour        | Multiplier(3600, 0) | 5_124_095_576_030_431 | i16::MIN | i16::MAX
-/// | Day         | Multiplier(86400, 0) | 213_503_982_334_601 | i16::MIN | i16::MAX
-/// | Week        | Multiplier(604800, 0) | 30_500_568_904_943  | i16::MIN | i16::MAX
-/// | Month       | Multiplier(2629800, 0) | 7_014_504_553_087 | i16::MIN | i16::MAX
-/// | Year        | Multiplier(31557600, 0) | 584_542_046_090 | i16::MIN | i16::MAX
 #[derive(Debug, Eq, Clone, Copy)]
 pub struct CustomTimeUnit<'a> {
     pub(super) base_unit: TimeUnit,
@@ -189,7 +193,7 @@ impl<'a> CustomTimeUnit<'a> {
     /// # Panics
     ///
     /// If the [`Multiplier`] of the `base_unit` multiplied with the optional [`Multiplier`]
-    /// parameter overflows. See also [`Multiplier::checked_mul`].
+    /// parameter overflows. See also [`CustomTimeUnit`].
     ///
     /// # Examples
     ///
@@ -198,9 +202,7 @@ impl<'a> CustomTimeUnit<'a> {
     /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier};
     ///
     /// let time_unit = CustomTimeUnit::new(Second, &["shake", "shakes"], Some(Multiplier(1, -8)));
-    /// let parser = CustomDurationParser::builder()
-    ///     .custom_time_unit(time_unit)
-    ///     .build();
+    /// let parser = CustomDurationParser::builder().time_unit(time_unit).build();
     ///
     /// assert_eq!(parser.parse("1shake").unwrap(), Duration::positive(0, 10));
     /// ```
@@ -233,12 +235,19 @@ impl<'a> CustomTimeUnit<'a> {
     }
 }
 
+/// Two [`CustomTimeUnit]s are equal if their `base_unit`s and their `multipliers` are equal
+///
+/// The identifiers don't influence equality
 impl<'a> PartialEq for CustomTimeUnit<'a> {
     fn eq(&self, other: &Self) -> bool {
         self.base_unit == other.base_unit && self.multiplier == other.multiplier
     }
 }
 
+/// Two hashes of a [`CustomTimeUnit`] are equal if their `base_unit`s and their `multipliers` are
+/// equal
+///
+/// The identifiers don't have an influence on the hash
 impl<'a> Hash for CustomTimeUnit<'a> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.base_unit.hash(state);
@@ -374,12 +383,46 @@ impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
     }
 }
 
+/// A [`TimeKeyword`] represents a complete duration without the need for a number
+///
+/// With `TimeKeywords` something like `yesterday`, which is worth `-1 day`, can be constructed. A
+/// [`TimeKeyword`] has the same basic structure as a [`CustomTimeUnit`], but is treated
+/// differently, so that `TimeKeywords` do not accept a preceding number or, if enabled, the `ago`
+/// modifier after them.
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::TimeUnit::*;
+/// use fundu::{
+///     CustomDurationParser, CustomTimeUnit, Duration, Multiplier, ParseError, TimeKeyword,
+/// };
+///
+/// let mut parser =
+///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
+/// parser.keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))));
+///
+/// assert_eq!(
+///     parser.parse("tomorrow"),
+///     Ok(Duration::positive(60 * 60 * 24, 0))
+/// );
+///
+/// // but not
+/// assert_eq!(
+///     parser.parse("123tomorrow"),
+///     Err(ParseError::TimeUnit(
+///         3,
+///         "Invalid time unit: 'tomorrow'".to_string()
+///     ))
+/// );
+/// ```
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct TimeKeyword<'a> {
     time_unit: CustomTimeUnit<'a>,
 }
 
 impl<'a> TimeKeyword<'a> {
+    /// Construct a new `TimeKeyword`
     pub const fn new(
         base_unit: TimeUnit,
         identifiers: &'a [&'a str],
@@ -390,6 +433,7 @@ impl<'a> TimeKeyword<'a> {
         }
     }
 
+    /// Convert this keyword to a [`CustomTimeUnit`]
     pub(super) const fn to_custom_time_unit(self) -> CustomTimeUnit<'a> {
         self.time_unit
     }

@@ -18,7 +18,7 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 /// use fundu::{CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, Duration};
 ///
 /// let parser = CustomDurationParserBuilder::new()
-///     .custom_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
+///     .time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
 ///     .default_unit(MicroSecond)
 ///     .allow_delimiter(|byte| byte == b' ')
 ///     .build();
@@ -40,7 +40,7 @@ use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParserBuilder<'a> {
     config: Config<'a>,
-    custom_time_units: Vec<CustomTimeUnit<'a>>,
+    time_units: Vec<CustomTimeUnit<'a>>,
     keywords: Vec<TimeKeyword<'a>>,
 }
 
@@ -54,13 +54,8 @@ impl<'a> Default for CustomDurationParserBuilder<'a> {
 impl<'a> CustomDurationParserBuilder<'a> {
     /// Construct a new [`CustomDurationParserBuilder`].
     ///
-    /// Per default there are no time units configured in the builder. Use
-    /// [`CustomDurationParserBuilder::time_units`] to add time units.
-    ///
-    /// Unlike its counterpart [`crate::DurationParserBuilder`], this builder is not reusable and
-    /// [`CustomDurationParserBuilder::build`] consumes this builder. This is due to the more
-    /// complicated structure of custom time units and to keep the building process as performant
-    /// as possible.
+    /// Per default there are no time units configured in the builder. Use for example
+    /// [`CustomDurationParserBuilder::time_units`] to add new time units.
     ///
     /// # Examples
     ///
@@ -75,14 +70,14 @@ impl<'a> CustomDurationParserBuilder<'a> {
     pub const fn new() -> Self {
         Self {
             config: DEFAULT_CONFIG,
-            custom_time_units: vec![],
+            time_units: vec![],
             keywords: vec![],
         }
     }
 
-    /// Add a custom time unit to the current set of [`TimeUnit`]s.
+    /// Add a [`CustomTimeUnit`] to the current set of time units.
     ///
-    /// See also [`CustomDurationParser`].
+    /// See also [`CustomDurationParser::time_unit`].
     ///
     /// # Examples
     ///
@@ -91,7 +86,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier};
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_unit(CustomTimeUnit::new(
+    ///     .time_unit(CustomTimeUnit::new(
     ///         Week,
     ///         &["fortnight", "fortnights"],
     ///         Some(Multiplier(2, 0)),
@@ -102,14 +97,12 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Duration::positive(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
-    pub fn custom_time_unit(mut self, time_unit: CustomTimeUnit<'a>) -> Self {
-        self.custom_time_units.push(time_unit);
+    pub fn time_unit(mut self, time_unit: CustomTimeUnit<'a>) -> Self {
+        self.time_units.push(time_unit);
         self
     }
 
-    /// Add multiple [`CustomTimeUnit`]s at once.
-    ///
-    /// See also [`CustomDurationParser::custom_time_units`]
+    /// Add multiple [`CustomTimeUnit`]s to the current set of time units
     ///
     /// # Example
     ///
@@ -123,7 +116,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ];
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_units(&CUSTOM_TIME_UNITS)
+    ///     .time_units(&CUSTOM_TIME_UNITS)
     ///     .build();
     ///
     /// assert_eq!(
@@ -131,20 +124,79 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Duration::positive(2 * 7 * 24 * 60 * 60, 0),
     /// );
     /// ```
-    pub fn custom_time_units(mut self, time_units: &[CustomTimeUnit<'a>]) -> Self {
-        self.custom_time_units.reserve_exact(time_units.len());
+    pub fn time_units(mut self, time_units: &[CustomTimeUnit<'a>]) -> Self {
+        self.time_units.reserve_exact(time_units.len());
 
         for unit in time_units {
-            self.custom_time_units.push(*unit);
+            self.time_units.push(*unit);
         }
         self
     }
 
+    /// Add a [`TimeKeyword`] to the current set of keywords
+    ///
+    /// See also [`CustomDurationParser::keyword`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{
+    ///     CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier, ParseError, TimeKeyword,
+    /// };
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_unit(CustomTimeUnit::with_default(NanoSecond, &["ns"]))
+    ///     .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(
+    ///     parser.parse("tomorrow"),
+    ///     Ok(Duration::positive(60 * 60 * 24, 0))
+    /// );
+    ///
+    /// // but not
+    /// assert_eq!(
+    ///     parser.parse("123tomorrow"),
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: 'tomorrow'".to_string()
+    ///     ))
+    /// );
+    /// ```
     pub fn keyword(mut self, keyword: TimeKeyword<'a>) -> Self {
         self.keywords.push(keyword);
         self
     }
 
+    /// Add multiple [`TimeKeyword`]s to the current set of keywords
+    ///
+    /// See also [`CustomDurationParser::keywords`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, Duration, Multiplier, ParseError, TimeKeyword};
+    ///
+    /// let mut parser = CustomDurationParserBuilder::new()
+    ///     .allow_negative()
+    ///     .keywords(&[
+    ///         TimeKeyword::new(Day, &["yesterday"], Some(Multiplier(-1, 0))),
+    ///         TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))),
+    ///     ])
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("yesterday"),
+    ///     Ok(Duration::negative(60 * 60 * 24, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("tomorrow"),
+    ///     Ok(Duration::positive(60 * 60 * 24, 0))
+    /// );
+    /// ```
     pub fn keywords(mut self, keywords: &[TimeKeyword<'a>]) -> Self {
         self.keywords.reserve_exact(keywords.len());
 
@@ -154,7 +206,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
-    /// Set the default time unit to a [`TimeUnit`] different than [`TimeUnit::Second`]
+    /// Set the default time unit to a [`TimeUnit`] different from [`TimeUnit::Second`]
     ///
     /// See also [`crate::DurationParser::default_unit`]
     ///
@@ -189,7 +241,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
+    ///     .time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
     ///     .allow_delimiter(|byte| byte == b' ')
     ///     .build();
     ///
@@ -202,11 +254,112 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
+    /// If set, parsing negative durations is possible
+    ///
+    /// See also [`crate::DurationParser::allow_negative`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier, TimeKeyword};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .allow_negative()
+    ///     .time_units(&[
+    ///         CustomTimeUnit::with_default(NanoSecond, &["ns"]),
+    ///         CustomTimeUnit::new(Second, &["neg"], Some(Multiplier(-1, 0))),
+    ///     ])
+    ///     .keyword(TimeKeyword::new(
+    ///         Day,
+    ///         &["yesterday"],
+    ///         Some(Multiplier(-1, 0)),
+    ///     ))
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("-123ns"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(parser.parse("1.23e-7neg"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(
+    ///     parser.parse("yesterday"),
+    ///     Ok(Duration::negative(60 * 60 * 24, 0))
+    /// );
+    /// ```
     pub const fn allow_negative(mut self) -> Self {
         self.config.allow_negative = true;
         self
     }
 
+    /// If set, the `ago` keyword can be appended to a time unit to denote a negative duration
+    ///
+    /// See also [`CustomDurationParser::allow_ago`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier, TimeKeyword};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .allow_ago(|byte| byte.is_ascii_whitespace())
+    ///     .time_units(&[
+    ///         CustomTimeUnit::with_default(NanoSecond, &["ns"]),
+    ///         CustomTimeUnit::new(Second, &["neg"], Some(Multiplier(-1, 0))),
+    ///     ])
+    ///     .keyword(TimeKeyword::new(
+    ///         Day,
+    ///         &["yesterday"],
+    ///         Some(Multiplier(-1, 0)),
+    ///     ))
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("123ns ago"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(parser.parse("-123ns ago"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123neg ago"), Ok(Duration::positive(123, 0)));
+    /// ```
+    ///
+    /// And some illegal usages of `ago`
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Multiplier, ParseError, TimeKeyword};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .allow_ago(|byte| byte.is_ascii_whitespace())
+    ///     .time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
+    ///     .keyword(TimeKeyword::new(
+    ///         Day,
+    ///         &["yesterday"],
+    ///         Some(Multiplier(-1, 0)),
+    ///     ))
+    ///     .build();
+    ///
+    /// // Error because no time unit was specified
+    /// assert_eq!(
+    ///     parser.parse("123 ago"),
+    ///     Err(ParseError::Syntax(
+    ///         3,
+    ///         "Expected end of input but found: ' '".to_string()
+    ///     ))
+    /// );
+    ///
+    /// // Error because ago was specified multiple times
+    /// assert_eq!(
+    ///     parser.parse("123ns ago ago"),
+    ///     Err(ParseError::Syntax(
+    ///         9,
+    ///         "Expected end of input but found: ' '".to_string()
+    ///     ))
+    /// );
+    ///
+    /// // Error because `yesterday` is a [`TimeKeyword`]
+    /// assert_eq!(
+    ///     parser.parse("yesterday ago"),
+    ///     Err(ParseError::Syntax(
+    ///         0,
+    ///         "Invalid input: 'yesterday ago'".to_string()
+    ///     ))
+    /// );
+    /// ```
     pub const fn allow_ago(mut self, delimiter: Delimiter) -> Self {
         self.config.allow_ago = Some(delimiter);
         self.config.allow_negative = true;
@@ -235,7 +388,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
-    /// Disable parsing a fraction in the source string.
+    /// Disable parsing a fraction in the number part of the source string.
     ///
     /// See also [`crate::DurationParser::disable_fraction`].
     ///
@@ -246,7 +399,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, ParseError};
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
+    ///     .time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])])
     ///     .disable_fraction()
     ///     .build();
     ///
@@ -307,7 +460,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_units(&DEFAULT_TIME_UNITS)
+    ///     .time_units(&DEFAULT_TIME_UNITS)
     ///     .number_is_optional()
     ///     .build();
     ///
@@ -320,10 +473,10 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
-    //TODO: update documentation
     /// Parse possibly multiple durations and sum them up.
     ///
-    /// See also [`crate::DurationParser::parse_multiple`].
+    /// The durations can be separated from each other by a [`Delimiter`] or one or more
+    /// conjunctions, like `and`. See also [`crate::DurationParser::parse_multiple`].
     ///
     /// # Examples
     ///
@@ -331,8 +484,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_units(&DEFAULT_TIME_UNITS)
-    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), None)
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), Some(&["and"]))
     ///     .build();
     ///
     /// assert_eq!(
@@ -343,7 +496,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     parser.parse("55s500ms"),
     ///     Ok(Duration::positive(55, 500_000_000))
     /// );
-    /// assert_eq!(parser.parse("1\t1"), Ok(Duration::positive(2, 0)));
+    /// assert_eq!(parser.parse("1m and 1ns"), Ok(Duration::positive(60, 1)));
     /// assert_eq!(
     ///     parser.parse("1.   .1"),
     ///     Ok(Duration::positive(1, 100_000_000))
@@ -364,11 +517,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
-    /// Finally, build the [`CustomDurationParser`] from this builder.
-    ///
-    /// Note this method is meant as a one-off builder method and can therefore only be used once
-    /// on each [`CustomDurationParserBuilder`]. However, the parser built with this method
-    /// can be used multiple times.
+    /// Build the [`CustomDurationParser`]
     ///
     /// # Examples
     ///
@@ -377,7 +526,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
-    ///     .custom_time_units(&[
+    ///     .time_units(&[
     ///         CustomTimeUnit::with_default(Minute, &["min"]),
     ///         CustomTimeUnit::with_default(Hour, &["h", "hr"]),
     ///     ])
@@ -390,7 +539,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```
     pub fn build(self) -> CustomDurationParser<'a> {
         CustomDurationParser {
-            time_units: CustomTimeUnits::with_time_units(&self.custom_time_units),
+            time_units: CustomTimeUnits::with_time_units(&self.time_units),
             inner: Parser::with_config(self.config),
             keywords: CustomTimeUnits::with_keywords(&self.keywords),
         }
@@ -418,7 +567,7 @@ mod tests {
     fn test_custom_duration_parser_builder_when_new() {
         let builder = CustomDurationParserBuilder::new();
         assert_eq!(builder.config, Config::new());
-        assert!(builder.custom_time_units.is_empty());
+        assert!(builder.time_units.is_empty());
     }
 
     #[test]
@@ -483,9 +632,9 @@ mod tests {
         let mut expected = Config::new();
         expected.number_is_optional = true;
         let parser = CustomDurationParserBuilder::new()
-            .custom_time_unit(CustomTimeUnit::with_default(Second, &["s", "secs"]))
-            .custom_time_unit(CustomTimeUnit::new(Hour, &["h"], Some(Multiplier(3, 0))))
-            .custom_time_units(&[
+            .time_unit(CustomTimeUnit::with_default(Second, &["s", "secs"]))
+            .time_unit(CustomTimeUnit::new(Hour, &["h"], Some(Multiplier(3, 0))))
+            .time_units(&[
                 CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),
                 CustomTimeUnit::new(Day, &["d"], Some(Multiplier(4, 0))),
             ])
@@ -523,7 +672,7 @@ mod tests {
         let mut expected = Config::new();
         expected.number_is_optional = true;
         let parser = CustomDurationParserBuilder::new()
-            .custom_time_units(&[
+            .time_units(&[
                 CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),
                 CustomTimeUnit::new(Day, &["d"], Some(Multiplier(4, 0))),
             ])
