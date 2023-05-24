@@ -22,12 +22,13 @@
 //!
 //! This [`crate::Duration`] is returned by the parser of this library and can be converted to a
 //! [`std::time::Duration`] and if the feature is activated into a [`time::Duration`] respectively
-//! [`chrono::Duration`]. This crates duration is a superset of the aforementioned durations, so
-//! converting to fundu's duration with `From` or `Into` is lossless. Converting from
-//! [`crate::Duration`] to any of the other durations can overflow or can't be negative, so
-//! conversions must be done with `TryFrom` or `TryInto`. Additionally, fundu's duration implements
-//! [`SaturatingInto`] for the above durations, so conversions saturate at the maximum or minimum of
-//! these durations.
+//! [`chrono::Duration`]. This crates duration is a superset of the aforementioned durations ranging
+//! from `-Duration::MAX` to `+Duration::MAX` with `Duration::MAX` having `u64::MAX` seconds and
+//! `999_999_999` nano seconds. Converting to fundu's duration from any of the above durations with
+//! `From` or `Into` is lossless. Converting from [`crate::Duration`] to any of the other durations
+//! can overflow or can't be negative, so conversions must be done with `TryFrom` or `TryInto`.
+//! Additionally, fundu's duration implements [`SaturatingInto`] for the above durations, so
+//! conversions saturate at the maximum or minimum of these durations.
 //!
 //! # Features
 //!
@@ -47,12 +48,11 @@
 //!
 //! The `chrono` feature activates methods of [`Duration`] to convert from and to a
 //! [`chrono::Duration`]. The `time` feature activates methods of [`Duration`] to convert from and
-//! to a [`time::Duration`]. Both of these durations allow for negative durations. Enable parsing
-//! negative numbers with [`DurationParser::allow_negative`] or
-//! [`CustomDurationParser::allow_negative`] into negative durations represented by [`Duration`].
-//! If not activated, negative numbers produce a [`ParseError::NegativeNumber`].
+//! to a [`time::Duration`]. Both of these durations allow negative durations. Parsing negative
+//! numbers can be enabled with [`DurationParser::allow_negative`] or
+//! [`CustomDurationParser::allow_negative`] independently of the `chrono` or `time` feature.
 //!
-//! ## serde
+//! ## `serde`
 //!
 //! Some structs and enums can be serialized and deserialized with `serde` if the feature is
 //! activated.
@@ -73,7 +73,7 @@
 //!
 //! All alphabetic characters are matched case-insensitive, so `InFINity` or `2E8` are valid input
 //! strings. Additionally, depending on the chosen set of time units one of the following time
-//! units (the first column) are accepted.
+//! units (the first column) is accepted.
 //!
 //! | [`TimeUnit`]    | default id | is default time unit
 //! | --------------- | ----------:|:--------------------:
@@ -97,36 +97,57 @@
 //! * ...
 //!
 //! Per default there is no whitespace allowed between the number and the [`TimeUnit`], but this
-//! behavior can be changed with setting [`DurationParser::allow_delimiter`].
+//! behavior can be changed with [`DurationParser::allow_delimiter`].
 //!
 //! # Format specification
 //!
-//! The time units are case-sensitive, all other alphabetic characters are case-insensitive
+//! The `TimeUnit`s and every `Char` is case-sensitive, all other alphabetic characters are
+//! case-insensitive
 //!
 //! ```text
-//! Duration ::= Sign? ( 'inf' | 'infinity' | ( Number TimeUnit?))
-//! TimeUnit ::= ns | Ms | ms | s | m | h | d | w | M | y
-//! Number   ::= ( Digit+ |
-//!                Digit+ '.' Digit* |
-//!                Digit* '.' Digit+ )
-//!              Exp?
-//! Exp      ::= 'e' Sign? Digit+
-//! Sign     ::= [+-]
-//! Digit    ::= [0-9]
+//! Durations ::= Duration [ DurationStartingWithDigit
+//!             | ( Delimiter+ ( Duration | Conjunction ))
+//!             ]* ;
+//! Conjunction ::= ConjunctionWord (( Delimiter+ Duration ) | DurationStartingWithDigit ) ;
+//! ConjunctionWord ::= Char+ ;
+//! Duration ::= Sign? ( 'inf' | 'infinity'
+//!             | TimeKeyword
+//!             | Number [ TimeUnit [ Delimiter+ 'ago' ]]
+//!             ) ;
+//! DurationStartingWithDigit ::=
+//!             ( Digit+ | Digit+ '.' Digit* ) Exp? [ TimeUnit [ Delimiter+ 'ago' ]] ;
+//! TimeUnit ::= ns | Ms | ms | s | m | h | d | w | M | y | CustomTimeUnit ;
+//! CustomTimeUnit ::= Char+ ;
+//! TimeKeyword ::= Char+ ;
+//! Number   ::= ( Digits Exp? ) | Exp ;
+//! Digits   ::= Digit+ | Digit+ '.' Digit* | Digit* '.' Digit+
+//! Exp      ::= 'e' Sign? Digit+ ;
+//! Sign     ::= [+-] ;
+//! Digit    ::= [0-9] ;
+//! Char     ::= ? a valid UTF-8 character ? ;
+//! Delimiter ::= ? a closure with the signature u8 -> bool ? ;
 //! ```
 //!
 //! Special cases which are not displayed in the specification:
 //!
-//! * The `TimeUnit` rule is based on the default identifiers as defined in the table above. They
-//!   can also be completely customized with the [`CustomDurationParser`].
-//! * Negative values, including negative infinity are not allowed as long as the `negative` feature
-//! is not activated. For exceptions see the next point.
+//! * Parsing multiple `Durations` must be enabled with `parse_multiple`. The [`Delimiter`] and
+//! `ConjunctionWords` can also be defined with the `parse_multiple` method. Multiple `Durations`
+//! are summed up following the saturation rule below
+//! * A negative [`Duration`] (`Sign` == `-`), including negative infinity is not allowed as long as
+//! the `allow_negative` option is not enabled. For exceptions see the next point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
-//! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]
+//! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]. If
+//! the `allow_negative` option is enabled, negative infinity and numbers falling below
+//! [`Duration::MIN`] saturate at [`Duration::MIN`].
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`
-//! * If `allow_delimiter` is set then any defined delimiter is allowed between the Number and
-//! TimeUnit. This setting also allows the input string to end with this delimiter but only if no
-//! time unit was present. The parser then assumes the default time unit.
+//! * If `allow_delimiter` is set then any [`Delimiter`] is allowed between the `Number` and
+//! `TimeUnit`.
+//! * If `number_is_optional` is enabled then the `Number` is optional but the `TimeUnit` must be
+//! present instead.
+//! * The `ago` keyword must be enabled in the parser with `allow_ago`
+//! * [`TimeKeyword`] is a `custom` feature which must be enabled by adding a [`TimeKeyword`] to the
+//! [`CustomDurationParser`]
+//! * [CustomTimeUnit`] is a `custom` feature which lets you define own time units
 //!
 //! # Examples
 //!
@@ -182,14 +203,11 @@
 //! use fundu::{Duration, DurationParser};
 //!
 //! let parser = DurationParser::with_time_units(&[NanoSecond, Minute, Hour]);
-//! for (input, expected) in &[
-//!     ("9e3ns", Duration::positive(0, 9000)),
-//!     ("10m", Duration::positive(600, 0)),
-//!     ("1.1h", Duration::positive(3960, 0)),
-//!     ("7", Duration::positive(7, 0)),
-//! ] {
-//!     assert_eq!(parser.parse(input).unwrap(), *expected);
-//! }
+//!
+//! assert_eq!(parser.parse("9e3ns").unwrap(), Duration::positive(0, 9000));
+//! assert_eq!(parser.parse("10m").unwrap(), Duration::positive(600, 0));
+//! assert_eq!(parser.parse("1.1h").unwrap(), Duration::positive(3960, 0));
+//! assert_eq!(parser.parse("7").unwrap(), Duration::positive(7, 0));
 //! ```
 //!
 //! Setting the default time unit (if no time unit is given in the input string) to something
