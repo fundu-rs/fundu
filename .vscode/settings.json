@@ -15,6 +15,7 @@
     "cicd",
     "clippy",
     "codecov",
+    "coreutils",
     "cuda",
     "dawidd",
     "docsrs",
