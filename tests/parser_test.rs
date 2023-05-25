@@ -15,12 +15,6 @@ use rstest::rstest;
 const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
 const MONTH: u64 = YEAR / 12;
 
-// #[test]
-// fn just_debugging() {
-//     let parser = DurationParser::without_time_units();
-//     assert_eq!(parser.parse("1"), Ok(Duration::positive(1, 0)));
-// }
-
 #[rstest]
 #[case::empty_string("")]
 #[case::leading_whitespace("  1")]

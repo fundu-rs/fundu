@@ -4,6 +4,7 @@
 // https://opensource.org/licenses/MIT
 
 use std::cmp::Ordering;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
@@ -636,6 +637,76 @@ impl Duration {
     }
 }
 
+impl Display for Duration {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const YEAR: u64 = Year.multiplier().0.unsigned_abs();
+        const MONTH: u64 = Month.multiplier().0.unsigned_abs();
+        const WEEK: u64 = Week.multiplier().0.unsigned_abs();
+        const DAY: u64 = Day.multiplier().0.unsigned_abs();
+        const HOUR: u64 = Hour.multiplier().0.unsigned_abs();
+        const MINUTE: u64 = Minute.multiplier().0.unsigned_abs();
+        const MILLIS_PER_NANO: u32 = 1_000_000;
+        const MICROS_PER_NANO: u32 = 1_000;
+
+        if self.is_zero() {
+            return f.write_str("0ns");
+        }
+
+        let mut result = Vec::with_capacity(10);
+        let mut secs = self.inner.as_secs();
+        if secs > 0 {
+            if secs >= YEAR {
+                result.push(format!("{}y", secs / YEAR));
+                secs %= YEAR;
+            }
+            if secs >= MONTH {
+                result.push(format!("{}M", secs / MONTH));
+                secs %= MONTH;
+            }
+            if secs >= WEEK {
+                result.push(format!("{}w", secs / WEEK));
+                secs %= WEEK;
+            }
+            if secs >= DAY {
+                result.push(format!("{}d", secs / DAY));
+                secs %= DAY;
+            }
+            if secs >= HOUR {
+                result.push(format!("{}h", secs / HOUR));
+                secs %= HOUR;
+            }
+            if secs >= MINUTE {
+                result.push(format!("{}m", secs / MINUTE));
+                secs %= MINUTE;
+            }
+            if secs >= 1 {
+                result.push(format!("{}s", secs));
+            }
+        }
+
+        let mut nanos = self.inner.subsec_nanos();
+        if nanos > 0 {
+            if nanos >= MILLIS_PER_NANO {
+                result.push(format!("{}ms", nanos / MILLIS_PER_NANO));
+                nanos %= MILLIS_PER_NANO;
+            }
+            if nanos >= MICROS_PER_NANO {
+                result.push(format!("{}Ms", nanos / MICROS_PER_NANO));
+                nanos %= MICROS_PER_NANO;
+            }
+            if nanos >= 1 {
+                result.push(format!("{}ns", nanos));
+            }
+        }
+
+        if self.is_negative() {
+            f.write_str(&format!("-{}", &result.join(" -")))
+        } else {
+            f.write_str(&result.join(" "))
+        }
+    }
+}
+
 impl Add for Duration {
     type Output = Self;
 
@@ -903,6 +974,9 @@ mod tests {
     #[cfg(feature = "chrono")]
     const CHRONO_MAX_DURATION: Duration = Duration::positive(i64::MAX as u64 / 1000, 807_000_000);
 
+    const YEAR_AS_SECS: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
+    const MONTH_AS_SECS: u64 = YEAR_AS_SECS / 12;
+
     #[cfg(feature = "serde")]
     #[test]
     fn test_time_unit_serde() {
@@ -1081,6 +1155,38 @@ mod tests {
     #[case::negative_one_one(Duration::negative(1, 1), Duration::positive(1, 1))]
     fn test_fundu_duration_abs(#[case] duration: Duration, #[case] expected: Duration) {
         assert_eq!(duration.abs(), expected);
+    }
+
+    #[rstest]
+    #[case::zero(Duration::ZERO, "0ns")]
+    #[case::nano_second(Duration::positive(0, 1), "1ns")]
+    #[case::micro_second(Duration::positive(0, 1_000), "1Ms")]
+    #[case::milli_second(Duration::positive(0, 1_000_000), "1ms")]
+    #[case::second(Duration::positive(1, 0), "1s")]
+    #[case::minute(Duration::positive(60, 0), "1m")]
+    #[case::hour(Duration::positive(60 * 60, 0), "1h")]
+    #[case::day(Duration::positive(60 * 60 * 24, 0), "1d")]
+    #[case::week(Duration::positive(60 * 60 * 24 * 7, 0), "1w")]
+    #[case::month(Duration::positive(MONTH_AS_SECS, 0), "1M")]
+    #[case::year(Duration::positive(YEAR_AS_SECS, 0), "1y")]
+    #[case::all_one(
+        Duration::positive(
+            YEAR_AS_SECS + MONTH_AS_SECS + 60 * 60 * 24 * 8 + 60 * 60 + 60 + 1,
+            1_001_001
+        ),
+        "1y 1M 1w 1d 1h 1m 1s 1ms 1Ms 1ns"
+    )]
+    #[case::max(Duration::MAX, "584542046090y 7M 2w 1d 17h 30m 15s 999ms 999Ms 999ns")]
+    fn test_fundu_display(#[case] duration: Duration, #[case] expected: &str) {
+        assert_eq!(duration.to_string(), expected.to_string());
+        if duration.is_zero() {
+            assert_eq!(duration.neg().to_string(), expected.to_string());
+        } else {
+            assert_eq!(
+                duration.neg().to_string(),
+                format!("-{}", expected.replace(' ', " -"))
+            );
+        }
     }
 
     #[template]
