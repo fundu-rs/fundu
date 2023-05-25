@@ -122,8 +122,9 @@ name = "clap_builder"
 test = true
 
 [[example]]
-name = "chrono"
+name = "convert"
 test = false
+required-features = ["chrono", "time"]
 
 [[example]]
 name = "custom"
