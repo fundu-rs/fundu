@@ -249,6 +249,12 @@ jobs:
   fuzzing:
     needs: [base, cross]
     name: Fuzzy testing/ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - f64_like_input
+          - parse_single
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -270,7 +276,7 @@ jobs:
         run: cargo install cargo-fuzz
       - name: Run fuzzing for 5 minutes
         run: |
-          cargo fuzz run --all-features f64_like_input -- \
+          cargo fuzz run --all-features ${{ matrix.test }} -- \
             -max_total_time=300 \
             -print_final_stats=1 \
             -print_corpus_stats=1 \
