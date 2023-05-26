@@ -390,7 +390,8 @@ impl<'a> DurationParser<'a> {
     ///
     /// If no number is present, then `1` is assumed. If a number is present then it must still
     /// consist of either a whole part and/or fraction part, if not disabled with
-    /// [`DurationParser::disable_fraction`].
+    /// [`DurationParser::disable_fraction`]. The exponent is also part of the number and needs a
+    /// mantissa.
     ///
     /// # Examples
     ///
@@ -400,9 +401,8 @@ impl<'a> DurationParser<'a> {
     /// let mut parser = DurationParser::new();
     /// parser.number_is_optional(true);
     ///
-    /// for input in &["ns", "e-9", "e-3Ms"] {
-    ///     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
-    /// }
+    /// assert_eq!(parser.parse("ns"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("+ns"), Ok(Duration::positive(0, 1)));
     /// ```
     pub fn number_is_optional(&mut self, value: bool) -> &mut Self {
         self.inner.config.number_is_optional = value;

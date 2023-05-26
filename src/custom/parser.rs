@@ -607,9 +607,9 @@ impl<'a> CustomDurationParser<'a> {
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.number_is_optional(true);
     ///
-    /// for input in &["ns", "e-9", "e-3Ms"] {
-    ///     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
-    /// }
+    /// assert_eq!(parser.parse("ns"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse(".001e-6s"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("+ns"), Ok(Duration::positive(0, 1)));
     /// ```
     pub fn number_is_optional(&mut self, value: bool) -> &mut Self {
         self.inner.config.number_is_optional = value;

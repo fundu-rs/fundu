@@ -890,9 +890,16 @@ trait ReprParserTemplate<'a> {
         let bytes = self.bytes();
         match bytes.current_byte {
             Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !disable_exponent => {
-                bytes.advance();
-                duration_repr.exponent = self.parse_exponent()?;
-                Ok(true)
+                if duration_repr.whole.is_none() && duration_repr.fract.is_none() {
+                    Err(ParseError::Syntax(
+                        bytes.current_pos,
+                        "Exponent must have a mantissa".to_string(),
+                    ))
+                } else {
+                    bytes.advance();
+                    duration_repr.exponent = self.parse_exponent()?;
+                    Ok(true)
+                }
             }
             Some(byte) if byte.eq_ignore_ascii_case(&b'e') => Err(ParseError::Syntax(
                 bytes.current_pos,

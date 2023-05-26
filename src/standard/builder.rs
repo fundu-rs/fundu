@@ -396,9 +396,8 @@ impl<'a> DurationParserBuilder<'a> {
     ///     .number_is_optional()
     ///     .build();
     ///
-    /// for input in &["ns", "e-9", "e-3Ms"] {
-    ///     assert_eq!(parser.parse(input), Ok(Duration::positive(0, 1)));
-    /// }
+    /// assert_eq!(parser.parse("ns"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("+ns"), Ok(Duration::positive(0, 1)));
     /// ```
     pub const fn number_is_optional(mut self) -> Self {
         self.config.number_is_optional = true;

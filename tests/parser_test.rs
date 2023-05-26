@@ -113,13 +113,16 @@ fn test_parse_duration_when_arguments_contain_exponent(
 }
 
 #[rstest]
+#[case::exponent_without_mantissa("e1")]
 #[case::no_number("1e")]
 #[case::invalid_number("1e+F")]
 #[case::exponent_overflow_error_high("1e32768")]
 #[case::exponent_overflow_error_low("1e-32769")]
 #[case::exponent_parse_i16_overflow_error(&format!("1e{}", i16::MIN as i32 - 1))]
 fn test_parse_duration_when_arguments_with_illegal_exponent_then_error(#[case] source: &str) {
-    assert!(parse_duration(source).is_err());
+    let parser = DurationParser::builder().all_time_units().build();
+    let result = parser.parse(source);
+    assert!(result.is_err());
 }
 
 #[rstest]
@@ -274,9 +277,7 @@ fn test_parser_when_allow_delimiter_then_ok(#[case] input: &str, #[case] expecte
 
 #[rstest]
 #[case::nano_seconds("ns", Ok(Duration::positive(0, 1)))]
-#[case::just_exponent("e1", Ok(Duration::positive(10, 0)))]
-#[case::sign_and_exponent("+e1", Ok(Duration::positive(10, 0)))]
-#[case::exponent_with_time_unit("e9ns", Ok(Duration::positive(1, 0)))]
+#[case::exponent_without_mantissa("e1", Err(ParseError::Syntax(0, "Exponent must have a mantissa".to_string())))]
 #[case::just_point(".", Err(ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string())))]
 fn test_parser_when_number_is_optional(
     #[case] input: &str,
