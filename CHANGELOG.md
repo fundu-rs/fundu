@@ -95,6 +95,9 @@ with a `Delimiter` is an error now
 * Panic in `CustomTimeUnit::new` when creating a `CustomTimeUnit` with a `Multiplier` and
 `TimeUnit`. A multiplication of the additional `Multiplier` and the inherent multiplier of the
 `TimeUnit` would otherwise overflow (and panic) during the parsing
+* If the setting `number_is_optional` is enabled the exponent must have a mantissa. The exponent is
+now a part of the number
+* The exponent must always consist of at least one digit
 
 ## [0.5.1] - 2023-05-01
 
