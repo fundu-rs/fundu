@@ -255,6 +255,9 @@ jobs:
         test:
           - f64_like_input
           - parse_single
+        include:
+          - test: parse_single
+            dict: parse_single.dict
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -274,7 +277,17 @@ jobs:
         run: sudo apt-get -y update && sudo apt-get -y install llvm
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
-      - name: Run fuzzing for 5 minutes
+      - name: Run fuzzing for 5 minutes with dictionary
+        if: matrix.dict
+        run: |
+          cargo fuzz run --all-features ${{ matrix.test }} -- \
+            -dict=dicts/${{ matrix.dict }} \
+            -max_total_time=300 \
+            -print_final_stats=1 \
+            -print_corpus_stats=1 \
+            -verbosity=2
+      - name: Run fuzzing for 5 minutes without dictionary
+        if: matrix.dict == 0
         run: |
           cargo fuzz run --all-features ${{ matrix.test }} -- \
             -max_total_time=300 \
