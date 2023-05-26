@@ -845,14 +845,9 @@ trait ReprParserTemplate<'a> {
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?;
         let bytes = self.bytes();
-        bytes.current_byte.ok_or_else(|| {
-            ParseError::Syntax(
-                bytes.current_pos,
-                "Expected exponent but reached end of input".to_string(),
-            )
-        })?;
 
         let mut exponent = 0i16;
+        let start = bytes.current_pos;
         while let Some(byte) = bytes.current_byte {
             let digit = byte.wrapping_sub(b'0');
             if digit < 10 {
@@ -879,7 +874,19 @@ trait ReprParserTemplate<'a> {
             }
         }
 
-        Ok(exponent)
+        if bytes.current_pos - start > 0 {
+            Ok(exponent)
+        } else if bytes.is_end_of_input() {
+            Err(ParseError::Syntax(
+                bytes.current_pos,
+                "Expected exponent but reached end of input".to_string(),
+            ))
+        } else {
+            Err(ParseError::Syntax(
+                bytes.current_pos,
+                "The exponent must have at least one digit".to_string(),
+            ))
+        }
     }
 
     fn parse_number_exponent(

@@ -115,6 +115,7 @@ fn test_parse_duration_when_arguments_contain_exponent(
 #[rstest]
 #[case::exponent_without_mantissa("e1")]
 #[case::no_number("1e")]
+#[case::no_number_but_time_unit("6eMs")]
 #[case::invalid_number("1e+F")]
 #[case::exponent_overflow_error_high("1e32768")]
 #[case::exponent_overflow_error_low("1e-32769")]
