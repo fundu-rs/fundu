@@ -509,7 +509,9 @@ impl<'a> CustomDurationParser<'a> {
     /// ```
     pub fn allow_ago(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
         self.inner.config.allow_ago = delimiter;
-        self.inner.config.allow_negative = true;
+        if delimiter.is_some() {
+            self.inner.config.allow_negative = true;
+        }
         self
     }
 
