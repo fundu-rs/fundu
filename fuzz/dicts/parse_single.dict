@@ -10,6 +10,14 @@
 "Ms"
 "ns"
 
+# ago keyword
+"ago"
+
+# time keywords
+"yesterday"
+"tomorrow"
+"today"
+
 # infinity
 "inf"
 "infinity"
