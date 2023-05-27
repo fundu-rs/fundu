@@ -293,6 +293,21 @@ fn test_parser_when_number_is_optional(
 }
 
 #[rstest]
+#[case::starts_with_delimiter("\rd", ParseError::Syntax(0, "Input may not start with a delimiter".to_string()))]
+fn test_parser_when_number_is_optional_and_allow_delimiter_then_error(
+    #[case] input: &str,
+    #[case] expected: ParseError,
+) {
+    assert_eq!(
+        DurationParser::with_all_time_units()
+            .number_is_optional(true)
+            .allow_delimiter(Some(|byte| byte.is_ascii_whitespace()))
+            .parse(input),
+        Err(expected)
+    );
+}
+
+#[rstest]
 #[case::whole_with_just_point("1.", Err(ParseError::Syntax(1, "No fraction allowed".to_string())))]
 #[case::fract_with_just_point(".1", Err(ParseError::Syntax(0, "No fraction allowed".to_string())))]
 #[case::just_point(".", Err(ParseError::Syntax(0, "No fraction allowed".to_string())))]

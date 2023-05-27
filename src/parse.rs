@@ -626,6 +626,12 @@ impl<'a> Bytes<'a> {
 
     fn try_consume_delimiter(&mut self, delimiter: Delimiter) -> Result<(), ParseError> {
         debug_assert!(delimiter(*self.current_byte.unwrap())); // cov:excl-line
+        if self.current_pos == 0 {
+            return Err(ParseError::Syntax(
+                0,
+                "Input may not start with a delimiter".to_string(),
+            ));
+        }
 
         let start = self.current_pos;
         self.advance();
