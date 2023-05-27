@@ -80,6 +80,11 @@ from the `custom` feature now use `CustomTimeUnit`s instead of a tuple.
 `Identifier` type
 * BREAKING: Rename `CustomDurationParser::custom_time_unit` -> `CustomDurationParser::time_unit`
 * BREAKING: Rename `CustomDurationParser::custom_time_units` -> `CustomDurationParser::time_units`
+* BREAKING: If the setting `number_is_optional` is enabled the exponent must have a mantissa. The exponent is
+now a part of the number
+* Panic in `CustomTimeUnit::new` when creating a `CustomTimeUnit` with a `Multiplier` and
+`TimeUnit`. A multiplication of the additional `Multiplier` and the inherent multiplier of the
+`TimeUnit` would otherwise overflow (and panic) during the parsing
 
 * Refactorings of the internal parser improve the parsing speed for all input sizes
 
@@ -92,12 +97,9 @@ from the `custom` feature now use `CustomTimeUnit`s instead of a tuple.
 
 * Parsing with the configuration option `allow_delimiter` enabled changed, so that an input ending
 with a `Delimiter` is an error now
-* Panic in `CustomTimeUnit::new` when creating a `CustomTimeUnit` with a `Multiplier` and
-`TimeUnit`. A multiplication of the additional `Multiplier` and the inherent multiplier of the
-`TimeUnit` would otherwise overflow (and panic) during the parsing
-* If the setting `number_is_optional` is enabled the exponent must have a mantissa. The exponent is
-now a part of the number
 * The exponent must always consist of at least one digit
+* Input starting with a delimiter should result in a ParseError similar to input ending with a
+delimiter
 
 ## [0.5.1] - 2023-05-01
 
