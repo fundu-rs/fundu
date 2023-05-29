@@ -24,10 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-If upgrading from an previous version, there are some breaking changes (marked with BREAKING), most
-notably parsing negative durations has been completely revised. The `negative` feature was removed
-and the parsers now return fundu's own `Duration`, which can represent negative `Durations`, instead
-of a `std::time::Duration` (or `time::Duration`).
+## [1.0.0] - 2023-05-29
+
+If upgrading from an previous version, there are some breaking changes, most notably parsing
+negative durations has been completely revised. The `negative` feature was removed and the parsers
+now return fundu's own `Duration`, which can represent negative `Durations`, instead of a
+`std::time::Duration` (or `time::Duration`).
 
 ## Added
 
