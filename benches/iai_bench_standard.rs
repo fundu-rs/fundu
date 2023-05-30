@@ -25,22 +25,22 @@ fn get_all_time_units<'a>() -> &'a [TimeUnit] {
 }
 
 #[inline(never)]
-fn initialization_without_time_units() -> DurationParser {
+fn initialization_without_time_units<'a>() -> DurationParser<'a> {
     DurationParser::without_time_units()
 }
 
 #[inline(never)]
-fn initialization_with_default_time_units() -> DurationParser {
+fn initialization_with_default_time_units<'a>() -> DurationParser<'a> {
     DurationParser::new()
 }
 
 #[inline(never)]
-fn initialization_with_all_time_units() -> DurationParser {
+fn initialization_with_all_time_units<'a>() -> DurationParser<'a> {
     DurationParser::with_all_time_units()
 }
 
 #[inline(never)]
-fn initialization_with_custom_time_units() -> DurationParser {
+fn initialization_with_custom_time_units<'a>() -> DurationParser<'a> {
     DurationParser::with_time_units(black_box(get_all_time_units()))
 }
 

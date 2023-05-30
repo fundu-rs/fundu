@@ -8,8 +8,12 @@
 use std::error::Error;
 use std::fmt::Display;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Error type emitted during the parsing
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[non_exhaustive]
 pub enum ParseError {
     /// Returned, if the input was empty.
@@ -26,7 +30,7 @@ pub enum ParseError {
     NegativeExponentOverflow,
     /// The exponent exceeded the maximum positive exponent (`+32767`)
     PositiveExponentOverflow,
-    /// The input number was negative. Note that numbers close to `0` (`< 1e-18) are not negative
+    /// The input number was negative. Note that numbers close to `0` (`< 1e-18`) are not negative
     /// but resolve to `0`
     NegativeNumber,
     /// A generic error if no other error type fits
@@ -59,28 +63,53 @@ impl Display for ParseError {
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum TryFromDurationError {
-    NegativeNumber,
-    #[allow(dead_code)]
+/// This error may occur when converting a [`crate::Duration`] to a different duration like
+/// [`std::time::Duration`]
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum TryFromDurationError {
+    /// The duration was negative and the destination duration doesn't support negative durations
+    NegativeDuration,
+    /// The duration was higher than the maximum of the destination duration
     PositiveOverflow,
-    #[allow(dead_code)]
+    /// The duration was lower than the minimum of the destination duration
     NegativeOverflow,
 }
 
 impl From<TryFromDurationError> for ParseError {
     fn from(error: TryFromDurationError) -> Self {
         match error {
-            TryFromDurationError::NegativeNumber => ParseError::NegativeNumber,
+            TryFromDurationError::NegativeDuration => ParseError::NegativeNumber,
             TryFromDurationError::PositiveOverflow => ParseError::Overflow,
             TryFromDurationError::NegativeOverflow => ParseError::Overflow,
         }
     }
 }
 
+impl Error for TryFromDurationError {}
+
+impl Display for TryFromDurationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let description = match self {
+            TryFromDurationError::NegativeDuration => {
+                "Error converting duration: value is negative"
+            }
+            TryFromDurationError::PositiveOverflow => {
+                "Error converting duration: value overflows the positive value range"
+            }
+            TryFromDurationError::NegativeOverflow => {
+                "Error converting duration: value overflows the negative value range"
+            }
+        };
+        description.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::rstest;
+    #[cfg(feature = "serde")]
+    use serde_test::{assert_tokens, Token};
 
     use super::*;
 
@@ -108,15 +137,67 @@ mod tests {
         "Invalid input: Unexpected"
     )]
     #[case::empty(ParseError::Empty, "Empty input")]
-    fn test_error_messages(#[case] error: ParseError, #[case] expected: &str) {
+    fn test_error_messages_parse_error(#[case] error: ParseError, #[case] expected: &str) {
         assert_eq!(error.to_string(), expected);
     }
 
     #[rstest]
     #[case::negative_overflow(TryFromDurationError::NegativeOverflow, ParseError::Overflow)]
     #[case::positive_overflow(TryFromDurationError::PositiveOverflow, ParseError::Overflow)]
-    #[case::negative_number(TryFromDurationError::NegativeNumber, ParseError::NegativeNumber)]
+    #[case::negative_number(TryFromDurationError::NegativeDuration, ParseError::NegativeNumber)]
     fn test_from_for_parse_error(#[case] from: TryFromDurationError, #[case] expected: ParseError) {
         assert_eq!(ParseError::from(from), expected);
+    }
+
+    #[rstest]
+    #[case::negative_number(
+        TryFromDurationError::NegativeDuration,
+        "Error converting duration: value is negative"
+    )]
+    #[case::positive_overflow(
+        TryFromDurationError::PositiveOverflow,
+        "Error converting duration: value overflows the positive value range"
+    )]
+    #[case::positive_overflow(
+        TryFromDurationError::NegativeOverflow,
+        "Error converting duration: value overflows the negative value range"
+    )]
+    fn test_error_messages_try_from_duration_error(
+        #[case] error: TryFromDurationError,
+        #[case] expected: &str,
+    ) {
+        assert_eq!(error.to_string(), expected);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_try_from_duration_error() {
+        let error = TryFromDurationError::NegativeDuration;
+
+        assert_tokens(
+            &error,
+            &[
+                Token::Enum {
+                    name: "TryFromDurationError",
+                },
+                Token::Str("NegativeDuration"),
+                Token::Unit,
+            ],
+        )
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_parse_error() {
+        let error = ParseError::Empty;
+
+        assert_tokens(
+            &error,
+            &[
+                Token::Enum { name: "ParseError" },
+                Token::Str("Empty"),
+                Token::Unit,
+            ],
+        )
     }
 }

@@ -6,12 +6,14 @@
 use crate::time::{Multiplier, DEFAULT_TIME_UNIT};
 use crate::TimeUnit;
 
+pub(crate) const DEFAULT_CONFIG: Config = Config::new();
+
 /// An ascii delimiter defined as closure.
 ///
-/// The [`Delimiter`] is currently a type alias for a closure taking a `u8` byte and returning a
-/// `bool`. Most likely, the [`Delimiter`] is used to define some whitespace but whitespace
-/// definitions differ, so a closure provides the most flexible definition of a delimiter. For
-/// example the definition of whitespace from rust [`u8::is_ascii_whitespace`]:
+/// The [`Delimiter`] is a type alias for a closure taking a `u8` byte and returning a `bool`. Most
+/// likely, the [`Delimiter`] is used to define some whitespace but whitespace definitions differ,
+/// so a closure provides the most flexible definition of a delimiter. For example the definition of
+/// whitespace from rust [`u8::is_ascii_whitespace`]:
 ///
 /// ```text
 /// Checks if the value is an ASCII whitespace character: U+0020 SPACE, U+0009 HORIZONTAL TAB,
@@ -27,9 +29,7 @@ use crate::TimeUnit;
 /// # Problems
 ///
 /// The delimiter takes a `u8` as input, but matching any non-ascii (`0x80 - 0xff`) bytes may lead
-/// to serious problems if the input string contains multi-byte utf-8 characters. It's always a good
-/// idea to consider this, especially, if the input for the parser comes from an untrusted source.
-/// So, as a general rule of thumb, don't match any byte within the `0x80 - 0xff` range.
+/// to a [`crate::ParseError`] if the input string contains multi-byte utf-8 characters.
 ///
 /// # Examples
 ///
@@ -53,7 +53,7 @@ use crate::TimeUnit;
 pub type Delimiter = fn(u8) -> bool;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub(crate) struct Config {
+pub(crate) struct Config<'a> {
     pub(crate) allow_delimiter: Option<Delimiter>,
     pub(crate) default_unit: TimeUnit,
     pub(crate) default_multiplier: Multiplier,
@@ -63,16 +63,19 @@ pub(crate) struct Config {
     pub(crate) number_is_optional: bool,
     pub(crate) max_exponent: i16,
     pub(crate) min_exponent: i16,
-    pub(crate) parse_multiple: Option<Delimiter>,
+    pub(crate) parse_multiple_delimiter: Option<Delimiter>,
+    pub(crate) parse_multiple_conjunctions: Option<&'a [&'a str]>,
+    pub(crate) allow_negative: bool,
+    pub(crate) allow_ago: Option<Delimiter>,
 }
 
-impl Default for Config {
+impl<'a> Default for Config<'a> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Config {
+impl<'a> Config<'a> {
     pub(crate) const fn new() -> Self {
         Self {
             allow_delimiter: None,
@@ -84,7 +87,10 @@ impl Config {
             max_exponent: i16::MAX,
             min_exponent: i16::MIN,
             disable_infinity: false,
-            parse_multiple: None,
+            parse_multiple_delimiter: None,
+            parse_multiple_conjunctions: None,
+            allow_negative: false,
+            allow_ago: None,
         }
     }
 }

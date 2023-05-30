@@ -1,5 +1,7 @@
 name: Build and Check
 
+# TODO: Remove negative feature
+
 on:
   push:
     branches: ["main", "cicd", "release", "develop"]
@@ -20,6 +22,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
+  FEATURES: standard,custom,time,chrono,serde
 
 jobs:
   deny:
@@ -56,8 +59,8 @@ jobs:
         include:
           - components: clippy
             toolchain: stable
-          - features: standard,custom,negative,with-iai,with-flamegraph
-          - features: standard,custom,negative
+          - features: standard,custom,time,chrono,serde,with-iai,with-flamegraph
+          - features: standard,custom,time,chrono,serde
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
@@ -145,9 +148,9 @@ jobs:
           cargo --list
           cross --version
       - name: Build
-        run: cross build --all-features --target ${{ matrix.target }}
+        run: cross build --features ${{ env.FEATURES }} --target ${{ matrix.target }}
       - name: Test
-        run: cross test --all-features --target ${{ matrix.target }}
+        run: cross test --features ${{ env.FEATURES }} --target ${{ matrix.target }}
 
   docs:
     needs: [base, cross]
@@ -197,9 +200,9 @@ jobs:
       - name: Clean
         run: cargo clean
       - name: Build
-        run: cargo build --all-features --profile coverage
+        run: cargo build --features ${{ env.FEATURES }} --profile coverage
       - name: Test
-        run: cargo test --all-features --tests --profile coverage
+        run: cargo test --features ${{ env.FEATURES }} --tests --profile coverage
       - name: Generate code coverage
         run: |
           ~/.cargo/bin/grcov . \
@@ -246,6 +249,15 @@ jobs:
   fuzzing:
     needs: [base, cross]
     name: Fuzzy testing/ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test:
+          - f64_like_input
+          - parse_single
+        include:
+          - test: parse_single
+            dict: parse_single.dict
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -265,9 +277,19 @@ jobs:
         run: sudo apt-get -y update && sudo apt-get -y install llvm
       - name: Install cargo-fuzz
         run: cargo install cargo-fuzz
-      - name: Run fuzzing for 5 minutes
+      - name: Run fuzzing for 5 minutes with dictionary
+        if: matrix.dict
         run: |
-          cargo fuzz run --all-features f64_like_input -- \
+          cargo fuzz run --all-features ${{ matrix.test }} -- \
+            -dict=dicts/${{ matrix.dict }} \
+            -max_total_time=300 \
+            -print_final_stats=1 \
+            -print_corpus_stats=1 \
+            -verbosity=2
+      - name: Run fuzzing for 5 minutes without dictionary
+        if: matrix.dict == 0
+        run: |
+          cargo fuzz run --all-features ${{ matrix.test }} -- \
             -max_total_time=300 \
             -print_final_stats=1 \
             -print_corpus_stats=1 \
@@ -316,9 +338,9 @@ jobs:
         run: |
           cargo bench --features custom,with-iai --no-default-features \
             --bench iai_bench_custom | tee -a bench.out
-      - name: Run iai-callgrind negative feature benchmarks
+      - name: Run iai-callgrind time chrono feature benchmarks
         run: |
-          cargo bench --features negative,with-iai \
+          cargo bench --features time,chrono,with-iai \
             --bench iai_bench_parsing_negative | tee -a bench.out
       - name: Strip colors from output file bench.out
         run: |
@@ -401,9 +423,9 @@ jobs:
         run: |
           case ${{ matrix.target }} in
             x86_64-unknown-linux-gnu )
-              cargo miri test --features standard,custom,negative
+              cargo miri test --features ${{ env.FEATURES }}
               ;;
             * )
-              cross miri test --features standard,custom,negative --target ${{ matrix.target }}
+              cross miri test --features ${{ env.FEATURES }} --target ${{ matrix.target }}
               ;;
           esac

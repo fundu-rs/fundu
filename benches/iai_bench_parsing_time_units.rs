@@ -3,10 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use std::time::Duration;
-
 use fundu::TimeUnit::{self, *};
-use fundu::{DurationParser, ParseError};
+use fundu::{Duration, DurationParser, ParseError};
 use iai_callgrind::{black_box, main};
 
 type Result<T> = std::result::Result<T, ParseError>;
@@ -18,7 +16,7 @@ const INPUT_YEAR: &str = "1y";
 
 #[inline(never)]
 #[export_name = "__iai_setup::setup_parser_with_all_time_units"]
-fn setup_parser_with_all_time_units(default_unit: TimeUnit) -> DurationParser {
+fn setup_parser_with_all_time_units<'a>(default_unit: TimeUnit) -> DurationParser<'a> {
     let mut parser = DurationParser::with_all_time_units();
     parser.default_unit(default_unit);
     parser

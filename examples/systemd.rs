@@ -14,12 +14,12 @@ use fundu::{CustomDurationParser, SYSTEMD_TIME_UNITS};
 
 /// Create a human readable string like `100y 2h 46min 40s 123us 456ns` from a `Duration`
 fn make_human(duration: Duration) -> String {
-    const YEAR: u64 = Year.multiplier().0;
-    const MONTH: u64 = Month.multiplier().0;
-    const WEEK: u64 = Week.multiplier().0;
-    const DAY: u64 = Day.multiplier().0;
-    const HOUR: u64 = Hour.multiplier().0;
-    const MINUTE: u64 = Minute.multiplier().0;
+    const YEAR: u64 = Year.multiplier().0.unsigned_abs();
+    const MONTH: u64 = Month.multiplier().0.unsigned_abs();
+    const WEEK: u64 = Week.multiplier().0.unsigned_abs();
+    const DAY: u64 = Day.multiplier().0.unsigned_abs();
+    const HOUR: u64 = Hour.multiplier().0.unsigned_abs();
+    const MINUTE: u64 = Minute.multiplier().0.unsigned_abs();
     const MILLIS_PER_NANO: u32 = 1_000_000;
     const MICROS_PER_NANO: u32 = 1_000;
 
@@ -98,7 +98,7 @@ fn main() {
         .disable_fraction()
         .disable_infinity()
         .allow_delimiter(delimiter)
-        .parse_multiple(delimiter)
+        .parse_multiple(delimiter, None)
         .build();
 
     let input: &String = matches
@@ -106,6 +106,7 @@ fn main() {
         .expect("At least one argument must be present");
     match parser.parse(input.trim()) {
         Ok(duration) => {
+            let duration: std::time::Duration = duration.try_into().unwrap();
             println!("{:>8}: {}", "Original", input);
             println!("{:>8}: {}", "μs", duration.as_micros());
             println!("{:>8}: {}", "Human", make_human(duration));

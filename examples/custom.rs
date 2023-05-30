@@ -32,9 +32,17 @@
 
 use clap::{command, Arg};
 use fundu::TimeUnit::*;
-use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier, TimeUnit};
+use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
 
-const CUSTOM_TIME_UNITS: [CustomTimeUnit; 3] = [
+const CUSTOM_TIME_UNITS: [CustomTimeUnit; 11] = [
+    CustomTimeUnit::with_default(NanoSecond, &["ns", "nano", "nanos"]),
+    CustomTimeUnit::with_default(MicroSecond, &["µs", "Ms", "micro", "micros"]),
+    CustomTimeUnit::with_default(MilliSecond, &["ms", "milli", "millis"]),
+    CustomTimeUnit::with_default(Second, &["s", "sec", "secs", "second", "seconds"]),
+    CustomTimeUnit::with_default(Minute, &["m", "min", "mins", "minutes"]),
+    CustomTimeUnit::with_default(Hour, &["h", "hr", "hrs", "hour", "hours"]),
+    CustomTimeUnit::with_default(Day, &["d", "day", "days"]),
+    CustomTimeUnit::with_default(Week, &["w", "week", "weeks"]),
     // The fortnight (=2 weeks)
     CustomTimeUnit::new(
         Week,
@@ -55,17 +63,6 @@ const CUSTOM_TIME_UNITS: [CustomTimeUnit; 3] = [
     ),
 ];
 
-const TIME_UNITS: [(TimeUnit, &[&str]); 8] = [
-    (NanoSecond, &["ns", "nano", "nanos"]),
-    (MicroSecond, &["µs", "Ms", "micro", "micros"]),
-    (MilliSecond, &["ms", "milli", "millis"]),
-    (Second, &["s", "sec", "secs", "second", "seconds"]),
-    (Minute, &["m", "min", "mins", "minutes"]),
-    (Hour, &["h", "hr", "hrs", "hour", "hours"]),
-    (Day, &["d", "day", "days"]),
-    (Week, &["w", "week", "weeks"]),
-];
-
 fn main() {
     let matches = command!()
         .allow_negative_numbers(true)
@@ -77,8 +74,7 @@ fn main() {
         .get_matches();
 
     let parser = CustomDurationParser::builder()
-        .time_units(&TIME_UNITS)
-        .custom_time_units(&CUSTOM_TIME_UNITS)
+        .time_units(&CUSTOM_TIME_UNITS)
         .default_unit(NanoSecond)
         .disable_exponent()
         .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
@@ -103,6 +99,7 @@ fn main() {
     {
         match parser.parse(input.trim()) {
             Ok(duration) => {
+                let duration: std::time::Duration = duration.try_into().unwrap();
                 println!(
                     "{:>20}|{:21}.{:09}",
                     &input,

@@ -1,6 +1,6 @@
 #![no_main]
 
-use std::{num::IntErrorKind, time::Duration};
+use std::num::IntErrorKind;
 
 use fundu::{DurationParser, ParseError};
 use libfuzzer_sys::fuzz_target;
@@ -14,7 +14,8 @@ fn check_exponent_overflow(input: &str, error: ParseError) {
             Some(exponent) => {
                 match exponent.parse::<i16>() {
                     Ok(e) if (MIN_EXPONENT..=MAX_EXPONENT).contains(&e) => panic!(
-                        "Exponent overflow error: Exponent was in valid range: input: {input}, error: {error:?}"
+                        "Exponent overflow error: Exponent was in valid range: input: {input}, \
+                         error: {error:?}"
                     ),
                     Ok(_) => {
                         // The overflow error is correctly returned by the parser
@@ -24,9 +25,10 @@ fn check_exponent_overflow(input: &str, error: ParseError) {
                             // The overflow error is correctly returned by the parser
                         }
                         kind => panic!(
-                            "Exponent overflow error: Should not be an Overflow error: {input}, error: {error:?}, kind: {kind:?}"
+                            "Exponent overflow error: Should not be an Overflow error: {input}, \
+                             error: {error:?}, kind: {kind:?}"
                         ),
-                    }
+                    },
                 }
             }
             None => panic!("Exponent overflow error: No number: input: {input}, error: {error:?}"),
@@ -69,7 +71,8 @@ fuzz_target!(|data: &[u8]| {
                     Some(std::cmp::Ordering::Greater) | None => {
                         if let Ok(duration) = parser.parse(string) {
                             panic!(
-                                "Expected an error: input: {string}, f64: {parsed}, duration: {duration:?}"
+                                "Expected an error: input: {string}, f64: {parsed}, duration: \
+                                 {duration:?}"
                             );
                         }
                     }
@@ -81,22 +84,27 @@ fuzz_target!(|data: &[u8]| {
                         "Expected an error: input: {string}, f64: {parsed}, duration: {duration:?}"
                     );
                 }
-            // Everything else should be parsable by fundu besides some special handling of the exponent
-            // and the overflow errors
+            // Everything else should be parsable by fundu besides some special handling of the
+            // exponent and the overflow errors
             } else {
                 match parser.parse(string) {
                     Ok(duration) => {
-                        let rust_duration = match Duration::try_from_secs_f64(parsed) {
+                        let duration: std::time::Duration = duration.try_into().unwrap();
+                        let rust_duration = match std::time::Duration::try_from_secs_f64(parsed) {
                             Ok(d) => d,
-                            Err(_) => Duration::MAX,
+                            Err(_) => std::time::Duration::MAX,
                         };
                         // This epsilon is backed by a lot of random runs and manual comparisons
-                        let epsilon_duration = Duration::from_secs(1024);
+                        let epsilon_duration = std::time::Duration::from_secs(1024);
                         let delta = duration
                             .max(rust_duration)
                             .saturating_sub(duration.min(rust_duration));
                         if delta > epsilon_duration {
-                            panic!("The duration delta between rust and fundu was too high: input: {string}, fundu: {duration:?}, rust: {rust_duration:?}, epsilon: {epsilon_duration:?}, delta: {delta:?}")
+                            panic!(
+                                "The duration delta between rust and fundu was too high: input: \
+                                 {string}, fundu: {duration:?}, rust: {rust_duration:?}, epsilon: \
+                                 {epsilon_duration:?}, delta: {delta:?}"
+                            )
                         }
                     }
                     Err(error) => match error {
