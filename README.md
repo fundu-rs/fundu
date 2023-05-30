@@ -449,7 +449,7 @@ can only be run on unix. Use the `--features` option of cargo to run the benchma
 features:
 
 ```shell
-cargo bench --features standard,custom,negative
+cargo bench --features standard,custom
 ```
 
 The above won't run the `flamegraph` and `iai-callgrind` benchmarks.
@@ -478,9 +478,10 @@ Input | avg parsing time | ~ samples / s
 `123456789.123456789` | `50.473 ns` | `19_812_573.058`
 `format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `371.02 ns` | `2_695_272.492`
 
-For comparison, the accuracy and additional features of `fundu` result in very low performance overhead due to initial setup of structures, etc.,
-but quickly catches up and is far more powerful than the reference function from the `stdlib` as
-the input string gets larger (the reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
+For comparison, the precision and additional features of `fundu` result in a very low performance
+overhead due to the initial setup of structures, etc., and quickly catches up. Fundu even becomes
+more performant than the reference function from the `stdlib` as the input gets larger (the
+reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
 
 Input | avg parsing time | ~ samples / s
 --- | ---:| ---:
