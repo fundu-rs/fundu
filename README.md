@@ -93,7 +93,7 @@ Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 
 ```toml
 [dependencies]
-fundu = "0.5.1"
+fundu = "1.0.0"
 ```
 
 fundu is split into two main features, `standard` (providing `DurationParser` and `parse_duration`)
@@ -104,7 +104,7 @@ of the parsers is needed. To include only the `CustomDurationParser` add the fol
 
 ```toml
 [dependencies]
-fundu = { version = "0.5.1", default-features = false, features = ["custom"] }
+fundu = { version = "1.0.0", default-features = false, features = ["custom"] }
 ```
 
 Activating the `chrono` or `time` feature provides a `TryFrom` implementation for [`chrono::Duration`] or [`time::Duration`].
