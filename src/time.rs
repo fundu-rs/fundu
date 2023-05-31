@@ -120,11 +120,11 @@ impl TimeUnit {
             Multiplier(1, -3),
             Multiplier(1, 0),
             Multiplier(60, 0),
-            Multiplier(3600, 0),
-            Multiplier(86400, 0),
-            Multiplier(604800, 0),
-            Multiplier(2629800, 0),  // Year / 12
-            Multiplier(31557600, 0), // 365.25 days
+            Multiplier(3_600, 0),
+            Multiplier(86_400, 0),
+            Multiplier(604_800, 0),
+            Multiplier(2_629_800, 0),  // Year / 12
+            Multiplier(31_557_600, 0), // 365.25 days
         ];
         MULTIPLIERS[*self as usize]
     }
@@ -246,7 +246,7 @@ impl Multiplier {
     pub const fn checked_mul(&self, rhs: Self) -> Option<Self> {
         if let Some(coefficient) = self.0.checked_mul(rhs.0) {
             if let Some(exponent) = self.1.checked_add(rhs.1) {
-                return Some(Multiplier(coefficient, exponent));
+                return Some(Self(coefficient, exponent));
             }
         }
         None
@@ -269,7 +269,7 @@ impl Multiplier {
     /// ```
     #[inline]
     pub const fn saturating_neg(&self) -> Self {
-        Multiplier(self.0.saturating_neg(), self.1)
+        Self(self.0.saturating_neg(), self.1)
     }
 }
 
@@ -680,7 +680,7 @@ impl Display for Duration {
                 secs %= MINUTE;
             }
             if secs >= 1 {
-                result.push(format!("{}s", secs));
+                result.push(format!("{secs}s"));
             }
         }
 
@@ -695,7 +695,7 @@ impl Display for Duration {
                 nanos %= MICROS_PER_NANO;
             }
             if nanos >= 1 {
-                result.push(format!("{}ns", nanos));
+                result.push(format!("{nanos}ns"));
             }
         }
 
@@ -718,7 +718,7 @@ impl Add for Duration {
 
 impl AddAssign for Duration {
     fn add_assign(&mut self, rhs: Self) {
-        *self = *self + rhs
+        *self = *self + rhs;
     }
 }
 
@@ -733,7 +733,7 @@ impl Sub for Duration {
 
 impl SubAssign for Duration {
     fn sub_assign(&mut self, rhs: Self) {
-        *self = *self - rhs
+        *self = *self - rhs;
     }
 }
 
@@ -759,11 +759,10 @@ impl Hash for Duration {
     fn hash<H: Hasher>(&self, state: &mut H) {
         if self.is_zero() {
             false.hash(state);
-            self.inner.hash(state);
         } else {
             self.is_negative.hash(state);
-            self.inner.hash(state);
         }
+        self.inner.hash(state);
     }
 }
 
@@ -853,19 +852,17 @@ impl TryFrom<&Duration> for time::Duration {
     type Error = TryFromDurationError;
 
     fn try_from(duration: &Duration) -> Result<Self, Self::Error> {
+        #[allow(clippy::cast_possible_wrap)]
         match (duration.is_negative, duration.inner.as_secs()) {
             (true, secs) if secs > i64::MIN.unsigned_abs() => {
                 Err(TryFromDurationError::NegativeOverflow)
             }
-            (true, secs) => Ok(time::Duration::new(
+            (true, secs) => Ok(Self::new(
                 secs.wrapping_neg() as i64,
                 -(duration.inner.subsec_nanos() as i32),
             )),
             (false, secs) if secs > i64::MAX as u64 => Err(TryFromDurationError::PositiveOverflow),
-            (false, secs) => Ok(time::Duration::new(
-                secs as i64,
-                duration.inner.subsec_nanos() as i32,
-            )),
+            (false, secs) => Ok(Self::new(secs as i64, duration.inner.subsec_nanos() as i32)),
         }
     }
 }
@@ -876,7 +873,7 @@ impl SaturatingInto<time::Duration> for Duration {
         self.try_into().unwrap_or_else(|error| match error {
             TryFromDurationError::PositiveOverflow => time::Duration::MAX,
             TryFromDurationError::NegativeOverflow => time::Duration::MIN,
-            _ => unreachable!(), // cov:excl-line
+            TryFromDurationError::NegativeDuration => unreachable!(), // cov:excl-line
         })
     }
 }
@@ -900,27 +897,25 @@ impl TryFrom<&Duration> for chrono::Duration {
         const MAX: chrono::Duration = chrono::Duration::max_value();
         const MIN: chrono::Duration = chrono::Duration::min_value();
 
+        #[allow(clippy::cast_possible_wrap)]
         match (duration.is_negative, duration.inner.as_secs()) {
             (true, secs) if secs > MIN.num_seconds().unsigned_abs() => {
                 Err(TryFromDurationError::NegativeOverflow)
             }
             (true, secs) => {
-                let nanos =
-                    chrono::Duration::nanoseconds((duration.inner.subsec_nanos() as i64).neg());
-                match chrono::Duration::seconds((secs as i64).neg()).checked_add(&nanos) {
-                    Some(d) => Ok(d),
-                    None => Err(TryFromDurationError::NegativeOverflow),
-                }
+                let nanos = Self::nanoseconds((i64::from(duration.inner.subsec_nanos())).neg());
+                Self::seconds((secs as i64).neg())
+                    .checked_add(&nanos)
+                    .ok_or(TryFromDurationError::NegativeOverflow)
             }
-            (false, secs) if secs > MAX.num_seconds() as u64 => {
+            (false, secs) if secs > MAX.num_seconds().unsigned_abs() => {
                 Err(TryFromDurationError::PositiveOverflow)
             }
             (false, secs) => {
-                let nanos = chrono::Duration::nanoseconds(duration.inner.subsec_nanos() as i64);
-                match chrono::Duration::seconds(secs as i64).checked_add(&nanos) {
-                    Some(d) => Ok(d),
-                    None => Err(TryFromDurationError::PositiveOverflow),
-                }
+                let nanos = Self::nanoseconds(i64::from(duration.inner.subsec_nanos()));
+                Self::seconds(secs as i64)
+                    .checked_add(&nanos)
+                    .ok_or(TryFromDurationError::PositiveOverflow)
             }
         }
     }
@@ -932,7 +927,7 @@ impl SaturatingInto<chrono::Duration> for Duration {
         self.try_into().unwrap_or_else(|error| match error {
             TryFromDurationError::PositiveOverflow => chrono::Duration::max_value(),
             TryFromDurationError::NegativeOverflow => chrono::Duration::min_value(),
-            _ => unreachable!(), // cov:excl-line
+            TryFromDurationError::NegativeDuration => unreachable!(), // cov:excl-line
         })
     }
 }
@@ -941,16 +936,16 @@ impl SaturatingInto<chrono::Duration> for Duration {
 /// Convert a [`chrono::Duration`] into a [`Duration`]
 impl From<chrono::Duration> for Duration {
     fn from(duration: chrono::Duration) -> Self {
-        match duration.to_std() {
-            Ok(inner) => Self {
-                is_negative: false,
-                inner,
-            },
-            Err(_) => Self {
+        duration.to_std().map_or_else(
+            |_| Self {
                 is_negative: true,
                 inner: duration.abs().to_std().unwrap(),
             },
-        }
+            |inner| Self {
+                is_negative: false,
+                inner,
+            },
+        )
     }
 }
 
@@ -989,7 +984,7 @@ mod tests {
                 Token::Str("Day"),
                 Token::Unit,
             ],
-        )
+        );
     }
 
     #[cfg(feature = "serde")]
@@ -1008,7 +1003,7 @@ mod tests {
                 Token::I16(2),
                 Token::TupleStructEnd,
             ],
-        )
+        );
     }
 
     #[cfg(feature = "serde")]
@@ -1037,7 +1032,7 @@ mod tests {
                 Token::StructEnd,
                 Token::StructEnd,
             ],
-        )
+        );
     }
 
     #[rstest]
@@ -1111,7 +1106,7 @@ mod tests {
         #[case] time_unit: TimeUnit,
         #[case] multiplier: Multiplier,
     ) {
-        let _ = time_unit.multiplier() * multiplier;
+        _ = time_unit.multiplier() * multiplier;
     }
 
     #[rstest]
@@ -1129,7 +1124,7 @@ mod tests {
         #[case] time_unit: TimeUnit,
         #[case] multiplier: Multiplier,
     ) {
-        let _ = time_unit.multiplier() * multiplier;
+        _ = time_unit.multiplier() * multiplier;
     }
 
     #[rstest]
@@ -1178,9 +1173,9 @@ mod tests {
     )]
     #[case::max(Duration::MAX, "584542046090y 7M 2w 1d 17h 30m 15s 999ms 999Ms 999ns")]
     fn test_fundu_display(#[case] duration: Duration, #[case] expected: &str) {
-        assert_eq!(duration.to_string(), expected.to_string());
+        assert_eq!(duration.to_string(), expected.to_owned());
         if duration.is_zero() {
-            assert_eq!(duration.neg().to_string(), expected.to_string());
+            assert_eq!(duration.neg().to_string(), expected.to_owned());
         } else {
             assert_eq!(
                 duration.neg().to_string(),
@@ -1641,7 +1636,7 @@ mod tests {
         #[case] expected: ChronoDuration,
     ) {
         let chrono_duration: ChronoDuration = duration.try_into().unwrap();
-        assert_eq!(chrono_duration, expected)
+        assert_eq!(chrono_duration, expected);
     }
 
     #[cfg(feature = "chrono")]
@@ -1675,7 +1670,7 @@ mod tests {
         #[case] expected: TryFromDurationError,
     ) {
         let result: Result<ChronoDuration, TryFromDurationError> = duration.try_into();
-        assert_eq!(result.unwrap_err(), expected)
+        assert_eq!(result.unwrap_err(), expected);
     }
 
     #[cfg(feature = "time")]
@@ -1747,6 +1742,6 @@ mod tests {
         #[case] chrono_duration: chrono::Duration,
         #[case] expected: Duration,
     ) {
-        assert_eq!(Duration::from(chrono_duration), expected)
+        assert_eq!(Duration::from(chrono_duration), expected);
     }
 }

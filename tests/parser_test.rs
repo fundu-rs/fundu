@@ -212,7 +212,7 @@ fn test_parse_duration_when_time_units_are_given(#[case] source: &str, #[case] e
 #[case::seconds("1s", vec![TimeUnit::Second])]
 #[case::hour("1h", vec![TimeUnit::Hour])]
 fn test_parser_when_time_units(#[case] source: &str, #[case] time_units: Vec<TimeUnit>) {
-    DurationParser::with_time_units(&time_units)
+    _ = DurationParser::with_time_units(&time_units)
         .parse(source)
         .unwrap();
 }

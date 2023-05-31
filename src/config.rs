@@ -53,6 +53,7 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 pub type Delimiter = fn(u8) -> bool;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[allow(clippy::struct_excessive_bools)]
 pub(crate) struct Config<'a> {
     pub(crate) allow_delimiter: Option<Delimiter>,
     pub(crate) default_unit: TimeUnit,

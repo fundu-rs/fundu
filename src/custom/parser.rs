@@ -315,6 +315,10 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// See the [module level documentation](crate) for more information on the format.
     ///
+    /// # Errors
+    ///
+    /// If parsing to a [`crate::Duration`] fails, a [`ParseError`] is returned
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -730,7 +734,7 @@ mod tests {
             parser.parse("1.0s"),
             Err(ParseError::TimeUnit(
                 3,
-                "No time units allowed but found: 's'".to_string()
+                "No time units allowed but found: 's'".to_owned()
             ))
         );
     }
@@ -742,8 +746,8 @@ mod tests {
         for unit in DEFAULT_ALL_TIME_UNITS {
             let CustomTimeUnit {
                 base_unit,
-                multiplier: _,
                 identifiers,
+                ..
             } = unit;
             for id in identifiers {
                 assert_eq!(

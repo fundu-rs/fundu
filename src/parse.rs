@@ -92,17 +92,18 @@ impl<'a> Parser<'a> {
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
-        if let Some(delimiter) = self.config.parse_multiple_delimiter {
-            self.parse_multiple(
-                source,
-                delimiter,
-                self.config.parse_multiple_conjunctions.unwrap_or_default(),
-                time_units,
-                keywords,
-            )
-        } else {
-            self.parse_single(source, time_units, keywords)
-        }
+        self.config.parse_multiple_delimiter.map_or_else(
+            || self.parse_single(source, time_units, keywords),
+            |delimiter| {
+                self.parse_multiple(
+                    source,
+                    delimiter,
+                    self.config.parse_multiple_conjunctions.unwrap_or_default(),
+                    time_units,
+                    keywords,
+                )
+            },
+        )
     }
 }
 
@@ -116,11 +117,14 @@ trait Parse8Digits {
             "Call this method only if digits has length >= 8"
         ); // cov:excl-stop
 
-        let ptr = digits.as_ptr() as *const u64;
+        // This cast to a more strictly aligned type is safe since we're using
+        // ptr.read_unaligned
+        #[allow(clippy::cast_ptr_alignment)]
+        let ptr = digits.as_ptr().cast::<u64>();
         let mut num = u64::from_le(ptr.read_unaligned());
-        num = ((num & 0x0F0F0F0F0F0F0F0F).wrapping_mul(2561)) >> 8;
-        num = ((num & 0x00FF00FF00FF00FF).wrapping_mul(6553601)) >> 16;
-        num = ((num & 0x0000FFFF0000FFFF).wrapping_mul(42949672960001)) >> 32;
+        num = ((num & 0x0F0F_0F0F_0F0F_0F0F).wrapping_mul(2561)) >> 8i32;
+        num = ((num & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601)) >> 16i32;
+        num = ((num & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001)) >> 32i32;
         num
     }
 }
@@ -136,9 +140,9 @@ impl Whole {
         if digits.len() >= 8 {
             let mut iter = digits.chunks_exact(8);
             for digits in iter.by_ref() {
-                // SAFETY: We have chunks of exactly 8 bytes
                 match seconds
                     .checked_mul(100_000_000)
+                    // SAFETY: We have chunks of exactly 8 bytes
                     .and_then(|s| s.checked_add(unsafe { Self::parse_8_digits(digits) }))
                 {
                     Some(s) => seconds = s,
@@ -150,7 +154,7 @@ impl Whole {
             for num in iter.remainder() {
                 match seconds
                     .checked_mul(10)
-                    .and_then(|s| s.checked_add((*num - b'0') as u64))
+                    .and_then(|s| s.checked_add(u64::from(*num - b'0')))
                 {
                     Some(s) => seconds = s,
                     None => {
@@ -162,7 +166,7 @@ impl Whole {
             for num in digits {
                 match seconds
                     .checked_mul(10)
-                    .and_then(|s| s.checked_add((*num - b'0') as u64))
+                    .and_then(|s| s.checked_add(u64::from(*num - b'0')))
                 {
                     Some(s) => seconds = s,
                     None => {
@@ -175,7 +179,6 @@ impl Whole {
     }
 
     fn parse(
-        &self,
         digits: &[u8],
         append: Option<&[u8]>,
         zeros: Option<usize>,
@@ -184,25 +187,24 @@ impl Whole {
             return Ok(0);
         }
 
-        let seconds = Self::parse_slice(0, digits).and_then(|s| match append {
-            Some(append) => Self::parse_slice(s, append),
-            None => Ok(s),
-        })?;
+        let seconds = Self::parse_slice(0, digits)
+            .and_then(|s| append.map_or(Ok(s), |append| Self::parse_slice(s, append)))?;
         if seconds == 0 {
             Ok(0)
         } else {
             match zeros {
-                Some(num_zeros) if num_zeros > 0 => match POW10.get(num_zeros) {
-                    Some(pow) => Ok(seconds.saturating_mul(*pow)),
-                    None => Err(ParseError::Overflow),
-                },
+                Some(num_zeros) if num_zeros > 0 => POW10
+                    .get(num_zeros)
+                    .map_or(Err(ParseError::Overflow), |pow| {
+                        Ok(seconds.saturating_mul(*pow))
+                    }),
                 Some(_) | None => Ok(seconds),
             }
         }
     }
 
     #[inline]
-    fn len(&self) -> usize {
+    const fn len(&self) -> usize {
         self.1 - self.0
     }
 }
@@ -220,10 +222,7 @@ impl Fract {
 
         if multi >= 100_000_000 && len >= 8 {
             let max = 18usize.saturating_sub(num_skip);
-            let mut iter = digits
-                .get(0..if len > max { max } else { len })
-                .unwrap()
-                .chunks_exact(8);
+            let mut iter = digits[0..if len > max { max } else { len }].chunks_exact(8);
             for digits in iter.by_ref() {
                 multi /= 100_000_000;
                 // SAFETY: The length of digits is exactly 8
@@ -231,7 +230,7 @@ impl Fract {
             }
             for num in iter.remainder() {
                 multi /= 10;
-                attos += (*num - b'0') as u64 * multi;
+                attos += u64::from(*num - b'0') * multi;
             }
         } else if multi > 0 && len > 0 {
             for num in digits {
@@ -239,15 +238,16 @@ impl Fract {
                 if multi == 0 {
                     return (0, attos);
                 }
-                attos += (*num - b'0') as u64 * multi;
+                attos += u64::from(*num - b'0') * multi;
             }
+        } else {
             // else would be reached if multi or len are zero but these states are already handled
             // in parse
-        } // cov:excl-line
+        }
         (multi, attos)
     }
 
-    fn parse(&self, digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
+    fn parse(digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
         if digits.is_empty() && prepend.is_none() {
             return 0;
         }
@@ -280,7 +280,7 @@ impl Fract {
     }
 
     #[inline]
-    fn len(&self) -> usize {
+    const fn len(&self) -> usize {
         self.1 - self.0
     }
 }
@@ -299,6 +299,8 @@ pub(crate) struct DurationRepr<'input> {
 }
 
 impl<'input> DurationRepr<'input> {
+    #[allow(clippy::too_many_lines)]
+    #[allow(clippy::unnecessary_wraps)] // TODO: Fix this
     pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             return Ok(Duration::from_std(self.is_negative, StdDuration::MAX));
@@ -322,7 +324,7 @@ impl<'input> DurationRepr<'input> {
 
         // Panic on overflow during the multiplication of the multipliers or adding the exponents
         let Multiplier(coefficient, exponent) = self.unit.multiplier() * self.multiplier;
-        let exponent = exponent as i32 + self.exponent as i32;
+        let exponent = i32::from(exponent) + i32::from(self.exponent);
 
         // The maximum absolute value of the exponent is `2 * abs(i16::MIN)`, so it is safe to cast
         // to usize
@@ -331,22 +333,20 @@ impl<'input> DurationRepr<'input> {
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
         // to integers is necessary, since the exponent can move digits into the to be considered
         // final integer domain.
-        let (seconds, attos) = match exponent.cmp(&0) {
+        let (seconds, attos) = match exponent.cmp(&0i32) {
             Less if whole.len() > exponent_abs => {
-                let seconds = whole.parse(&digits[whole.0..whole.1 - exponent_abs], None, None);
-                let attos = if seconds.is_ok() {
-                    Some(fract.parse(
+                let seconds = Whole::parse(&digits[whole.0..whole.1 - exponent_abs], None, None);
+                let attos = seconds.is_ok().then(|| {
+                    Fract::parse(
                         &digits[fract.0..fract.1],
                         Some(&digits[whole.1 - exponent_abs..whole.1]),
                         None,
-                    ))
-                } else {
-                    None
-                };
+                    )
+                });
                 (Some(seconds), attos)
             }
             Less => {
-                let attos = Some(fract.parse(
+                let attos = Some(Fract::parse(
                     &digits[fract.0..fract.1],
                     Some(&digits[whole.0..whole.1]),
                     Some(exponent_abs - whole.len()),
@@ -354,29 +354,25 @@ impl<'input> DurationRepr<'input> {
                 (None, attos)
             }
             Equal => {
-                let seconds = whole.parse(&digits[whole.0..whole.1], None, None);
-                let attos = if seconds.is_ok() {
-                    Some(fract.parse(&digits[fract.0..fract.1], None, None))
-                } else {
-                    None
-                };
+                let seconds = Whole::parse(&digits[whole.0..whole.1], None, None);
+                let attos = seconds
+                    .is_ok()
+                    .then(|| Fract::parse(&digits[fract.0..fract.1], None, None));
                 (Some(seconds), attos)
             }
             Greater if fract.len() > exponent_abs => {
-                let seconds = whole.parse(
+                let seconds = Whole::parse(
                     &digits[whole.0..whole.1],
                     Some(&digits[fract.0..fract.0 + exponent_abs]),
                     None,
                 );
-                let attos = if seconds.is_ok() {
-                    Some(fract.parse(&digits[fract.0 + exponent_abs..fract.1], None, None))
-                } else {
-                    None
-                };
+                let attos = seconds
+                    .is_ok()
+                    .then(|| Fract::parse(&digits[fract.0 + exponent_abs..fract.1], None, None));
                 (Some(seconds), attos)
             }
             Greater => {
-                let seconds = whole.parse(
+                let seconds = Whole::parse(
                     &digits[whole.0..whole.1],
                     Some(&digits[fract.0..fract.1]),
                     Some(exponent_abs - fract.len()),
@@ -411,22 +407,21 @@ impl<'input> DurationRepr<'input> {
         } else if coefficient == 1 || coefficient == -1 {
             Ok(Duration::from_std(
                 duration_is_negative,
-                StdDuration::new(seconds, (attos / ATTOS_PER_NANO) as u32),
+                StdDuration::new(seconds, (attos / ATTOS_PER_NANO).try_into().unwrap()),
             ))
         } else {
             let unsigned_coefficient = coefficient.unsigned_abs();
 
-            let attos = attos as u128 * (unsigned_coefficient as u128);
+            let attos = u128::from(attos) * u128::from(unsigned_coefficient);
             Ok(
-                match seconds
-                    .checked_mul(unsigned_coefficient)
-                    .and_then(|s| s.checked_add((attos / (ATTOS_PER_SEC as u128)) as u64))
-                {
+                match seconds.checked_mul(unsigned_coefficient).and_then(|s| {
+                    s.checked_add((attos / u128::from(ATTOS_PER_SEC)).try_into().unwrap())
+                }) {
                     Some(s) => Duration::from_std(
                         duration_is_negative,
                         StdDuration::new(
                             s,
-                            ((attos / (ATTOS_PER_NANO as u128)) % 1_000_000_000) as u32,
+                            ((attos / u128::from(ATTOS_PER_NANO)) % 1_000_000_000) as u32,
                         ),
                     ),
                     None if duration_is_negative => Duration::MIN,
@@ -447,7 +442,7 @@ struct Bytes<'a> {
 
 impl<'a> Bytes<'a> {
     #[inline]
-    fn new(input: &'a [u8]) -> Self {
+    const fn new(input: &'a [u8]) -> Self {
         Self {
             current_pos: 0,
             current_byte: input.first(),
@@ -475,9 +470,8 @@ impl<'a> Bytes<'a> {
         while let Some(byte) = self.current_byte {
             if delimiter(*byte) {
                 break;
-            } else {
-                self.advance()
             }
+            self.advance();
         }
         &self.input[start..self.current_pos]
     }
@@ -505,7 +499,7 @@ impl<'a> Bytes<'a> {
     #[inline]
     fn finish(&mut self) {
         self.current_pos = self.input.len();
-        self.current_byte = None
+        self.current_byte = None;
     }
 
     #[inline]
@@ -518,21 +512,17 @@ impl<'a> Bytes<'a> {
     fn parse_digit(&mut self) -> Option<u8> {
         self.current_byte.and_then(|byte| {
             let digit = byte.wrapping_sub(b'0');
-            if digit < 10 {
+            (digit < 10).then(|| {
                 self.advance();
-                Some(*byte)
-            } else {
-                None
-            }
+                *byte
+            })
         })
     }
 
     fn parse_digits_strip_zeros(&mut self) -> BytesRange {
-        debug_assert!(
-            self.current_byte
-                .map_or(false, |byte| byte.is_ascii_digit())
-        ); // cov:excl-stop
-        const ASCII_EIGHT_ZEROS: u64 = 0x3030303030303030;
+        const ASCII_EIGHT_ZEROS: u64 = 0x3030_3030_3030_3030;
+
+        debug_assert!(self.current_byte.map_or(false, u8::is_ascii_digit)); // cov:excl-stop
 
         let mut start = self.current_pos;
         let mut strip_leading_zeros = true;
@@ -570,10 +560,7 @@ impl<'a> Bytes<'a> {
     }
 
     fn parse_digits(&mut self) -> BytesRange {
-        debug_assert!(
-            self.current_byte
-                .map_or(false, |byte| byte.is_ascii_digit())
-        ); // cov:excl-stop
+        debug_assert!(self.current_byte.map_or(false, u8::is_ascii_digit)); // cov:excl-stop
 
         let start = self.current_pos;
         while self.parse_8_digits().is_some() {}
@@ -588,17 +575,19 @@ impl<'a> Bytes<'a> {
         self.input
             .get(self.current_pos..(self.current_pos + 8))
             .and_then(|digits| {
-                let ptr = digits.as_ptr() as *const u64;
+                // This cast to a more strictly aligned type is safe since we're using
+                // ptr.read_unaligned
+                #[allow(clippy::cast_ptr_alignment)]
+                let ptr = digits.as_ptr().cast::<u64>();
                 // SAFETY: We just ensured there are 8 bytes
                 let num = u64::from_le(unsafe { ptr.read_unaligned() });
-                if (num & (num.wrapping_add(0x0606060606060606)) & 0xf0f0f0f0f0f0f0f0)
-                    == 0x3030303030303030
-                {
-                    unsafe { self.advance_by(8) }
-                    Some(num)
-                } else {
-                    None
-                }
+                ((num & (num.wrapping_add(0x0606_0606_0606_0606)) & 0xf0f0_f0f0_f0f0_f0f0)
+                    == 0x3030_3030_3030_3030)
+                    .then(|| {
+                        // SAFETY: We just ensured there are 8 bytes
+                        unsafe { self.advance_by(8) }
+                        num
+                    })
             })
     }
 
@@ -609,19 +598,18 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    fn is_end_of_input(&self) -> bool {
+    const fn is_end_of_input(&self) -> bool {
         self.current_byte.is_none()
     }
 
     #[inline]
     fn check_end_of_input(&self) -> Result<(), ParseError> {
-        match self.current_byte {
-            Some(byte) => Err(ParseError::Syntax(
+        self.current_byte.map_or(Ok(()), |byte| {
+            Err(ParseError::Syntax(
                 self.current_pos,
                 format!("Expected end of input but found: '{}'", *byte as char),
-            )),
-            None => Ok(()),
-        }
+            ))
+        })
     }
 
     fn try_consume_delimiter(&mut self, delimiter: Delimiter) -> Result<(), ParseError> {
@@ -629,7 +617,7 @@ impl<'a> Bytes<'a> {
         if self.current_pos == 0 {
             return Err(ParseError::Syntax(
                 0,
-                "Input may not start with a delimiter".to_string(),
+                "Input may not start with a delimiter".to_owned(),
             ));
         }
 
@@ -637,7 +625,7 @@ impl<'a> Bytes<'a> {
         self.advance();
         while let Some(byte) = self.current_byte {
             if delimiter(*byte) {
-                self.advance()
+                self.advance();
             } else {
                 break;
             }
@@ -647,7 +635,7 @@ impl<'a> Bytes<'a> {
             Some(_) => Ok(()),
             None => Err(ParseError::Syntax(
                 start,
-                "Input may not end with a delimiter".to_string(),
+                "Input may not end with a delimiter".to_owned(),
             )),
         }
     }
@@ -711,7 +699,7 @@ trait ReprParserTemplate<'a> {
         self.parse_number_sign(&mut duration_repr)?;
 
         // parse infinity, keywords or the whole number part of the input
-        match self.bytes().current_byte.cloned() {
+        match self.bytes().current_byte.copied() {
             Some(byte) if byte.is_ascii_digit() => {
                 duration_repr.whole = Some(self.parse_whole());
             }
@@ -732,9 +720,10 @@ trait ReprParserTemplate<'a> {
                 } else if config.number_is_optional {
                     // do nothing
                 } else {
-                    // SAFETY: The input str is utf-8 and we have only parsed valid utf-8 so far
                     return Err(ParseError::Syntax(
                         self.bytes().current_pos,
+                        // SAFETY: The input str is utf-8 and we have only parsed valid utf-8 so
+                        // far
                         format!("Invalid input: '{}'", unsafe {
                             self.bytes().get_remainder_str_unchecked()
                         }),
@@ -743,9 +732,10 @@ trait ReprParserTemplate<'a> {
             }
             Some(_) if config.number_is_optional => {}
             Some(_) => {
-                // SAFETY: The input str is utf-8 and we have only parsed ascii characters so far
                 return Err(ParseError::Syntax(
                     self.bytes().current_pos,
+                    // SAFETY: The input str is utf-8 and we have only parsed ascii characters so
+                    // far
                     format!("Invalid input: '{}'", unsafe {
                         self.bytes().get_remainder_str_unchecked()
                     }),
@@ -754,7 +744,7 @@ trait ReprParserTemplate<'a> {
             None => {
                 return Err(ParseError::Syntax(
                     self.bytes().current_pos,
-                    "Unexpected end of input".to_string(),
+                    "Unexpected end of input".to_owned(),
                 ));
             }
         }
@@ -795,7 +785,7 @@ trait ReprParserTemplate<'a> {
             Some(_) => Ok(false),
             None => Err(ParseError::Syntax(
                 bytes.current_pos,
-                "Unexpected end of input".to_string(),
+                "Unexpected end of input".to_owned(),
             )),
         }
     }
@@ -830,7 +820,7 @@ trait ReprParserTemplate<'a> {
                         return Err(ParseError::Syntax(
                             bytes.current_pos - 1,
                             "Either the whole number part or the fraction must be present"
-                                .to_string(),
+                                .to_owned(),
                         ));
                     }
                     Some(_) => None,
@@ -841,7 +831,7 @@ trait ReprParserTemplate<'a> {
             }
             Some(byte) if *byte == b'.' => Err(ParseError::Syntax(
                 bytes.current_pos,
-                "No fraction allowed".to_string(),
+                "No fraction allowed".to_owned(),
             )),
             Some(_) => Ok(true),
             None => Ok(false),
@@ -860,7 +850,7 @@ trait ReprParserTemplate<'a> {
                 exponent = if is_negative {
                     match exponent
                         .checked_mul(10)
-                        .and_then(|e| e.checked_sub(digit as i16))
+                        .and_then(|e| e.checked_sub(i16::from(digit)))
                     {
                         Some(exponent) => exponent,
                         None => return Err(ParseError::NegativeExponentOverflow),
@@ -868,7 +858,7 @@ trait ReprParserTemplate<'a> {
                 } else {
                     match exponent
                         .checked_mul(10)
-                        .and_then(|e| e.checked_add(digit as i16))
+                        .and_then(|e| e.checked_add(i16::from(digit)))
                     {
                         Some(exponent) => exponent,
                         None => return Err(ParseError::PositiveExponentOverflow),
@@ -885,12 +875,12 @@ trait ReprParserTemplate<'a> {
         } else if bytes.is_end_of_input() {
             Err(ParseError::Syntax(
                 bytes.current_pos,
-                "Expected exponent but reached end of input".to_string(),
+                "Expected exponent but reached end of input".to_owned(),
             ))
         } else {
             Err(ParseError::Syntax(
                 bytes.current_pos,
-                "The exponent must have at least one digit".to_string(),
+                "The exponent must have at least one digit".to_owned(),
             ))
         }
     }
@@ -906,7 +896,7 @@ trait ReprParserTemplate<'a> {
                 if duration_repr.whole.is_none() && duration_repr.fract.is_none() {
                     Err(ParseError::Syntax(
                         bytes.current_pos,
-                        "Exponent must have a mantissa".to_string(),
+                        "Exponent must have a mantissa".to_owned(),
                     ))
                 } else {
                     bytes.advance();
@@ -916,7 +906,7 @@ trait ReprParserTemplate<'a> {
             }
             Some(byte) if byte.eq_ignore_ascii_case(&b'e') => Err(ParseError::Syntax(
                 bytes.current_pos,
-                "No exponent allowed".to_string(),
+                "No exponent allowed".to_owned(),
             )),
             Some(_) => Ok(true),
             None => Ok(false),
@@ -944,7 +934,7 @@ pub(crate) struct ReprParserSingle<'a> {
 }
 
 impl<'a> ReprParserSingle<'a> {
-    fn new(input: &'a str) -> Self {
+    const fn new(input: &'a str) -> Self {
         Self {
             bytes: Bytes::new(input.as_bytes()),
         }
@@ -991,7 +981,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                 None => {
                     return Err(ParseError::Syntax(
                         self.bytes.current_pos,
-                        "Error parsing infinity: Premature end of input".to_string(),
+                        "Error parsing infinity: Premature end of input".to_owned(),
                     ));
                 }
             }
@@ -1031,67 +1021,65 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
             "Don't call this function without being sure there's at least 1 byte remaining"
         ); // cov:excl-stop
 
-        match config.allow_ago {
-            Some(delimiter) => {
-                let start = self.bytes.current_pos;
-                let string =
-                    std::str::from_utf8(self.bytes.advance_to(delimiter)).map_err(|error| {
-                        ParseError::TimeUnit(
-                            start + error.valid_up_to(),
-                            "Invalid utf-8 when applying the delimiter".to_string(),
-                        )
-                    })?;
+        if let Some(delimiter) = config.allow_ago {
+            let start = self.bytes.current_pos;
+            let string =
+                std::str::from_utf8(self.bytes.advance_to(delimiter)).map_err(|error| {
+                    ParseError::TimeUnit(
+                        start + error.valid_up_to(),
+                        "Invalid utf-8 when applying the delimiter".to_owned(),
+                    )
+                })?;
 
-                let (time_unit, mut multiplier) = if string.is_empty() {
-                    return Ok(None);
-                } else {
-                    match time_units.get(string) {
-                        None => {
-                            return Err(ParseError::TimeUnit(
-                                start,
-                                format!("Invalid time unit: '{string}'"),
-                            ));
-                        }
-                        Some(unit) => unit,
-                    }
-                };
-
-                // At this point, either there are one or more bytes of which the first is the
-                // delimiter or we've reached the end of input
-                if self.bytes.current_byte.is_some() {
-                    self.bytes.try_consume_delimiter(delimiter)?;
-                    if self.bytes.next_is_ignore_ascii_case(b"ago") {
-                        // SAFETY: We have checked that there are at least 3 bytes
-                        unsafe { self.bytes.advance_by(3) };
-                        // We're applying the negation on the multiplier only once so we don't need
-                        // the operation to be reflexive and using saturating neg is fine
-                        multiplier = multiplier.saturating_neg();
-                    } else {
+            let (time_unit, mut multiplier) = if string.is_empty() {
+                return Ok(None);
+            } else {
+                match time_units.get(string) {
+                    None => {
                         return Err(ParseError::TimeUnit(
-                            self.bytes.current_pos,
-                            format!("Found unexpected keyword: '{}'", unsafe {
-                                self.bytes.get_remainder_str_unchecked()
-                            }),
+                            start,
+                            format!("Invalid time unit: '{string}'"),
                         ));
                     }
-                };
+                    Some(unit) => unit,
+                }
+            };
 
-                Ok(Some((time_unit, multiplier)))
-            }
-            None => {
-                // SAFETY: The input of `parse` is &str and therefore valid utf-8 and we have read
-                // only ascii characters up to this point.
-                let string = unsafe { self.bytes.get_remainder_str_unchecked() };
-                let result = match time_units.get(string) {
-                    None => Err(ParseError::TimeUnit(
+            // At this point, either there are one or more bytes of which the first is the
+            // delimiter or we've reached the end of input
+            if self.bytes.current_byte.is_some() {
+                self.bytes.try_consume_delimiter(delimiter)?;
+                if self.bytes.next_is_ignore_ascii_case(b"ago") {
+                    // SAFETY: We have checked that there are at least 3 bytes
+                    unsafe { self.bytes.advance_by(3) };
+                    // We're applying the negation on the multiplier only once so we don't need
+                    // the operation to be reflexive and using saturating neg is fine
+                    multiplier = multiplier.saturating_neg();
+                } else {
+                    return Err(ParseError::TimeUnit(
                         self.bytes.current_pos,
-                        format!("Invalid time unit: '{string}'"),
-                    )),
-                    some_time_unit => Ok(some_time_unit),
-                };
-                self.bytes.finish();
-                result
-            }
+                        // SAFETY: We've just parsed valid utf-8 so far
+                        format!("Found unexpected keyword: '{}'", unsafe {
+                            self.bytes.get_remainder_str_unchecked()
+                        }),
+                    ));
+                }
+            };
+
+            Ok(Some((time_unit, multiplier)))
+        } else {
+            // SAFETY: The input of `parse` is &str and therefore valid utf-8 and we have read
+            // only ascii characters up to this point.
+            let string = unsafe { self.bytes.get_remainder_str_unchecked() };
+            let result = match time_units.get(string) {
+                None => Err(ParseError::TimeUnit(
+                    self.bytes.current_pos,
+                    format!("Invalid time unit: '{string}'"),
+                )),
+                some_time_unit => Ok(some_time_unit),
+            };
+            self.bytes.finish();
+            result
         }
     }
 
@@ -1102,7 +1090,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         config: &Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<bool, ParseError> {
-        match self.bytes().current_byte.cloned() {
+        match self.bytes().current_byte.copied() {
             Some(_) if !time_units.is_empty() => {
                 if let Some((unit, multi)) = self.parse_time_unit(config, time_units)? {
                     duration_repr.unit = unit;
@@ -1111,9 +1099,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                 Ok(true)
             }
             Some(_) => {
-                // SAFETY: We've parsed only valid utf-8 so far
                 Err(ParseError::TimeUnit(
                     self.bytes.current_pos,
+                    // SAFETY: We've parsed only valid utf-8 so far
                     format!("No time units allowed but found: '{}'", unsafe {
                         self.bytes.get_remainder_str_unchecked()
                     }),
@@ -1159,7 +1147,7 @@ impl<'a> ReprParserMultiple<'a> {
                 unsafe { self.bytes.advance_by(word.len()) };
                 match self.bytes.current_byte {
                     Some(byte) if delimiter(*byte) => {
-                        self.bytes.try_consume_delimiter(delimiter)?
+                        self.bytes.try_consume_delimiter(delimiter)?;
                     }
                     Some(byte) if byte.is_ascii_digit() => {}
                     Some(byte) => {
@@ -1281,7 +1269,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         let keyword = self.bytes.get_current_str(start).map_err(|error| {
             ParseError::Syntax(
                 start + error.valid_up_to(),
-                "Invalid utf-8 when applying the delimiter".to_string(),
+                "Invalid utf-8 when applying the delimiter".to_owned(),
             )
         })?;
         match keywords.unwrap().get(keyword) {
@@ -1327,7 +1315,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         let string = self.bytes.get_current_str(start).map_err(|error| {
             ParseError::TimeUnit(
                 start + error.valid_up_to(),
-                "Invalid utf-8 when applying the delimiter".to_string(),
+                "Invalid utf-8 when applying the delimiter".to_owned(),
             )
         })?;
 
@@ -1427,10 +1415,10 @@ mod tests {
     } // cov:excl-stop
 
     #[rstest]
-    #[case::zeros("00000000", Some(0x3030303030303030))]
-    #[case::one("00000001", Some(0x3130303030303030))]
-    #[case::ten_millions("10000000", Some(0x3030303030303031))]
-    #[case::nines("99999999", Some(0x3939393939393939))]
+    #[case::zeros("00000000", Some(0x3030_3030_3030_3030))]
+    #[case::one("00000001", Some(0x3130_3030_3030_3030))]
+    #[case::ten_millions("10000000", Some(0x3030_3030_3030_3031))]
+    #[case::nines("99999999", Some(0x3939_3939_3939_3939))]
     fn test_duration_repr_parser_parse_8_digits(
         #[case] input: &str,
         #[case] expected: Option<u64>,
@@ -1457,7 +1445,7 @@ mod tests {
     #[test]
     fn test_duration_repr_parser_parse_8_digits_when_more_than_8() {
         let mut parser = ReprParserSingle::new("00000000a");
-        assert_eq!(parser.bytes.parse_8_digits(), Some(0x3030303030303030));
+        assert_eq!(parser.bytes.parse_8_digits(), Some(0x3030_3030_3030_3030));
         assert_eq!(parser.bytes.get_remainder(), &[b'a']);
         assert_eq!(parser.bytes.current_byte, Some(&b'a'));
         assert_eq!(parser.bytes.current_pos, 8);

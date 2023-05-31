@@ -79,7 +79,7 @@ mod tests {
     }
     #[test]
     fn test_floor_log2_for_u64_when_u64_max() {
-        assert_eq!(u64::MAX.floor_log2(), 63)
+        assert_eq!(u64::MAX.floor_log2(), 63);
     }
 
     #[test]

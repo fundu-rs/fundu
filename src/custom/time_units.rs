@@ -66,7 +66,7 @@ pub(super) struct LookupData {
 }
 
 impl LookupData {
-    fn new(time_unit: TimeUnit, multiplier: Multiplier) -> Self {
+    const fn new(time_unit: TimeUnit, multiplier: Multiplier) -> Self {
         Self {
             min_length: usize::MAX,
             max_length: 0,
@@ -85,7 +85,7 @@ impl LookupData {
         }
     }
 
-    fn check(&self, identifier: &str) -> bool {
+    const fn check(&self, identifier: &str) -> bool {
         let len = identifier.len();
         self.min_length <= len && self.max_length >= len
     }
@@ -121,16 +121,16 @@ impl LookupData {
 ///
 /// | `base_unit`    | `base_unit Multiplier` | Limit m | Limit -e | Limit +e
 /// | --------------- | ----------:| -------:| --------:| ------:|
-/// | Nanosecond  | Multiplier(1, -9) | u64::MAX | -32,759 | i16::MAX
-/// | Microsecond | Multiplier(1, -6) | u64::MAX | -32,762 | i16::MAX
-/// | Millisecond | Multiplier(1, -3) | u64::MAX | -32,765 | i16::MAX
-/// | Second      | Multiplier(1, 0) | u64::MAX | i16::MIN | i16::MAX
-/// | Minute      | Multiplier(60, 0) | 307_445_734_561_825_860 | i16::MIN | i16::MAX
-/// | Hour        | Multiplier(3600, 0) | 5_124_095_576_030_431 | i16::MIN | i16::MAX
-/// | Day         | Multiplier(86400, 0) | 213_503_982_334_601 | i16::MIN | i16::MAX
-/// | Week        | Multiplier(604800, 0) | 30_500_568_904_943  | i16::MIN | i16::MAX
-/// | Month       | Multiplier(2629800, 0) | 7_014_504_553_087 | i16::MIN | i16::MAX
-/// | Year        | Multiplier(31557600, 0) | 584_542_046_090 | i16::MIN | i16::MAX
+/// | Nanosecond  | Multiplier(1, -9) | `u64::MAX` | -32,759 | `i16::MAX`
+/// | Microsecond | Multiplier(1, -6) | `u64::MAX` | -32,762 | `i16::MAX`
+/// | Millisecond | Multiplier(1, -3) | `u64::MAX` | -32,765 | `i16::MAX`
+/// | Second      | Multiplier(1, 0) | `u64::MAX` | `i16::MIN` | `i16::MAX`
+/// | Minute      | Multiplier(60, 0) | `307_445_734_561_825_860` | `i16::MIN` | `i16::MAX`
+/// | Hour        | Multiplier(3600, 0) | `5_124_095_576_030_431` | `i16::MIN` | `i16::MAX`
+/// | Day         | Multiplier(86400, 0) | `213_503_982_334_601` | `i16::MIN` | `i16::MAX`
+/// | Week        | Multiplier(604800, 0) | `30_500_568_904_943`  | `i16::MIN` | `i16::MAX`
+/// | Month       | Multiplier(2629800, 0) | `7_014_504_553_087` | `i16::MIN` | `i16::MAX`
+/// | Year        | Multiplier(31557600, 0) | `584_542_046_090` | `i16::MIN` | `i16::MAX`
 ///
 /// # Examples
 ///
@@ -215,13 +215,11 @@ impl<'a> CustomTimeUnit<'a> {
             base_unit,
             multiplier: match multiplier {
                 Some(m) => {
-                    // expect is stable yet in const context so we use panic! here
-                    if base_unit.multiplier().checked_mul(m).is_none() {
-                        panic!(
-                            "The time unit multiplier multiplied with the multiplier parameter \
-                             may not overflow"
-                        )
-                    }
+                    assert!(
+                        base_unit.multiplier().checked_mul(m).is_some(),
+                        "The time unit multiplier multiplied with the multiplier parameter may \
+                         not overflow"
+                    );
                     m
                 }
                 None => Multiplier(1, 0),
@@ -230,12 +228,28 @@ impl<'a> CustomTimeUnit<'a> {
         }
     }
 
+    /// Convenience method to create a new [`CustomTimeUnit`] with the default [`Multiplier`] of
+    /// `Multiplier(1, 0)`
+    ///
+    /// See also [`CustomTimeUnit::new`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomTimeUnit, Multiplier};
+    ///
+    /// assert_eq!(
+    ///     CustomTimeUnit::with_default(Second, &["sec", "secs"]),
+    ///     CustomTimeUnit::new(Second, &["sec", "secs"], Some(Multiplier(1, 0)))
+    /// );
+    /// ```
     pub const fn with_default(base_unit: TimeUnit, identifiers: &'a [&'a str]) -> Self {
         Self::new(base_unit, identifiers, None)
     }
 }
 
-/// Two [`CustomTimeUnit]s are equal if their `base_unit`s and their `multipliers` are equal
+/// Two [`CustomTimeUnit`]s are equal if their `base_unit`s and their `multipliers` are equal
 ///
 /// The identifiers don't influence equality
 impl<'a> PartialEq for CustomTimeUnit<'a> {
@@ -300,15 +314,14 @@ impl<'a> CustomTimeUnits<'a> {
             multiplier,
             identifiers,
         } = time_unit;
-        let (min_length, max_length) = match self.lookup_mut(base_unit, multiplier) {
-            Some((data, ids)) => {
+        let (min_length, max_length) =
+            if let Some((data, ids)) = self.lookup_mut(base_unit, multiplier) {
                 for &identifier in identifiers.iter().filter(|&&id| !id.is_empty()) {
                     ids.push(identifier);
                     data.update(identifier);
                 }
                 (data.min_length, data.max_length)
-            }
-            None => {
+            } else {
                 let mut data = LookupData::new(base_unit, multiplier);
                 let mut ids = Vec::with_capacity(identifiers.len());
                 for &identifier in identifiers.iter().filter(|&&id| !id.is_empty()) {
@@ -321,8 +334,7 @@ impl<'a> CustomTimeUnits<'a> {
                 let lengths = (data.min_length, data.max_length);
                 self.time_units.push((data, ids));
                 lengths
-            }
-        };
+            };
         self.update_lengths(min_length, max_length);
     }
 
@@ -349,11 +361,7 @@ impl<'a> CustomTimeUnits<'a> {
 
     pub(super) fn find_id(&self, id: &str) -> Option<(TimeUnit, Multiplier)> {
         self.time_units.iter().find_map(|(data, v)| {
-            if data.check(id) && v.contains(&id) {
-                Some((data.time_unit, data.multiplier))
-            } else {
-                None
-            }
+            (data.check(id) && v.contains(&id)).then(|| (data.time_unit, data.multiplier))
         })
     }
 

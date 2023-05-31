@@ -106,7 +106,7 @@ impl<'a> DurationParser<'a> {
     ///     Duration::positive(60 * 60 * 24 * 7 + 60 * 60 * 24 * 7 / 2, 0)
     /// );
     /// ```
-    pub fn with_time_units(time_units: &[TimeUnit]) -> Self {
+    pub const fn with_time_units(time_units: &[TimeUnit]) -> Self {
         Self {
             time_units: TimeUnits::with_time_units(time_units),
             inner: Parser::new(),
@@ -208,6 +208,10 @@ impl<'a> DurationParser<'a> {
     /// Parse the `source` string into a [`crate::Duration`].
     ///
     /// See the [module-level documentation](crate) for more information on the format.
+    ///
+    /// # Errors
+    ///
+    /// If parsing into a [`crate::Duration`] fails returns a [`ParseError`]
     ///
     /// # Examples
     ///
@@ -550,6 +554,7 @@ impl<'a> Default for DurationParser<'a> {
 ///     ))
 /// );
 /// ```
+#[allow(clippy::missing_panics_doc)]
 pub fn parse_duration(string: &str) -> Result<StdDuration, ParseError> {
     DurationParser::new()
         .parse(string)
@@ -581,7 +586,7 @@ mod tests {
                 Day,
                 Week
             ]
-        )
+        );
     }
 
     #[test]

@@ -42,22 +42,22 @@ impl Error for ParseError {}
 impl Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            ParseError::Syntax(column, reason) => {
+            Self::Syntax(column, reason) => {
                 format!("Syntax error: {reason} at column {column}")
             }
-            ParseError::Overflow => "Number overflow".to_string(),
-            ParseError::TimeUnit(pos, reason) => {
+            Self::Overflow => "Number overflow".to_owned(),
+            Self::TimeUnit(pos, reason) => {
                 format!("Time unit error: {reason} at column {pos}")
             }
-            ParseError::NegativeExponentOverflow => {
-                "Negative exponent overflow: Minimum is -32768".to_string()
+            Self::NegativeExponentOverflow => {
+                "Negative exponent overflow: Minimum is -32768".to_owned()
             }
-            ParseError::PositiveExponentOverflow => {
-                "Positive exponent overflow: Maximum is +32767".to_string()
+            Self::PositiveExponentOverflow => {
+                "Positive exponent overflow: Maximum is +32767".to_owned()
             }
-            ParseError::NegativeNumber => "Number was negative".to_string(),
-            ParseError::InvalidInput(reason) => format!("Invalid input: {reason}"),
-            ParseError::Empty => "Empty input".to_string(),
+            Self::NegativeNumber => "Number was negative".to_owned(),
+            Self::InvalidInput(reason) => format!("Invalid input: {reason}"),
+            Self::Empty => "Empty input".to_owned(),
         };
         f.write_str(&msg)
     }
@@ -79,9 +79,10 @@ pub enum TryFromDurationError {
 impl From<TryFromDurationError> for ParseError {
     fn from(error: TryFromDurationError) -> Self {
         match error {
-            TryFromDurationError::NegativeDuration => ParseError::NegativeNumber,
-            TryFromDurationError::PositiveOverflow => ParseError::Overflow,
-            TryFromDurationError::NegativeOverflow => ParseError::Overflow,
+            TryFromDurationError::NegativeDuration => Self::NegativeNumber,
+            TryFromDurationError::PositiveOverflow | TryFromDurationError::NegativeOverflow => {
+                Self::Overflow
+            }
         }
     }
 }
@@ -91,13 +92,11 @@ impl Error for TryFromDurationError {}
 impl Display for TryFromDurationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let description = match self {
-            TryFromDurationError::NegativeDuration => {
-                "Error converting duration: value is negative"
-            }
-            TryFromDurationError::PositiveOverflow => {
+            Self::NegativeDuration => "Error converting duration: value is negative",
+            Self::PositiveOverflow => {
                 "Error converting duration: value overflows the positive value range"
             }
-            TryFromDurationError::NegativeOverflow => {
+            Self::NegativeOverflow => {
                 "Error converting duration: value overflows the negative value range"
             }
         };
@@ -115,12 +114,12 @@ mod tests {
 
     #[rstest]
     #[case::syntax_error(
-        ParseError::Syntax(10, "Invalid character".to_string()),
+        ParseError::Syntax(10, "Invalid character".to_owned()),
         "Syntax error: Invalid character at column 10"
     )]
     #[case::overflow(ParseError::Overflow, "Number overflow")]
     #[case::time_unit_error(
-        ParseError::TimeUnit(10, "Found invalid 'y'".to_string()),
+        ParseError::TimeUnit(10, "Found invalid 'y'".to_owned()),
         "Time unit error: Found invalid 'y' at column 10"
     )]
     #[case::negative_exponent_overflow_error(
@@ -133,7 +132,7 @@ mod tests {
     )]
     #[case::negative_number_error(ParseError::NegativeNumber, "Number was negative")]
     #[case::invalid_input(
-        ParseError::InvalidInput("Unexpected".to_string()),
+        ParseError::InvalidInput("Unexpected".to_owned()),
         "Invalid input: Unexpected"
     )]
     #[case::empty(ParseError::Empty, "Empty input")]
@@ -183,7 +182,7 @@ mod tests {
                 Token::Str("NegativeDuration"),
                 Token::Unit,
             ],
-        )
+        );
     }
 
     #[cfg(feature = "serde")]
@@ -198,6 +197,6 @@ mod tests {
                 Token::Str("Empty"),
                 Token::Unit,
             ],
-        )
+        );
     }
 }

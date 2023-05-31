@@ -40,7 +40,7 @@ impl TimeUnitsLike for TimeUnits {
     /// Return `true` if this set of time units is empty.
     #[inline]
     fn is_empty(&self) -> bool {
-        self.data.iter().all(|byte| byte.is_none())
+        self.data.iter().all(std::option::Option::is_none)
     }
 
     /// Return the [`TimeUnit`] associated with the provided `identifier`.
@@ -52,19 +52,11 @@ impl TimeUnitsLike for TimeUnits {
         match identifier.len() {
             1 => self.data.iter().skip(3).filter_map(|t| *t).find_map(|t| {
                 let unit = DEFAULT_TIME_UNITS[t as usize];
-                if unit == identifier {
-                    Some((t, Multiplier::default()))
-                } else {
-                    None
-                }
+                (unit == identifier).then(|| (t, Multiplier::default()))
             }),
             2 => self.data.iter().take(3).filter_map(|t| *t).find_map(|t| {
                 let unit = DEFAULT_TIME_UNITS[t as usize];
-                if unit == identifier {
-                    Some((t, Multiplier::default()))
-                } else {
-                    None
-                }
+                (unit == identifier).then(|| (t, Multiplier::default()))
             }),
             _ => None,
         }
@@ -140,7 +132,7 @@ mod tests {
     #[test]
     fn test_time_units_new() {
         let time_units = TimeUnits::new();
-        assert!(time_units.data.iter().all(|t| t.is_none()));
+        assert!(time_units.data.iter().all(std::option::Option::is_none));
         assert!(time_units.is_empty());
         assert_eq!(time_units.get_time_units(), vec![]);
     }
@@ -242,7 +234,7 @@ mod tests {
 
     #[test]
     fn test_time_units_when_empty_then_return_true() {
-        assert!(TimeUnits::new().is_empty())
+        assert!(TimeUnits::new().is_empty());
     }
 
     #[rstest]
@@ -298,6 +290,6 @@ mod tests {
                 Month,
                 Year
             ]
-        )
+        );
     }
 }
