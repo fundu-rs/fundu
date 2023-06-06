@@ -6,6 +6,7 @@
 //! This module is the working horse of the parser. Public interfaces to the parser are located in
 //! the main library `lib.rs`.
 
+use std::borrow::Borrow;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::str::Utf8Error;
 use std::time::Duration as StdDuration;
@@ -19,22 +20,22 @@ const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
 const ATTOS_PER_NANO: u64 = 1_000_000_000;
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Parser<'a> {
-    pub(crate) config: Config<'a>,
+pub struct Parser<'a> {
+    pub config: Config<'a>,
 }
 
 impl<'a> Parser<'a> {
-    pub(crate) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             config: DEFAULT_CONFIG,
         }
     }
 
-    pub(crate) const fn with_config(config: Config<'a>) -> Self {
+    pub const fn with_config(config: Config<'a>) -> Self {
         Self { config }
     }
 
-    fn parse_multiple(
+    pub fn parse_multiple(
         &self,
         source: &str,
         delimiter: Delimiter,
@@ -42,22 +43,25 @@ impl<'a> Parser<'a> {
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
-        let mut duration = Duration::ZERO;
+        let duration = Duration::ZERO;
 
         let mut parser = &mut ReprParserMultiple::new(source, delimiter, conjunctions);
         loop {
-            let (mut duration_repr, maybe_parser) =
-                parser.parse(&self.config, time_units, keywords)?;
-            let parsed_duration = duration_repr.parse()?;
-            duration = if !self.config.allow_negative && parsed_duration.is_negative() {
-                return Err(ParseError::NegativeNumber);
-            } else if parsed_duration.is_zero() {
-                duration
-            } else if duration.is_zero() {
-                parsed_duration
-            } else {
-                duration.saturating_add(parsed_duration)
-            };
+            let (duration, maybe_parser) = parser
+                .parse(&self.config, time_units, keywords)
+                .and_then(|(mut duration_repr, maybe_parser)| {
+                    duration_repr.parse().and_then(|parsed_duration| {
+                        if !self.config.allow_negative && parsed_duration.is_negative() {
+                            Err(ParseError::NegativeNumber)
+                        } else if parsed_duration.is_zero() {
+                            Ok((duration, maybe_parser))
+                        } else if duration.is_zero() {
+                            Ok((parsed_duration, maybe_parser))
+                        } else {
+                            Ok((duration.saturating_add(parsed_duration), maybe_parser))
+                        }
+                    })
+                })?;
             match maybe_parser {
                 Some(p) => parser = p,
                 None => break Ok(duration),
@@ -65,7 +69,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_single(
+    pub fn parse_single(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,
@@ -86,7 +90,7 @@ impl<'a> Parser<'a> {
 
     /// Parse the `source` string into a saturating [`crate::time::Duration`]
     #[inline]
-    pub(crate) fn parse(
+    pub fn parse(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,

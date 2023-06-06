@@ -23,6 +23,7 @@ bench = false
 default = ["standard"]
 standard = []
 custom = []
+internal = []
 time = ["dep:time"]
 chrono = ["dep:chrono"]
 serde = ["dep:serde"]

@@ -130,7 +130,7 @@ impl TimeUnit {
     }
 }
 
-pub(crate) trait TimeUnitsLike {
+pub trait TimeUnitsLike {
     fn is_empty(&self) -> bool;
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
 }

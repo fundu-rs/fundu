@@ -357,6 +357,8 @@ pub use rstest_reuse;
 pub use standard::{
     builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,
 };
+#[cfg(feature = "internal")]
+pub use {crate::time::TimeUnitsLike, config::Config, parse::Parser};
 
 pub use crate::time::{
     Duration, Multiplier, SaturatingInto, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR,

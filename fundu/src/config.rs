@@ -54,20 +54,20 @@ pub type Delimiter = fn(u8) -> bool;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(clippy::struct_excessive_bools)]
-pub(crate) struct Config<'a> {
-    pub(crate) allow_delimiter: Option<Delimiter>,
-    pub(crate) default_unit: TimeUnit,
-    pub(crate) default_multiplier: Multiplier,
-    pub(crate) disable_exponent: bool,
-    pub(crate) disable_fraction: bool,
-    pub(crate) disable_infinity: bool,
-    pub(crate) number_is_optional: bool,
-    pub(crate) max_exponent: i16,
-    pub(crate) min_exponent: i16,
-    pub(crate) parse_multiple_delimiter: Option<Delimiter>,
-    pub(crate) parse_multiple_conjunctions: Option<&'a [&'a str]>,
-    pub(crate) allow_negative: bool,
-    pub(crate) allow_ago: Option<Delimiter>,
+pub struct Config<'a> {
+    pub allow_delimiter: Option<Delimiter>,
+    pub default_unit: TimeUnit,
+    pub default_multiplier: Multiplier,
+    pub disable_exponent: bool,
+    pub disable_fraction: bool,
+    pub disable_infinity: bool,
+    pub number_is_optional: bool,
+    pub max_exponent: i16,
+    pub min_exponent: i16,
+    pub parse_multiple_delimiter: Option<Delimiter>,
+    pub parse_multiple_conjunctions: Option<&'a [&'a str]>,
+    pub allow_negative: bool,
+    pub allow_ago: Option<Delimiter>,
 }
 
 impl<'a> Default for Config<'a> {
@@ -77,7 +77,7 @@ impl<'a> Default for Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    pub(crate) const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             allow_delimiter: None,
             default_unit: DEFAULT_TIME_UNIT,
