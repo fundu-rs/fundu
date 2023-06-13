@@ -6,7 +6,6 @@
 //! This module is the working horse of the parser. Public interfaces to the parser are located in
 //! the main library `lib.rs`.
 
-use std::borrow::Borrow;
 use std::cmp::Ordering::{Equal, Greater, Less};
 use std::str::Utf8Error;
 use std::time::Duration as StdDuration;

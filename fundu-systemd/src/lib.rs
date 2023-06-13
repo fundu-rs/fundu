@@ -3,7 +3,7 @@
 use fundu::TimeUnit::*;
 use fundu::{Config, Delimiter, Duration, Multiplier, ParseError, Parser, TimeUnit, TimeUnitsLike};
 
-const DELIMITER: Delimiter = |byte| byte == b' ' || (byte >= 0x9 && byte <= 0xd);
+const DELIMITER: Delimiter = |byte| matches!(byte, b' ' | 0x9..=0xd);
 
 const CONFIG: Config = Config {
     allow_delimiter: Some(DELIMITER),
@@ -68,56 +68,56 @@ impl TimeUnitsLike for TimeUnits {
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
         let bytes = identifier.as_bytes();
         match bytes.len() {
-            1 => match bytes[0] {
-                b's' => Some(SECOND),
-                b'm' => Some(MINUTE),
-                b'h' => Some(HOUR),
-                b'd' => Some(DAY),
-                b'w' => Some(WEEK),
-                b'M' => Some(MONTH),
-                b'y' => Some(YEAR),
+            1 => match bytes {
+                b"s" => Some(SECOND),
+                b"m" => Some(MINUTE),
+                b"h" => Some(HOUR),
+                b"d" => Some(DAY),
+                b"w" => Some(WEEK),
+                b"M" => Some(MONTH),
+                b"y" => Some(YEAR),
                 _ => None,
             },
-            2 => match bytes[0] {
-                b'n' => bytes[1].eq(&b's').then_some(NANO_SECOND), // ns
-                b'u' => bytes[1].eq(&b's').then_some(MICRO_SECOND), // us
-                b'm' => bytes[1].eq(&b's').then_some(MILLI_SECOND), // ms
-                b'h' => bytes[1].eq(&b'r').then_some(HOUR),        // hr
+            2 => match bytes {
+                b"ns" => Some(NANO_SECOND),
+                b"us" => Some(MICRO_SECOND),
+                b"ms" => Some(MILLI_SECOND),
+                b"hr" => Some(HOUR),
                 _ => None,
             },
-            3 => match bytes[0] {
-                b'\xc2' => bytes[1..].eq(b"\xb5s").then_some(MICRO_SECOND), // µs
-                b's' => bytes[1..].eq(b"ec").then_some(SECOND),             // sec
-                b'm' => bytes[1..].eq(b"in").then_some(MINUTE),             // min
-                b'd' => bytes[1..].eq(b"ay").then_some(DAY),                // day
+            3 => match bytes {
+                b"\xc2\xb5s" => Some(MICRO_SECOND),
+                b"sec" => Some(SECOND),
+                b"min" => Some(MINUTE),
+                b"day" => Some(DAY),
                 _ => None,
             },
-            4 => match bytes[0] {
-                b'n' => bytes[1..].eq(b"sec").then_some(NANO_SECOND), // nsec
-                b'u' => bytes[1..].eq(b"sec").then_some(MICRO_SECOND), // usec
-                b'm' => bytes[1..].eq(b"sec").then_some(MILLI_SECOND), // msec
-                b'h' => bytes[1..].eq(b"our").then_some(HOUR),        // hour
-                b'd' => bytes[1..].eq(b"ays").then_some(DAY),         // days
-                b'w' => bytes[1..].eq(b"eek").then_some(WEEK),        // week
-                b'y' => bytes[1..].eq(b"ear").then_some(YEAR),        // year
+            4 => match bytes {
+                b"nsec" => Some(NANO_SECOND),
+                b"usec" => Some(MICRO_SECOND),
+                b"msec" => Some(MILLI_SECOND),
+                b"hour" => Some(HOUR),
+                b"days" => Some(DAY),
+                b"week" => Some(WEEK),
+                b"year" => Some(YEAR),
                 _ => None,
             },
-            5 => match bytes[0] {
-                b'h' => bytes[1..].eq(b"ours").then_some(HOUR), // hours
-                b'w' => bytes[1..].eq(b"eeks").then_some(WEEK), // weeks
-                b'm' => bytes[1..].eq(b"onth").then_some(MONTH), // month
-                b'y' => bytes[1..].eq(b"ears").then_some(YEAR), // years
+            5 => match bytes {
+                b"hours" => Some(HOUR),
+                b"weeks" => Some(WEEK),
+                b"month" => Some(MONTH),
+                b"years" => Some(YEAR),
                 _ => None,
             },
-            6 => match &bytes[0..1] {
-                b"se" => bytes[2..].eq(b"cond").then_some(SECOND), // second
-                b"mi" => bytes[2..].eq(b"nute").then_some(MINUTE), // minute
-                b"mo" => bytes[2..].eq(b"nths").then_some(MONTH),  // months
+            6 => match bytes {
+                b"second" => Some(SECOND),
+                b"minute" => Some(MINUTE),
+                b"months" => Some(MONTH),
                 _ => None,
             },
-            7 => match bytes[0] {
-                b's' => bytes[1..].eq(b"econds").then_some(SECOND), // seconds
-                b'm' => bytes[1..].eq(b"inutes").then_some(MINUTE), // minutes
+            7 => match bytes {
+                b"seconds" => Some(SECOND),
+                b"minutes" => Some(MINUTE),
                 _ => None,
             },
             _ => None,
