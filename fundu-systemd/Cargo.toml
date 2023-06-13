@@ -24,13 +24,13 @@ with-iai = ["fundu/with-iai"]
 fundu = { path = "../fundu", version = "1.0.0", default-features = false, features = ["internal"] }
 
 [dev-dependencies]
-criterion = "0.4.0"
-rstest = "0.17.0"
+criterion = { workspace = true }
+rstest = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
-iai-callgrind = "0.3.1"
-inferno = { version = "=0.11.14" }
-pprof = { version = "0.11.0", features = ["flamegraph", "criterion"] }
+iai-callgrind = { workspace = true }
+inferno = { workspace = true }
+pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
 [profile.flamegraph]
 inherits = "bench"
