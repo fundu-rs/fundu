@@ -1,5 +1,7 @@
 flamegraph.svg
 perf.data
+perf.data.old
+report
 *.profraw
 .vscode/launch.json
 
