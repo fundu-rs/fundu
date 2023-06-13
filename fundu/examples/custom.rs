@@ -66,11 +66,7 @@ const CUSTOM_TIME_UNITS: [CustomTimeUnit; 11] = [
 fn main() {
     let matches = command!()
         .allow_negative_numbers(true)
-        .arg(
-            Arg::new("DURATION")
-                .action(clap::ArgAction::Append)
-                .multiple_values(true),
-        )
+        .arg(Arg::new("DURATION").action(clap::ArgAction::Append))
         .get_matches();
 
     let parser = CustomDurationParser::builder()
