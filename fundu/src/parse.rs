@@ -42,25 +42,22 @@ impl<'a> Parser<'a> {
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
-        let duration = Duration::ZERO;
+        let mut duration = Duration::ZERO;
 
         let mut parser = &mut ReprParserMultiple::new(source, delimiter, conjunctions);
         loop {
-            let (duration, maybe_parser) = parser
-                .parse(&self.config, time_units, keywords)
-                .and_then(|(mut duration_repr, maybe_parser)| {
-                    duration_repr.parse().and_then(|parsed_duration| {
-                        if !self.config.allow_negative && parsed_duration.is_negative() {
-                            Err(ParseError::NegativeNumber)
-                        } else if parsed_duration.is_zero() {
-                            Ok((duration, maybe_parser))
-                        } else if duration.is_zero() {
-                            Ok((parsed_duration, maybe_parser))
-                        } else {
-                            Ok((duration.saturating_add(parsed_duration), maybe_parser))
-                        }
-                    })
-                })?;
+            let (mut duration_repr, maybe_parser) =
+                parser.parse(&self.config, time_units, keywords)?;
+            let parsed_duration = duration_repr.parse()?;
+            duration = if !self.config.allow_negative && parsed_duration.is_negative() {
+                return Err(ParseError::NegativeNumber);
+            } else if parsed_duration.is_zero() {
+                duration
+            } else if duration.is_zero() {
+                parsed_duration
+            } else {
+                duration.saturating_add(parsed_duration)
+            };
             match maybe_parser {
                 Some(p) => parser = p,
                 None => break Ok(duration),
