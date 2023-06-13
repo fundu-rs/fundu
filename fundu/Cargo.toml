@@ -48,11 +48,6 @@ iai-callgrind = { workspace = true }
 inferno = { workspace = true }
 pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
-[profile.flamegraph]
-inherits = "bench"
-opt-level = 1
-debug = true
-
 [[bench]]
 name = "benchmarks_custom"
 harness = false

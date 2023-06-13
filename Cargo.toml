@@ -17,3 +17,8 @@ rstest_reuse = "0.5.0"
 serde = { version = "1.0.162", features=["derive"]}
 serde_test  = "1.0.162"
 time = { version = "<= 0.3.20", default-features = false }
+
+[profile.flamegraph]
+inherits = "bench"
+opt-level = 1
+debug = true
