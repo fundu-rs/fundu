@@ -357,7 +357,7 @@ pub use rstest_reuse;
 pub use standard::{
     builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,
 };
-#[cfg(feature = "internal")]
+#[cfg(feature = "base")]
 pub use {crate::time::TimeUnitsLike, config::Config, parse::Parser};
 
 pub use crate::time::{
