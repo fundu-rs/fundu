@@ -1,7 +1,5 @@
 name: Build and Check
 
-# TODO: Remove negative feature
-
 on:
   push:
     branches: ["main", "cicd", "release", "develop"]
@@ -22,7 +20,7 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
-  FEATURES: standard,custom,time,chrono,serde
+  FEATURES: standard,custom,time,chrono,serde,base
 
 jobs:
   deny:
@@ -59,8 +57,8 @@ jobs:
         include:
           - components: clippy
             toolchain: stable
-          - features: standard,custom,time,chrono,serde,with-iai,with-flamegraph
-          - features: standard,custom,time,chrono,serde
+          - features: standard,custom,time,chrono,serde,base,with-iai,with-flamegraph
+          - features: standard,custom,time,chrono,serde,base
             os: windows-latest
     runs-on: ${{ matrix.os }}
     steps:
