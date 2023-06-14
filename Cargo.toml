@@ -1,9 +1,10 @@
 [workspace]
-
+resolver = "2"
 members = [
   "fundu",
   "fundu-systemd"
 ]
+
 
 [workspace.dependencies]
 chrono = { version = "0.4.24", default-features = false }
