@@ -259,7 +259,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: "./fuzz"
+        working-directory: "fundu/fuzz"
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
