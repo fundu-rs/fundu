@@ -294,7 +294,7 @@ impl<'a> DurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{Duration, DurationParser, ParseError};
+    /// use fundu::{Duration, DurationParser};
     ///
     /// let mut parser = DurationParser::new();
     /// parser.allow_negative(true);

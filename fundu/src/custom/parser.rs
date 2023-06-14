@@ -287,7 +287,7 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, Duration, Multiplier, ParseError, TimeKeyword};
+    /// use fundu::{CustomDurationParser, Duration, Multiplier, TimeKeyword};
     ///
     /// let mut parser = CustomDurationParser::new();
     /// parser.allow_negative(true).keywords(&[

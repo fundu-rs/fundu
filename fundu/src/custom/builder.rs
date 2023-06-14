@@ -178,9 +178,9 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParserBuilder, Duration, Multiplier, ParseError, TimeKeyword};
+    /// use fundu::{CustomDurationParserBuilder, Duration, Multiplier, TimeKeyword};
     ///
-    /// let mut parser = CustomDurationParserBuilder::new()
+    /// let parser = CustomDurationParserBuilder::new()
     ///     .allow_negative()
     ///     .keywords(&[
     ///         TimeKeyword::new(Day, &["yesterday"], Some(Multiplier(-1, 0))),

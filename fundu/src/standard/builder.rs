@@ -53,13 +53,14 @@ enum TimeUnitsChoice<'a> {
 ///
 /// ```rust
 /// use fundu::TimeUnit::*;
-/// use fundu::{DurationParser, DurationParserBuilder};
+/// use fundu::{DurationParser, DurationParserBuilder, Duration};
 ///
 /// const PARSER : DurationParser = DurationParserBuilder::new()
 ///     .time_units(&[Second, Minute, Hour, Day])
 ///     .allow_negative()
 ///     .parse_multiple(|byte| byte.is_ascii_whitespace(), None)
 ///     .build();
+/// assert_eq!(PARSER.parse("1h").unwrap(), Duration::positive(60 * 60, 0));
 #[derive(Debug, PartialEq, Eq)]
 pub struct DurationParserBuilder<'a> {
     time_units_choice: TimeUnitsChoice<'a>,
@@ -288,7 +289,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{Duration, DurationParserBuilder, ParseError};
+    /// use fundu::{Duration, DurationParserBuilder};
     ///
     /// let parser = DurationParserBuilder::new().allow_negative().build();
     ///
