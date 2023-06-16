@@ -19,16 +19,17 @@ const CONFIG: Config = ConfigBuilder::new()
 
 const TIME_UNITS: TimeUnits = TimeUnits {};
 
-const NANO_SECOND: (TimeUnit, Multiplier) = (NanoSecond, NanoSecond.multiplier());
-const MICRO_SECOND: (TimeUnit, Multiplier) = (MicroSecond, MicroSecond.multiplier());
-const MILLI_SECOND: (TimeUnit, Multiplier) = (MilliSecond, MilliSecond.multiplier());
-const SECOND: (TimeUnit, Multiplier) = (Second, Second.multiplier());
-const MINUTE: (TimeUnit, Multiplier) = (Minute, Minute.multiplier());
-const HOUR: (TimeUnit, Multiplier) = (Hour, Hour.multiplier());
-const DAY: (TimeUnit, Multiplier) = (Day, Day.multiplier());
-const WEEK: (TimeUnit, Multiplier) = (Week, Week.multiplier());
-const MONTH: (TimeUnit, Multiplier) = (Month, Month.multiplier());
-const YEAR: (TimeUnit, Multiplier) = (Year, Year.multiplier());
+const NANO_SECOND: (TimeUnit, Multiplier) = (NanoSecond, Multiplier(1, 0));
+const MICRO_SECOND: (TimeUnit, Multiplier) = (MicroSecond, Multiplier(1, 0));
+const MILLI_SECOND: (TimeUnit, Multiplier) = (MilliSecond, Multiplier(1, 0));
+const SECOND: (TimeUnit, Multiplier) = (Second, Multiplier(1, 0));
+const MINUTE: (TimeUnit, Multiplier) = (Minute, Multiplier(1, 0));
+const HOUR: (TimeUnit, Multiplier) = (Hour, Multiplier(1, 0));
+const DAY: (TimeUnit, Multiplier) = (Day, Multiplier(1, 0));
+const WEEK: (TimeUnit, Multiplier) = (Week, Multiplier(1, 0));
+const MONTH: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
+const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
+
 pub struct TimeSpanParser<'a> {
     parser: Parser<'a>,
 }
