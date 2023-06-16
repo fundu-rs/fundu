@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+//! TODO: DOCUMENT
+
 pub(crate) const POW10: [u64; 20] = [
     1,
     10,

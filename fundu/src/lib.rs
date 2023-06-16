@@ -331,17 +331,11 @@
 #![allow(clippy::enum_glob_use)]
 #![allow(clippy::module_name_repetitions)]
 
-mod config;
 #[cfg(feature = "custom")]
 mod custom;
-mod error;
-mod parse;
 #[cfg(feature = "standard")]
 mod standard;
-mod time;
-mod util;
 
-pub use config::Delimiter;
 #[cfg(feature = "custom")]
 pub use custom::{
     builder::CustomDurationParserBuilder,
@@ -350,7 +344,13 @@ pub use custom::{
         CustomTimeUnit, TimeKeyword, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
     },
 };
-pub use error::{ParseError, TryFromDurationError};
+pub use fundu_core::config::Delimiter;
+pub use fundu_core::error::{ParseError, TryFromDurationError};
+pub use fundu_core::time::{
+    Duration, Multiplier, SaturatingInto, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR,
+    DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH,
+    DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
+};
 #[cfg(test)]
 pub use rstest_reuse;
 #[cfg(feature = "standard")]
@@ -359,16 +359,13 @@ pub use standard::{
 };
 #[cfg(feature = "base")]
 pub use {
-    crate::time::TimeUnitsLike,
-    config::{Config, ConfigBuilder},
-    parse::Parser,
+    fundu_core::config::{Config, ConfigBuilder},
+    fundu_core::parse::Parser,
+    fundu_core::time::TimeUnitsLike,
 };
 
-pub use crate::time::{
-    Duration, Multiplier, SaturatingInto, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR,
-    DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH,
-    DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
-};
+// TODO: REMOVE ??
+pub(crate) const DEFAULT_CONFIG: fundu_core::config::Config = fundu_core::config::Config::new();
 
 #[cfg(test)]
 mod tests {
@@ -377,15 +374,6 @@ mod tests {
     #[test]
     fn test_send() {
         fn assert_send<T: Send>() {}
-        assert_send::<Delimiter>();
-
-        assert_send::<TimeUnit>();
-        assert_send::<Duration>();
-        assert_send::<Multiplier>();
-
-        assert_send::<ParseError>();
-        assert_send::<TryFromDurationError>();
-
         #[cfg(feature = "custom")]
         {
             assert_send::<CustomDurationParserBuilder>();
@@ -404,15 +392,6 @@ mod tests {
     #[test]
     fn test_sync() {
         fn assert_sync<T: Sync>() {}
-        assert_sync::<Delimiter>();
-
-        assert_sync::<TimeUnit>();
-        assert_sync::<Duration>();
-        assert_sync::<Multiplier>();
-
-        assert_sync::<ParseError>();
-        assert_sync::<TryFromDurationError>();
-
         #[cfg(feature = "custom")]
         {
             assert_sync::<CustomDurationParserBuilder>();

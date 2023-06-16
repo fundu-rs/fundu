@@ -24,16 +24,15 @@ default = ["standard"]
 standard = []
 custom = []
 base = []
-chrono = ["dep:chrono"]
-serde = ["dep:serde"]
-time = ["dep:time"]
+chrono = ["fundu-core/chrono"]
+serde = ["fundu-core/serde", "dep:serde"]
+time = ["fundu-core/time"]
 with-iai = []
 with-flamegraph = []
 
 [dependencies]
-chrono = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features=["derive"]}
-time = { workspace = true, optional = true }
+fundu-core = { path = "../fundu-core", version = "=0.1.0" }
+serde = { workspace = true, optional = true, features=["derive"]} # XXX still needed?
 
 [dev-dependencies]
 chrono = { workspace = true }
@@ -42,6 +41,7 @@ criterion = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = { workspace = true }
 serde_test  = { workspace = true }
+time = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
 iai-callgrind = { workspace = true }

@@ -32,8 +32,10 @@ const ATTOS_PER_NANO: u64 = 1_000_000_000;
 /// # Examples
 ///
 /// ```
-/// use fundu::TimeUnit::*;
-/// use fundu::{Duration, Multiplier, ParseError, Parser, TimeUnit, TimeUnitsLike};
+/// use fundu_core::error::ParseError;
+/// use fundu_core::parse::Parser;
+/// use fundu_core::time::TimeUnit::*;
+/// use fundu_core::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 ///
 /// struct TimeUnits {}
 ///
@@ -162,8 +164,10 @@ impl<'a> Parser<'a> {
     /// An example with a quick and dirty implementation of [`crate::TimeUnitsLike`]
     ///
     /// ```
-    /// use fundu::TimeUnit::*;
-    /// use fundu::{Duration, Multiplier, ParseError, Parser, TimeUnit, TimeUnitsLike};
+    /// use fundu_core::error::ParseError;
+    /// use fundu_core::parse::Parser;
+    /// use fundu_core::time::TimeUnit::*;
+    /// use fundu_core::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
     ///
     /// struct TimeUnits {}
     ///

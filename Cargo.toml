@@ -2,9 +2,9 @@
 resolver = "2"
 members = [
   "fundu",
-  "fundu-systemd"
+  "fundu-systemd",
+  "fundu-core"
 ]
-
 
 [workspace.dependencies]
 chrono = { version = "0.4.24", default-features = false }

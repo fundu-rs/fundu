@@ -3,10 +3,11 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use fundu_core::parse::Parser;
+use fundu_core::time::{Duration, Multiplier, TimeUnitsLike};
+
 use super::builder::CustomDurationParserBuilder;
 use super::time_units::{CustomTimeUnit, CustomTimeUnits, TimeKeyword};
-use crate::parse::Parser;
-use crate::time::{Duration, Multiplier, TimeUnitsLike};
 use crate::{Delimiter, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
@@ -361,8 +362,8 @@ impl<'a> CustomDurationParser<'a> {
     ///     Duration::positive(0, 42)
     /// );
     /// ```
-    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.inner.config.default_unit = unit;
+    pub fn default_unit(&mut self, time_unit: TimeUnit) -> &mut Self {
+        self.inner.config.default_unit = time_unit;
         self
     }
 
@@ -712,13 +713,13 @@ impl<'a> Default for CustomDurationParser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use fundu_core::config::Config;
+    use fundu_core::time::Duration;
     use rstest::rstest;
 
     use super::*;
-    use crate::config::Config;
     use crate::custom::builder::CustomDurationParserBuilder;
     use crate::custom::time_units::DEFAULT_ALL_TIME_UNITS;
-    use crate::time::Duration;
     use crate::TimeUnit::*;
 
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
@@ -858,7 +859,10 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.parse_multiple(Some(|byte| byte == 0xff), None);
 
-        assert!(parser.inner.config.parse_multiple_delimiter.unwrap()(0xff));
+        assert!(parser.inner.config.parse_multiple_delimiter.unwrap()(
+            b'\xff'
+        ));
+        assert!(parser.inner.config.parse_multiple_conjunctions.is_none());
     }
 
     #[test]

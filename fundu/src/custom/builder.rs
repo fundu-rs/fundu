@@ -3,10 +3,11 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use fundu_core::config::Config;
+use fundu_core::parse::Parser;
+
 use super::time_units::{CustomTimeUnits, TimeKeyword};
-use crate::config::{Config, DEFAULT_CONFIG};
-use crate::parse::Parser;
-use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
+use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit, DEFAULT_CONFIG};
 
 /// Like [`crate::DurationParserBuilder`] for [`crate::DurationParser`], this is a builder for a
 /// [`CustomDurationParser`].
@@ -225,8 +226,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Duration::positive(0, 42)
     /// );
     /// ```
-    pub const fn default_unit(mut self, unit: TimeUnit) -> Self {
-        self.config.default_unit = unit;
+    pub const fn default_unit(mut self, time_unit: TimeUnit) -> Self {
+        self.config.default_unit = time_unit;
         self
     }
 
@@ -549,10 +550,11 @@ impl<'a> CustomDurationParserBuilder<'a> {
 #[cfg(test)]
 mod tests {
 
+    use fundu_core::config::Config;
+    use fundu_core::time::TimeUnit::*;
+    use fundu_core::time::TimeUnitsLike;
+
     use super::*;
-    use crate::config::Config;
-    use crate::time::TimeUnitsLike;
-    use crate::TimeUnit::*;
     use crate::{CustomTimeUnit, Multiplier};
 
     #[test]
@@ -624,7 +626,8 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_builder_when_parse_multiple() {
         let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff, None);
-        assert!(builder.config.parse_multiple_delimiter.unwrap()(0xff));
+        assert!(builder.config.parse_multiple_delimiter.unwrap()(b'\xff'));
+        assert!(builder.config.parse_multiple_conjunctions.is_none());
     }
 
     #[test]

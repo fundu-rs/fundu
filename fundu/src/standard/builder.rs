@@ -3,10 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use fundu_core::config::{Config, Delimiter};
+use fundu_core::parse::Parser;
+use fundu_core::time::TimeUnit;
+
 use super::time_units::TimeUnits;
-use crate::config::{Config, DEFAULT_CONFIG};
-use crate::parse::Parser;
-use crate::{Delimiter, DurationParser, TimeUnit};
+use crate::DurationParser;
 
 #[derive(Debug, PartialEq, Eq)]
 enum TimeUnitsChoice<'a> {
@@ -99,7 +101,7 @@ impl<'a> DurationParserBuilder<'a> {
     pub const fn new() -> Self {
         Self {
             time_units_choice: TimeUnitsChoice::None,
-            config: DEFAULT_CONFIG,
+            config: Config::new(),
         }
     }
 
@@ -251,8 +253,8 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Duration::positive(0, 42)
     /// );
     /// ```
-    pub const fn default_unit(mut self, unit: TimeUnit) -> Self {
-        self.config.default_unit = unit;
+    pub const fn default_unit(mut self, time_unit: TimeUnit) -> Self {
+        self.config.default_unit = time_unit;
         self
     }
 
@@ -486,10 +488,10 @@ impl<'a> DurationParserBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
+    use fundu_core::config::Config;
     use rstest::rstest;
 
     use super::*;
-    use crate::config::Config;
     use crate::TimeUnit::*;
 
     #[test]
@@ -533,7 +535,6 @@ mod tests {
     #[test]
     fn test_duration_parser_builder_when_allow_delimiter() {
         let builder = DurationParserBuilder::new().allow_delimiter(|b| b == b' ');
-
         assert!(builder.config.allow_delimiter.unwrap()(b' '));
     }
 
@@ -573,7 +574,6 @@ mod tests {
         expected.number_is_optional = true;
 
         let builder = DurationParserBuilder::new().number_is_optional();
-
         assert_eq!(builder.config, expected);
     }
 

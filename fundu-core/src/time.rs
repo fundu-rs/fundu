@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+//! TODO: DOCUMENT
+
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
@@ -37,22 +39,31 @@ pub const DEFAULT_ID_YEAR: &str = "y";
 
 pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 
-/// The time units the parser can understand and needed to configure the [`DurationParser`].
+/// The time units used to define possible time units in the input string
+///
+/// The parser calculates the final [`Duration`] based on the parsed number and time unit. Each
+/// `TimeUnit` has an inherent [`Multiplier`] and a default id. The [`Multiplier`] influences the
+/// final value of the [`Duration`] and is seconds based. See also the documentation of
+/// [`Multiplier`]
 ///
 /// # Examples
 ///
 /// ```rust
-/// use fundu::{Duration, DurationParser, TimeUnit};
+/// use fundu_core::time::Multiplier;
+/// use fundu_core::time::TimeUnit::*;
 ///
-/// assert_eq!(
-///     DurationParser::with_time_units(&[TimeUnit::NanoSecond])
-///         .parse("42ns")
-///         .unwrap(),
-///     Duration::positive(0, 42)
-/// );
+/// assert_eq!(NanoSecond.default_identifier(), "ns");
+/// assert_eq!(Second.default_identifier(), "s");
+/// assert_eq!(Hour.default_identifier(), "h");
+///
+/// assert_eq!(NanoSecond.multiplier(), Multiplier(1, -9));
+/// assert_eq!(MilliSecond.multiplier(), Multiplier(1, -3));
+/// assert_eq!(Second.multiplier(), Multiplier(1, 0));
+/// assert_eq!(Hour.multiplier(), Multiplier(60 * 60, 0));
 /// ```
 ///
-/// [`DurationParser`]: crate::DurationParser
+/// [`Multiplier`]: crate::time::Multiplier
+/// [`Duration`]: crate::time::Duration
 #[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TimeUnit {
@@ -168,7 +179,7 @@ impl Multiplier {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Multiplier;
+    /// use fundu_core::time::Multiplier;
     ///
     /// let multiplier = Multiplier(123, 45);
     /// assert_eq!(multiplier.coefficient(), 123);
@@ -183,7 +194,7 @@ impl Multiplier {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Multiplier;
+    /// use fundu_core::time::Multiplier;
     ///
     /// let multiplier = Multiplier(123, 45);
     /// assert_eq!(multiplier.exponent(), 45);
@@ -198,7 +209,7 @@ impl Multiplier {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Multiplier;
+    /// use fundu_core::time::Multiplier;
     ///
     /// let multiplier = Multiplier(-123, 45);
     /// assert!(multiplier.is_negative());
@@ -213,7 +224,7 @@ impl Multiplier {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Multiplier;
+    /// use fundu_core::time::Multiplier;
     ///
     /// let multiplier = Multiplier(123, 45);
     /// assert!(multiplier.is_positive());
@@ -232,7 +243,7 @@ impl Multiplier {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Multiplier;
+    /// use fundu_core::time::Multiplier;
     ///
     /// assert_eq!(
     ///     Multiplier(1, 2).checked_mul(Multiplier(3, 4)),
@@ -261,7 +272,7 @@ impl Multiplier {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Multiplier;
+    /// use fundu_core::time::Multiplier;
     ///
     /// assert_eq!(Multiplier(1, 2).saturating_neg(), Multiplier(-1, 2));
     /// assert_eq!(Multiplier(-1, 2).saturating_neg(), Multiplier(1, 2));
@@ -308,7 +319,8 @@ pub trait SaturatingInto<T>: Sized {
 /// ```rust
 /// use std::time::Duration as StdDuration;
 ///
-/// use fundu::{Duration, SaturatingInto, TryFromDurationError};
+/// use fundu_core::error::TryFromDurationError;
+/// use fundu_core::time::{Duration, SaturatingInto};
 ///
 /// let result: Result<StdDuration, TryFromDurationError> = Duration::positive(1, 2).try_into();
 /// assert_eq!(result, Ok(StdDuration::new(1, 2)));
@@ -335,7 +347,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::ZERO;
     /// assert!(duration.is_zero());
@@ -350,7 +362,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::MIN;
     /// assert_eq!(Duration::negative(u64::MAX, 999_999_999), duration);
@@ -365,7 +377,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::MAX;
     /// assert_eq!(Duration::positive(u64::MAX, 999_999_999), duration);
@@ -380,7 +392,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::from_std(false, std::time::Duration::new(1, 0));
     /// assert_eq!(Duration::positive(1, 0), duration);
@@ -402,7 +414,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::positive(1, 0);
     /// assert!(duration.is_positive());
@@ -427,7 +439,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::negative(1, 0);
     /// assert!(duration.is_negative());
@@ -444,7 +456,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::MIN;
     /// assert!(duration.is_negative());
@@ -462,7 +474,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::ZERO;
     /// assert!(duration.is_positive());
@@ -480,7 +492,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::ZERO;
     /// assert!(duration.is_zero());
@@ -503,7 +515,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// let duration = Duration::MIN;
     /// assert_eq!(duration.abs(), Duration::MAX);
@@ -524,7 +536,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// assert_eq!(
     ///     Duration::positive(1, 0).checked_add(Duration::positive(1, 0)),
@@ -574,7 +586,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// assert_eq!(
     ///     Duration::positive(1, 0).checked_sub(Duration::positive(1, 0)),
@@ -596,7 +608,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// assert_eq!(
     ///     Duration::positive(1, 0).saturating_add(Duration::positive(0, 1)),
@@ -623,7 +635,7 @@ impl Duration {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
+    /// use fundu_core::time::Duration;
     ///
     /// assert_eq!(
     ///     Duration::positive(1, 0).saturating_sub(Duration::positive(1, 0)),

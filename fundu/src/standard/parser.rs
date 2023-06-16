@@ -5,10 +5,11 @@
 
 use std::time::Duration as StdDuration;
 
+use fundu_core::config::Delimiter;
+use fundu_core::parse::Parser;
+use fundu_core::time::Duration as FunduDuration;
+
 use super::time_units::TimeUnits;
-use crate::config::Delimiter;
-use crate::parse::Parser;
-use crate::time::Duration as FunduDuration;
 use crate::{DurationParserBuilder, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s with default identifiers.
@@ -247,8 +248,8 @@ impl<'a> DurationParser<'a> {
     ///     Duration::positive(0, 42)
     /// );
     /// ```
-    pub fn default_unit(&mut self, unit: TimeUnit) -> &mut Self {
-        self.inner.config.default_unit = unit;
+    pub fn default_unit(&mut self, time_unit: TimeUnit) -> &mut Self {
+        self.inner.config.default_unit = time_unit;
         self
     }
 
@@ -565,9 +566,10 @@ pub fn parse_duration(string: &str) -> Result<StdDuration, ParseError> {
 
 #[cfg(test)]
 mod tests {
+    use fundu_core::config::Config;
+    use fundu_core::time::TimeUnit::*;
+
     use super::*;
-    use crate::config::Config;
-    use crate::TimeUnit::*;
 
     #[test]
     fn test_duration_parser_init_when_default() {
@@ -598,13 +600,10 @@ mod tests {
 
     #[test]
     fn test_duration_parser_setting_disable_infinity() {
-        let mut expected = Config::new();
-        expected.disable_infinity = true;
         let mut parser = DurationParser::new();
-
         parser.disable_infinity(true);
 
-        assert_eq!(parser.inner.config, expected);
+        assert!(parser.inner.config.disable_infinity);
     }
 
     #[test]
@@ -612,7 +611,10 @@ mod tests {
         let mut parser = DurationParser::new();
         parser.parse_multiple(Some(|byte: u8| byte == 0xff), None);
 
-        assert!(parser.inner.config.parse_multiple_delimiter.unwrap()(0xff));
+        assert!(parser.inner.config.parse_multiple_delimiter.unwrap()(
+            b'\xff'
+        ));
+        assert!(parser.inner.config.parse_multiple_conjunctions.is_none());
     }
 
     #[test]

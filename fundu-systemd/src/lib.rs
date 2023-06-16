@@ -1,5 +1,31 @@
 // spell-checker: ignore econd inute onths nute nths econds inutes
 
+//! TODO: DOCUMENT
+
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc(test(attr(warn(unused))))]
+#![doc(test(attr(allow(unused_extern_crates))))]
+#![warn(missing_docs)]
+#![warn(clippy::pedantic)]
+#![warn(clippy::default_numeric_fallback)]
+#![warn(clippy::else_if_without_else)]
+#![warn(clippy::fn_to_numeric_cast_any)]
+#![warn(clippy::get_unwrap)]
+#![warn(clippy::if_then_some_else_none)]
+#![warn(clippy::mixed_read_write_in_expression)]
+#![warn(clippy::partial_pub_fields)]
+#![warn(clippy::rest_pat_in_fully_bound_structs)]
+#![warn(clippy::str_to_string)]
+#![warn(clippy::string_to_string)]
+#![warn(clippy::todo)]
+#![warn(clippy::try_err)]
+#![warn(clippy::undocumented_unsafe_blocks)]
+#![warn(clippy::unneeded_field_pattern)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::return_self_not_must_use)]
+#![allow(clippy::enum_glob_use)]
+#![allow(clippy::module_name_repetitions)]
+
 use fundu::TimeUnit::*;
 use fundu::{
     Config, ConfigBuilder, Delimiter, Duration, Multiplier, ParseError, Parser, TimeUnit,
@@ -30,17 +56,22 @@ const WEEK: (TimeUnit, Multiplier) = (Week, Multiplier(1, 0));
 const MONTH: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
 const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
+/// TODO: DOCUMENT
 pub struct TimeSpanParser<'a> {
     parser: Parser<'a>,
 }
 
 impl<'a> TimeSpanParser<'a> {
+    /// TODO: DOCUMENT
     pub const fn new() -> Self {
         Self {
             parser: Parser::with_config(CONFIG),
         }
     }
 
+    /// TODO: DOCUMENT
+    ///
+    /// # Errors
     #[inline]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         self.parser.parse(source, &TIME_UNITS, None)
@@ -53,6 +84,7 @@ impl<'a> Default for TimeSpanParser<'a> {
     }
 }
 
+/// TODO: DOCUMENT
 pub struct TimeUnits {}
 
 impl TimeUnitsLike for TimeUnits {

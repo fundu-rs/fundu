@@ -5,7 +5,8 @@
 
 use std::hash::{Hash, Hasher};
 
-use crate::time::TimeUnitsLike;
+use fundu_core::time::TimeUnitsLike;
+
 use crate::TimeUnit::*;
 use crate::{
     Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,

@@ -3,8 +3,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use crate::time::{Multiplier, DEFAULT_TIME_UNIT};
-use crate::TimeUnit;
+//! TODO: DOCUMENT
+
+use crate::time::{Multiplier, TimeUnit, DEFAULT_TIME_UNIT};
 
 pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 
@@ -34,7 +35,7 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 /// # Examples
 ///
 /// ```rust
-/// use fundu::Delimiter;
+/// use fundu_core::config::Delimiter;
 ///
 /// fn is_delimiter(delimiter: Delimiter, byte: u8) -> bool {
 ///     delimiter(byte)
@@ -55,20 +56,34 @@ pub type Delimiter = fn(u8) -> bool;
 /// TODO: DOCUMENT
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(clippy::struct_excessive_bools)]
+#[non_exhaustive]
 pub struct Config<'a> {
-    pub(crate) allow_delimiter: Option<Delimiter>,
-    pub(crate) default_unit: TimeUnit,
-    pub(crate) default_multiplier: Multiplier,
-    pub(crate) disable_exponent: bool,
-    pub(crate) disable_fraction: bool,
-    pub(crate) disable_infinity: bool,
-    pub(crate) number_is_optional: bool,
-    pub(crate) max_exponent: i16,
-    pub(crate) min_exponent: i16,
-    pub(crate) parse_multiple_delimiter: Option<Delimiter>,
-    pub(crate) parse_multiple_conjunctions: Option<&'a [&'a str]>,
-    pub(crate) allow_negative: bool,
-    pub(crate) allow_ago: Option<Delimiter>,
+    /// TODO: DOCUMENT
+    pub allow_delimiter: Option<Delimiter>,
+    /// TODO: DOCUMENT
+    pub default_unit: TimeUnit,
+    /// TODO: DOCUMENT
+    pub default_multiplier: Multiplier,
+    /// TODO: DOCUMENT
+    pub disable_exponent: bool,
+    /// TODO: DOCUMENT
+    pub disable_fraction: bool,
+    /// TODO: DOCUMENT
+    pub disable_infinity: bool,
+    /// TODO: DOCUMENT
+    pub number_is_optional: bool,
+    /// TODO: DOCUMENT, REMOVE ??
+    pub max_exponent: i16,
+    /// TODO: DOCUMENT, REMOVE ??
+    pub min_exponent: i16,
+    /// TODO: DOCUMENT, RENAME to delimiter_parse_multiple
+    pub parse_multiple_delimiter: Option<Delimiter>,
+    /// TODO: DOCUMENT, RENAME to conjunctions_parse_multiple or just conjunctions
+    pub parse_multiple_conjunctions: Option<&'a [&'a str]>,
+    /// TODO: DOCUMENT
+    pub allow_negative: bool,
+    /// TODO: DOCUMENT
+    pub allow_ago: Option<Delimiter>,
 }
 
 impl<'a> Default for Config<'a> {

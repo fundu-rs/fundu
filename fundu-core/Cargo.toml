@@ -1,0 +1,37 @@
+[package]
+name = "fundu-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Joining7943 <joining@posteo.de>"]
+description = "The core parser traits and structs for the implementation of fundu"
+readme = "README.md"
+license = "MIT"
+keywords = ["fundu", "fundu-core", "parse", "string", "duration", "time"]
+categories = ["parsing", "date-and-time"]
+homepage = "https://github.com/Joining7943/fundu"
+repository = "https://github.com/Joining7943/fundu"
+rust-version = "1.64.0"
+
+[features]
+default = []
+chrono = ["dep:chrono"]
+serde = ["dep:serde"]
+time = ["dep:time"]
+with-iai = []
+with-flamegraph = []
+
+[dependencies]
+chrono = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features=["derive"]}
+time = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rstest = { workspace = true }
+rstest_reuse = { workspace = true }
+serde_test = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+iai-callgrind = { workspace = true }
+inferno = { workspace = true }
+pprof = { workspace = true, features = ["flamegraph", "criterion"] }
