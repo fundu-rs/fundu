@@ -1,25 +1,21 @@
 // spell-checker: ignore econd inute onths nute nths econds inutes
 
 use fundu::TimeUnit::*;
-use fundu::{Config, Delimiter, Duration, Multiplier, ParseError, Parser, TimeUnit, TimeUnitsLike};
+use fundu::{
+    Config, ConfigBuilder, Delimiter, Duration, Multiplier, ParseError, Parser, TimeUnit,
+    TimeUnitsLike,
+};
 
 const DELIMITER: Delimiter = |byte| matches!(byte, b' ' | 0x9..=0xd);
 
-const CONFIG: Config = Config {
-    allow_delimiter: Some(DELIMITER),
-    default_unit: TimeUnit::Second,
-    default_multiplier: Multiplier(1, 0),
-    disable_exponent: true,
-    disable_fraction: true,
-    disable_infinity: true,
-    number_is_optional: true,
-    max_exponent: i16::MAX,
-    min_exponent: i16::MIN,
-    parse_multiple_delimiter: Some(DELIMITER),
-    parse_multiple_conjunctions: None,
-    allow_negative: false,
-    allow_ago: None,
-};
+const CONFIG: Config = ConfigBuilder::new()
+    .allow_delimiter(DELIMITER)
+    .disable_exponent()
+    .disable_fraction()
+    .disable_infinity()
+    .number_is_optional()
+    .parse_multiple(DELIMITER, None)
+    .build();
 
 const TIME_UNITS: TimeUnits = TimeUnits {};
 
