@@ -18,18 +18,78 @@ use crate::util::POW10;
 const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
 const ATTOS_PER_NANO: u64 = 1_000_000_000;
 
+/// The core duration parser to parse strings into a [`crate::Duration`]
+///
+/// To be able to use the [`Parser::parse`] method an implementation of the [`crate::TimeUnitsLike`]
+/// trait is needed for the time units (even if there are no time units) and optionally for
+/// [`crate::TimeKeyword`]s. The `custom` and `standard` features have such implementations and
+/// their parsers are more convenient to use than using this parser directly. However, for example,
+/// the `custom` feature's [`crate::CustomDurationParser`] cannot be fully built in `const` context
+/// and is a slightly slower than this parser. So, using this parser is more involved but if maximum
+/// performance and building a parser in `const` context is wanted then this parser is the better
+/// choice.
+///
+/// # Examples
+///
+/// ```
+/// use fundu::TimeUnit::*;
+/// use fundu::{Duration, Multiplier, ParseError, Parser, TimeUnit, TimeUnitsLike};
+///
+/// struct TimeUnits {}
+///
+/// impl TimeUnitsLike for TimeUnits {
+///     #[inline]
+///     fn is_empty(&self) -> bool {
+///         false
+///     }
+///
+///     #[inline]
+///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+///         match identifier {
+///             "s" | "sec" | "secs" => Some((Second, Multiplier(1, 0))),
+///             "m" | "min" | "mins" => Some((Minute, Multiplier(1, 0))),
+///             _ => None,
+///         }
+///     }
+/// }
+///
+/// let parser = Parser::new();
+/// let time_units = TimeUnits {};
+///
+/// assert_eq!(
+///     parser.parse("1.0s", &time_units, None),
+///     Ok(Duration::positive(1, 0))
+/// );
+/// assert_eq!(
+///     parser.parse("1min", &time_units, None),
+///     Ok(Duration::positive(60, 0))
+/// );
+/// assert_eq!(
+///     parser.parse("1ms", &time_units, None),
+///     Err(ParseError::TimeUnit(
+///         1,
+///         "Invalid time unit: 'ms'".to_string()
+///     ))
+/// );
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct Parser<'a> {
+    /// The [`crate::Config`] of this [`Parser`]
+    ///
+    /// For convenience, there are also the const [`Parser::new`] and const [`Parser::with_config`]
+    /// methods to create a new [`Parser`].
     pub config: Config<'a>,
 }
 
 impl<'a> Parser<'a> {
+    /// Convenience method to create a new parser with the default [`crate::Config`]
     pub const fn new() -> Self {
         Self {
             config: DEFAULT_CONFIG,
         }
     }
 
+    /// Convenience method to create a new parser with the the given [`crate::Config`]
     pub const fn with_config(config: Config<'a>) -> Self {
         Self { config }
     }
@@ -86,7 +146,62 @@ impl<'a> Parser<'a> {
             })
     }
 
-    /// Parse the `source` string into a saturating [`crate::time::Duration`]
+    /// Parse the `source` string into a saturating [`crate::Duration`]
+    ///
+    /// This method needs a struct implementing the [`crate::TimeUnitsLike`] for time units and
+    /// optionally for [`crate::TimeKeyword`]s. The `standard` and `custom` features offer such
+    /// implementations and are more convenient to use than using this method directly. They both
+    /// provide an own parser which uses this method in the end.
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`crate::ParseError`] if the given `source` string is invalid
+    ///
+    /// # Examples
+    ///
+    /// An example with a quick and dirty implementation of [`crate::TimeUnitsLike`]
+    ///
+    /// ```
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{Duration, Multiplier, ParseError, Parser, TimeUnit, TimeUnitsLike};
+    ///
+    /// struct TimeUnits {}
+    ///
+    /// impl TimeUnitsLike for TimeUnits {
+    ///     #[inline]
+    ///     fn is_empty(&self) -> bool {
+    ///         false
+    ///     }
+    ///
+    ///     #[inline]
+    ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+    ///         match identifier {
+    ///             "s" | "sec" | "secs" => Some((Second, Multiplier(1, 0))),
+    ///             "m" | "min" | "mins" => Some((Minute, Multiplier(1, 0))),
+    ///             _ => None,
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// let parser = Parser::new();
+    /// let time_units = TimeUnits {};
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.0s", &time_units, None),
+    ///     Ok(Duration::positive(1, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("1min", &time_units, None),
+    ///     Ok(Duration::positive(60, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("1ms", &time_units, None),
+    ///     Err(ParseError::TimeUnit(
+    ///         1,
+    ///         "Invalid time unit: 'ms'".to_string()
+    ///     ))
+    /// );
+    /// ```
     #[inline]
     pub fn parse(
         &self,

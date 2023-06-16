@@ -130,8 +130,11 @@ impl TimeUnit {
     }
 }
 
+/// TODO: DOCUMENT
 pub trait TimeUnitsLike {
+    /// TODO: DOCUMENT
     fn is_empty(&self) -> bool;
+    /// TODO: DOCUMENT
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
 }
 
