@@ -34,7 +34,8 @@ impl<'a> Parser<'a> {
         Self { config }
     }
 
-    pub fn parse_multiple(
+    #[inline]
+    fn parse_multiple(
         &self,
         source: &str,
         delimiter: Delimiter,
@@ -65,7 +66,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_single(
+    #[inline]
+    fn parse_single(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,
