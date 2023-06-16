@@ -52,22 +52,23 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 /// ```
 pub type Delimiter = fn(u8) -> bool;
 
+/// TODO: DOCUMENT
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Config<'a> {
-    pub allow_delimiter: Option<Delimiter>,
-    pub default_unit: TimeUnit,
-    pub default_multiplier: Multiplier,
-    pub disable_exponent: bool,
-    pub disable_fraction: bool,
-    pub disable_infinity: bool,
-    pub number_is_optional: bool,
-    pub max_exponent: i16,
-    pub min_exponent: i16,
-    pub parse_multiple_delimiter: Option<Delimiter>,
-    pub parse_multiple_conjunctions: Option<&'a [&'a str]>,
-    pub allow_negative: bool,
-    pub allow_ago: Option<Delimiter>,
+    pub(crate) allow_delimiter: Option<Delimiter>,
+    pub(crate) default_unit: TimeUnit,
+    pub(crate) default_multiplier: Multiplier,
+    pub(crate) disable_exponent: bool,
+    pub(crate) disable_fraction: bool,
+    pub(crate) disable_infinity: bool,
+    pub(crate) number_is_optional: bool,
+    pub(crate) max_exponent: i16,
+    pub(crate) min_exponent: i16,
+    pub(crate) parse_multiple_delimiter: Option<Delimiter>,
+    pub(crate) parse_multiple_conjunctions: Option<&'a [&'a str]>,
+    pub(crate) allow_negative: bool,
+    pub(crate) allow_ago: Option<Delimiter>,
 }
 
 impl<'a> Default for Config<'a> {
@@ -77,6 +78,7 @@ impl<'a> Default for Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    /// TODO: DOCUMENT
     pub const fn new() -> Self {
         Self {
             allow_delimiter: None,
@@ -93,6 +95,85 @@ impl<'a> Config<'a> {
             allow_negative: false,
             allow_ago: None,
         }
+    }
+}
+
+/// TODO: DOCUMENT
+#[derive(Debug, PartialEq, Eq, Clone, Default)]
+pub struct ConfigBuilder<'a> {
+    config: Config<'a>,
+}
+
+impl<'a> ConfigBuilder<'a> {
+    /// TODO: DOCUMENT
+    pub const fn new() -> Self {
+        Self {
+            config: Config::new(),
+        }
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn build(self) -> Config<'a> {
+        self.config
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.allow_delimiter = Some(delimiter);
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn default_unit(mut self, time_unit: TimeUnit) -> Self {
+        self.config.default_unit = time_unit;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn disable_exponent(mut self) -> Self {
+        self.config.disable_exponent = true;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn disable_fraction(mut self) -> Self {
+        self.config.disable_fraction = true;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn disable_infinity(mut self) -> Self {
+        self.config.disable_infinity = true;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn number_is_optional(mut self) -> Self {
+        self.config.number_is_optional = true;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn allow_negative(mut self) -> Self {
+        self.config.allow_negative = true;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn parse_multiple(
+        mut self,
+        delimiter: Delimiter,
+        conjunctions: Option<&'a [&'a str]>,
+    ) -> Self {
+        self.config.parse_multiple_delimiter = Some(delimiter);
+        self.config.parse_multiple_conjunctions = conjunctions;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn allow_ago(mut self, delimiter: Delimiter) -> Self {
+        self.config.allow_ago = Some(delimiter);
+        self
     }
 }
 
