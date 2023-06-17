@@ -19,6 +19,10 @@ serde = { version = "1.0.162", features=["derive"]}
 serde_test  = "1.0.162"
 time = { version = "<= 0.3.20", default-features = false }
 
+[profile.release]
+lto = "thin"
+codegen-units = 1
+
 [profile.flamegraph]
 inherits = "bench"
 opt-level = 1
