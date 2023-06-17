@@ -364,9 +364,6 @@ pub use {
     fundu_core::time::TimeUnitsLike,
 };
 
-// TODO: REMOVE ??
-pub(crate) const DEFAULT_CONFIG: fundu_core::config::Config = fundu_core::config::Config::new();
-
 #[cfg(test)]
 mod tests {
     use super::*;

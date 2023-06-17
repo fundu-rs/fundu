@@ -7,7 +7,7 @@ use fundu_core::config::Config;
 use fundu_core::parse::Parser;
 
 use super::time_units::{CustomTimeUnits, TimeKeyword};
-use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit, DEFAULT_CONFIG};
+use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
 
 /// Like [`crate::DurationParserBuilder`] for [`crate::DurationParser`], this is a builder for a
 /// [`CustomDurationParser`].
@@ -70,7 +70,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// ```
     pub const fn new() -> Self {
         Self {
-            config: DEFAULT_CONFIG,
+            config: Config::new(),
             time_units: vec![],
             keywords: vec![],
         }
