@@ -15,8 +15,8 @@ use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 use crate::util::POW10;
 
-const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
-const ATTOS_PER_NANO: u64 = 1_000_000_000;
+pub const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
+pub const ATTOS_PER_NANO: u64 = 1_000_000_000;
 
 /// The core duration parser to parse strings into a [`crate::Duration`]
 ///
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
     }
 
     #[inline]
-    fn parse_multiple(
+    pub fn parse_multiple(
         &self,
         source: &str,
         delimiter: Delimiter,
@@ -129,7 +129,7 @@ impl<'a> Parser<'a> {
     }
 
     #[inline]
-    fn parse_single(
+    pub fn parse_single(
         &self,
         source: &str,
         time_units: &dyn TimeUnitsLike,
@@ -228,7 +228,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-trait Parse8Digits {
+pub trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
     unsafe fn parse_8_digits(digits: &[u8]) -> u64 {
@@ -251,13 +251,13 @@ trait Parse8Digits {
 }
 
 #[derive(Debug, PartialEq, Eq, Default)]
-struct Whole(usize, usize);
+pub struct Whole(usize, usize);
 
 impl Parse8Digits for Whole {}
 
 impl Whole {
     #[inline]
-    fn parse_slice(mut seconds: u64, digits: &[u8]) -> Result<u64, ParseError> {
+    pub fn parse_slice(mut seconds: u64, digits: &[u8]) -> Result<u64, ParseError> {
         if digits.len() >= 8 {
             let mut iter = digits.chunks_exact(8);
             for digits in iter.by_ref() {
@@ -299,7 +299,7 @@ impl Whole {
         Ok(seconds)
     }
 
-    fn parse(
+    pub fn parse(
         digits: &[u8],
         append: Option<&[u8]>,
         zeros: Option<usize>,
@@ -325,19 +325,24 @@ impl Whole {
     }
 
     #[inline]
-    const fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.1 - self.0
+    }
+
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.1 == self.0
     }
 }
 
 #[derive(Debug, PartialEq, Eq, Default)]
-struct Fract(usize, usize);
+pub struct Fract(usize, usize);
 
 impl Parse8Digits for Fract {}
 
 impl Fract {
     #[inline]
-    fn parse_slice(mut multi: u64, num_skip: usize, digits: &[u8]) -> (u64, u64) {
+    pub fn parse_slice(mut multi: u64, num_skip: usize, digits: &[u8]) -> (u64, u64) {
         let mut attos = 0;
         let len = digits.len();
 
@@ -368,7 +373,7 @@ impl Fract {
         (multi, attos)
     }
 
-    fn parse(digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
+    pub fn parse(digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
         if digits.is_empty() && prepend.is_none() {
             return 0;
         }
@@ -401,28 +406,33 @@ impl Fract {
     }
 
     #[inline]
-    const fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.1 - self.0
+    }
+
+    #[inline]
+    pub const fn is_empty(&self) -> bool {
+        self.1 == self.0
     }
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct DurationRepr<'input> {
-    unit: TimeUnit,
-    number_is_optional: bool,
-    is_negative: bool,
-    is_infinite: bool,
-    whole: Option<Whole>,
-    fract: Option<Fract>,
-    input: &'input [u8],
-    exponent: i16,
-    multiplier: Multiplier,
+pub struct DurationRepr<'a> {
+    pub unit: TimeUnit,
+    pub number_is_optional: bool,
+    pub is_negative: bool,
+    pub is_infinite: bool,
+    pub whole: Option<Whole>,
+    pub fract: Option<Fract>,
+    pub input: &'a [u8],
+    pub exponent: i16,
+    pub multiplier: Multiplier,
 }
 
-impl<'input> DurationRepr<'input> {
+impl<'a> DurationRepr<'a> {
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::unnecessary_wraps)] // TODO: Fix this
-    pub(crate) fn parse(&mut self) -> Result<Duration, ParseError> {
+    pub fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
             return Ok(Duration::from_std(self.is_negative, StdDuration::MAX));
         }
@@ -553,17 +563,17 @@ impl<'input> DurationRepr<'input> {
     }
 }
 
-struct BytesRange(usize, usize);
+pub struct BytesRange(usize, usize);
 
-struct Bytes<'a> {
-    current_pos: usize, // keep first. Has better performance.
-    current_byte: Option<&'a u8>,
-    input: &'a [u8],
+pub struct Bytes<'a> {
+    pub current_pos: usize, // keep first. Has better performance.
+    pub current_byte: Option<&'a u8>,
+    pub input: &'a [u8],
 }
 
 impl<'a> Bytes<'a> {
     #[inline]
-    const fn new(input: &'a [u8]) -> Self {
+    pub const fn new(input: &'a [u8]) -> Self {
         Self {
             current_pos: 0,
             current_byte: input.first(),
@@ -572,18 +582,18 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    fn advance(&mut self) {
+    pub fn advance(&mut self) {
         self.current_pos += 1;
         self.current_byte = self.input.get(self.current_pos);
     }
 
     #[inline]
-    unsafe fn advance_by(&mut self, num: usize) {
+    pub unsafe fn advance_by(&mut self, num: usize) {
         self.current_pos += num;
         self.current_byte = self.input.get(self.current_pos);
     }
 
-    fn advance_to<F>(&mut self, delimiter: F) -> &'a [u8]
+    pub fn advance_to<F>(&mut self, delimiter: F) -> &'a [u8]
     where
         F: Fn(u8) -> bool,
     {
@@ -598,39 +608,39 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    fn peek(&self, num: usize) -> Option<&[u8]> {
+    pub fn peek(&self, num: usize) -> Option<&[u8]> {
         self.input.get(self.current_pos..self.current_pos + num)
     }
 
     #[inline]
-    fn get_remainder(&self) -> &[u8] {
+    pub fn get_remainder(&self) -> &[u8] {
         &self.input[self.current_pos..]
     }
 
     #[inline]
-    unsafe fn get_remainder_str_unchecked(&self) -> &str {
+    pub unsafe fn get_remainder_str_unchecked(&self) -> &str {
         std::str::from_utf8_unchecked(self.get_remainder())
     }
 
     #[inline]
-    fn get_current_str(&self, start: usize) -> Result<&str, Utf8Error> {
+    pub fn get_current_str(&self, start: usize) -> Result<&str, Utf8Error> {
         std::str::from_utf8(&self.input[start..self.current_pos])
     }
 
     #[inline]
-    fn finish(&mut self) {
+    pub fn finish(&mut self) {
         self.current_pos = self.input.len();
         self.current_byte = None;
     }
 
     #[inline]
-    fn reset(&mut self, position: usize) {
+    pub fn reset(&mut self, position: usize) {
         self.current_pos = position;
         self.current_byte = self.input.get(position);
     }
 
     #[inline]
-    fn parse_digit(&mut self) -> Option<u8> {
+    pub fn parse_digit(&mut self) -> Option<u8> {
         self.current_byte.and_then(|byte| {
             let digit = byte.wrapping_sub(b'0');
             (digit < 10).then(|| {
@@ -640,7 +650,7 @@ impl<'a> Bytes<'a> {
         })
     }
 
-    fn parse_digits_strip_zeros(&mut self) -> BytesRange {
+    pub fn parse_digits_strip_zeros(&mut self) -> BytesRange {
         const ASCII_EIGHT_ZEROS: u64 = 0x3030_3030_3030_3030;
 
         debug_assert!(self.current_byte.map_or(false, u8::is_ascii_digit)); // cov:excl-stop
@@ -680,7 +690,7 @@ impl<'a> Bytes<'a> {
         BytesRange(start, self.current_pos)
     }
 
-    fn parse_digits(&mut self) -> BytesRange {
+    pub fn parse_digits(&mut self) -> BytesRange {
         debug_assert!(self.current_byte.map_or(false, u8::is_ascii_digit)); // cov:excl-stop
 
         let start = self.current_pos;
@@ -692,7 +702,7 @@ impl<'a> Bytes<'a> {
 
     /// This method is based on the work of Daniel Lemire and his blog post
     /// <https://lemire.me/blog/2018/09/30/quickly-identifying-a-sequence-of-digits-in-a-string-of-characters/>
-    fn parse_8_digits(&mut self) -> Option<u64> {
+    pub fn parse_8_digits(&mut self) -> Option<u64> {
         self.input
             .get(self.current_pos..(self.current_pos + 8))
             .and_then(|digits| {
@@ -713,18 +723,18 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    fn next_is_ignore_ascii_case(&self, word: &[u8]) -> bool {
+    pub fn next_is_ignore_ascii_case(&self, word: &[u8]) -> bool {
         self.peek(word.len())
             .map_or(false, |bytes| bytes.eq_ignore_ascii_case(word))
     }
 
     #[inline]
-    const fn is_end_of_input(&self) -> bool {
+    pub const fn is_end_of_input(&self) -> bool {
         self.current_byte.is_none()
     }
 
     #[inline]
-    fn check_end_of_input(&self) -> Result<(), ParseError> {
+    pub fn check_end_of_input(&self) -> Result<(), ParseError> {
         self.current_byte.map_or(Ok(()), |byte| {
             Err(ParseError::Syntax(
                 self.current_pos,
@@ -733,7 +743,7 @@ impl<'a> Bytes<'a> {
         })
     }
 
-    fn try_consume_delimiter(&mut self, delimiter: Delimiter) -> Result<(), ParseError> {
+    pub fn try_consume_delimiter(&mut self, delimiter: Delimiter) -> Result<(), ParseError> {
         debug_assert!(delimiter(*self.current_byte.unwrap())); // cov:excl-line
         if self.current_pos == 0 {
             return Err(ParseError::Syntax(
@@ -762,7 +772,7 @@ impl<'a> Bytes<'a> {
     }
 }
 
-trait ReprParserTemplate<'a> {
+pub trait ReprParserTemplate<'a> {
     type Output;
 
     fn bytes(&mut self) -> &mut Bytes<'a>;
@@ -1050,12 +1060,12 @@ trait ReprParserTemplate<'a> {
     }
 }
 
-pub(crate) struct ReprParserSingle<'a> {
-    bytes: Bytes<'a>,
+pub struct ReprParserSingle<'a> {
+    pub bytes: Bytes<'a>,
 }
 
 impl<'a> ReprParserSingle<'a> {
-    const fn new(input: &'a str) -> Self {
+    pub const fn new(input: &'a str) -> Self {
         Self {
             bytes: Bytes::new(input.as_bytes()),
         }
@@ -1240,14 +1250,14 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
     }
 }
 
-pub(crate) struct ReprParserMultiple<'a> {
-    bytes: Bytes<'a>,
-    delimiter: Delimiter,
-    conjunctions: &'a [&'a str],
+pub struct ReprParserMultiple<'a> {
+    pub bytes: Bytes<'a>,
+    pub delimiter: Delimiter,
+    pub conjunctions: &'a [&'a str],
 }
 
 impl<'a> ReprParserMultiple<'a> {
-    fn new(input: &'a str, delimiter: Delimiter, conjunctions: &'a [&'a str]) -> Self {
+    pub fn new(input: &'a str, delimiter: Delimiter, conjunctions: &'a [&'a str]) -> Self {
         Self {
             bytes: Bytes::new(input.as_bytes()),
             delimiter,
@@ -1255,7 +1265,7 @@ impl<'a> ReprParserMultiple<'a> {
         }
     }
 
-    fn try_consume_connection(&mut self) -> Result<(), ParseError> {
+    pub fn try_consume_connection(&mut self) -> Result<(), ParseError> {
         let delimiter = self.delimiter;
         debug_assert!(delimiter(*self.bytes.current_byte.unwrap()));
 

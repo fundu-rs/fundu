@@ -3,9 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! TODO: DOCUMENT
-
-pub(crate) const POW10: [u64; 20] = [
+pub const POW10: [u64; 20] = [
     1,
     10,
     100,
@@ -28,11 +26,11 @@ pub(crate) const POW10: [u64; 20] = [
     10_000_000_000_000_000_000,
 ];
 
-pub(crate) trait FloorLog10 {
+pub trait FloorLog10 {
     fn floor_log10(&self) -> u32;
 }
 
-pub(crate) trait FloorLog2 {
+pub trait FloorLog2 {
     fn floor_log2(&self) -> u32;
 }
 
