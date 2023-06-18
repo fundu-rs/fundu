@@ -1,0 +1,16 @@
+name: Deploy
+on:
+  push:
+    tags:
+      - "fundu-v*"
+
+jobs:
+  publish:
+    name: Publish fundu to crates.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2.2.0
+      - name: Publish
+        run: cargo publish --package fundu --token ${{ secrets.CRATES_GITHUB_TOKEN }}
