@@ -3,8 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! TODO: DOCUMENT
-
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};

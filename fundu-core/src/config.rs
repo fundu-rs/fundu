@@ -3,8 +3,6 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! TODO: DOCUMENT
-
 use crate::time::{Multiplier, TimeUnit, DEFAULT_TIME_UNIT};
 
 pub(crate) const DEFAULT_CONFIG: Config = Config::new();

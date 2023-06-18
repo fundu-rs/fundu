@@ -3,14 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! TODO: DOCUMENTATION
-
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc(test(attr(warn(unused))))]
 #![doc(test(attr(allow(unused_extern_crates))))]
-#![warn(missing_docs)]
 #![warn(clippy::pedantic)]
 #![warn(clippy::default_numeric_fallback)]
+#![warn(clippy::dbg_macro)]
 #![warn(clippy::else_if_without_else)]
 #![warn(clippy::fn_to_numeric_cast_any)]
 #![warn(clippy::get_unwrap)]
@@ -24,10 +22,13 @@
 #![warn(clippy::try_err)]
 #![warn(clippy::undocumented_unsafe_blocks)]
 #![warn(clippy::unneeded_field_pattern)]
+#![allow(clippy::enum_glob_use)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::module_name_repetitions)]
 #![allow(clippy::must_use_candidate)]
 #![allow(clippy::return_self_not_must_use)]
-#![allow(clippy::enum_glob_use)]
-#![allow(clippy::module_name_repetitions)]
 
 pub mod config;
 pub mod error;
