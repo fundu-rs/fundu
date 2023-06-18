@@ -294,6 +294,7 @@
 //! ```
 //!
 //! [`time::Duration`]: <https://docs.rs/time/latest/time/struct.Duration.html>
+//! [`chrono::Duration`]: <https://docs.rs/chono/latest/chrono/struct.Duration.html>
 //! [`Duration::MAX`]: [`std::Duration::MAX`]
 //! [`Duration::ZERO`]: [`std::Duration::ZERO`]
 //! [`NanoSecond`]: [`TimeUnit::NanoSecond`]

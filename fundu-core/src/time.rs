@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+//! Contains all time related structures used in fundu like [`TimeUnit`] and [`Duration`]
+
 use std::cmp::Ordering;
 use std::fmt::Display;
 use std::hash::{Hash, Hasher};
@@ -139,11 +141,214 @@ impl TimeUnit {
     }
 }
 
-/// TODO: DOCUMENT
+/// To be able to use the basic [`crate::parse::Parser`] this trait needs to be implemented
+///
+/// Usually, time units are a fixed set of strings and implementing `TimeUnitsLike` is a simple
+/// straight forward process. For more advanced usages see for example the implementations of fundu.
+/// The most important method is [`TimeUnitsLike::get`]. See there for additional information.
+/// Generally, `inlining` the `is_empty` and `get` method speeds up the parsing a little bit.
+///
+/// # Examples
+///
+/// Example for a simple and small fixed set of time units.
+///
+/// ```
+/// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
+///
+/// struct TimeUnits {}
+/// impl TimeUnitsLike for TimeUnits {
+///     #[inline]
+///     fn is_empty(&self) -> bool {
+///         false
+///     }
+///
+///     #[inline]
+///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+///         match identifier {
+///             "s" | "sec" => Some((TimeUnit::Second, Multiplier(1, 0))),
+///             "min" | "minutes" => Some((TimeUnit::Minute, Multiplier(1, 0))),
+///             _ => None,
+///         }
+///     }
+/// }
+/// let time_units = TimeUnits {};
+///
+/// assert_eq!(time_units.is_empty(), false);
+/// assert_eq!(
+///     time_units.get("sec"),
+///     Some((TimeUnit::Second, Multiplier(1, 0)))
+/// );
+/// assert_eq!(
+///     time_units.get("minutes"),
+///     Some((TimeUnit::Minute, Multiplier(1, 0)))
+/// );
+/// assert_eq!(time_units.get("does_not_exist"), None);
+/// ```
 pub trait TimeUnitsLike {
-    /// TODO: DOCUMENT
+    /// Return true if there are no time units configured to be matched against
+    ///
+    /// # Examples
+    ///
+    /// Example for an empty set of time units and `is_empty` returning `false`
+    ///
+    /// ```
+    /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
+    ///
+    /// struct TimeUnits {}
+    /// impl TimeUnitsLike for TimeUnits {
+    ///     fn is_empty(&self) -> bool {
+    ///         true
+    ///     }
+    ///
+    ///     fn get(&self, string: &str) -> Option<(TimeUnit, Multiplier)> {
+    ///         None
+    ///     }
+    /// }
+    /// let time_units = TimeUnits {};
+    ///
+    /// assert!(time_units.is_empty());
+    /// ```
+    ///
+    /// Example for a fixed set of time units. To keep the example small only a few possibilities
+    /// are given, but the essential point is, that as soon as the `string` can be matched against
+    /// one time unit in the `get` method, `is_empty` must return false.
+    ///
+    /// ```
+    /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
+    ///
+    /// struct TimeUnits {}
+    /// impl TimeUnitsLike for TimeUnits {
+    ///     fn is_empty(&self) -> bool {
+    ///         false
+    ///     }
+    ///
+    ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+    ///         match identifier {
+    ///             "s" | "sec" => Some((TimeUnit::Second, Multiplier(1, 0))),
+    ///             "min" | "minutes" => Some((TimeUnit::Minute, Multiplier(1, 0))),
+    ///             _ => None,
+    ///         }
+    ///     }
+    /// }
+    /// let time_units = TimeUnits {};
+    ///
+    /// assert_eq!(time_units.is_empty(), false);
+    /// ```
     fn is_empty(&self) -> bool;
-    /// TODO: DOCUMENT
+
+    /// Return the result of the match of the `identifier` against a set of time units
+    ///
+    /// This method must return `None` if the `identifier` does not match one of the time units and
+    /// return `Some` tuple with a [`TimeUnit`] and an additional [`Multiplier`]. The [`Multiplier`]
+    /// is not the multiplier of the `TimeUnit` but is instead applied additionally to the inherent
+    /// `Multiplier` of the `TimeUnit`. A [`TimeUnit`] ranges from [`TimeUnit::NanoSecond`] to
+    /// [`TimeUnit::Year`]. The additional `Multiplier` allows to create other time units derived
+    /// from the existent ones like `century` `(TimeUnit::Year, Multiplier(100, 0))` or `fortnight`
+    /// `(TimeUnit::Week, Multiplier(2, 0))` ...
+    ///
+    /// # Problems
+    ///
+    /// This method is time critical and the `identifier` can theoretically range from `0` to
+    /// `usize::MAX` length. So, every measure to avoid unnecessary calculations should be taken.
+    ///
+    /// # Examples
+    ///
+    /// Full example for a fixed fantasy set of time units with a derived time unit `fortnight` and
+    /// micro seconds with an utf-8 multi-byte character
+    ///
+    /// ```
+    /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
+    ///
+    /// struct TimeUnits {}
+    /// impl TimeUnitsLike for TimeUnits {
+    ///     #[inline]
+    ///     fn is_empty(&self) -> bool {
+    ///         false
+    ///     }
+    ///
+    ///     #[inline]
+    ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+    ///         match identifier {
+    ///             "ns" | "nsec" => Some((TimeUnit::NanoSecond, Multiplier(1, 0))),
+    ///             "µs" | "us" | "usec" => Some((TimeUnit::MicroSecond, Multiplier(1, 0))),
+    ///             "ms" | "msec" => Some((TimeUnit::MilliSecond, Multiplier(1, 0))),
+    ///             "s" | "sec" => Some((TimeUnit::Second, Multiplier(1, 0))),
+    ///             "m" | "min" | "mins" | "minutes" => Some((TimeUnit::Minute, Multiplier(1, 0))),
+    ///             "h" | "hr" | "hrs" => Some((TimeUnit::Hour, Multiplier(1, 0))),
+    ///             "d" | "day" | "days" => Some((TimeUnit::Day, Multiplier(1, 0))),
+    ///             "w" | "weeks" => Some((TimeUnit::Week, Multiplier(1, 0))),
+    ///             "fortnight" | "fortnights" => Some((TimeUnit::Week, Multiplier(2, 0))),
+    ///             "month" | "months" => Some((TimeUnit::Month, Multiplier(1, 0))),
+    ///             "year" | "years" => Some((TimeUnit::Year, Multiplier(1, 0))),
+    ///             _ => None,
+    ///         }
+    ///     }
+    /// }
+    /// let time_units = TimeUnits {};
+    ///
+    /// assert_eq!(time_units.is_empty(), false);
+    /// assert_eq!(
+    ///     time_units.get("nsec"),
+    ///     Some((TimeUnit::NanoSecond, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     time_units.get("fortnight"),
+    ///     Some((TimeUnit::Week, Multiplier(2, 0)))
+    /// );
+    /// assert_eq!(
+    ///     time_units.get("years"),
+    ///     Some((TimeUnit::Year, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(time_units.get("does_not_match"), None);
+    /// ```
+    ///
+    /// Whatever may seems reasonable to match against the set of time units is allowed like
+    /// matching case insensitive. See the following short example which also tries to avoid any
+    /// unnecessary calculation to the lowercase pendant of the original `identifier`
+    ///
+    /// ```
+    /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
+    ///
+    /// struct TimeUnits {}
+    /// impl TimeUnitsLike for TimeUnits {
+    ///     #[inline]
+    ///     fn is_empty(&self) -> bool {
+    ///         false
+    ///     }
+    ///
+    ///     #[inline]
+    ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+    ///         // We use the fact that none of our time units have a string length greater than `4`
+    ///         // and lower than `1`
+    ///         if identifier.len() >= 1 && identifier.len() <= 4 {
+    ///             match identifier.to_ascii_lowercase().as_str() {
+    ///                 "µs" | "us" | "usec" => Some((TimeUnit::MicroSecond, Multiplier(1, 0))),
+    ///                 "ms" | "msec" => Some((TimeUnit::MilliSecond, Multiplier(1, 0))),
+    ///                 "s" | "sec" => Some((TimeUnit::Second, Multiplier(1, 0))),
+    ///                 _ => None,
+    ///             }
+    ///         } else {
+    ///             None
+    ///         }
+    ///     }
+    /// }
+    /// let time_units = TimeUnits {};
+    ///
+    /// assert_eq!(time_units.is_empty(), false);
+    /// assert_eq!(
+    ///     time_units.get("USEC"),
+    ///     Some((TimeUnit::MicroSecond, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     time_units.get("MSec"),
+    ///     Some((TimeUnit::MilliSecond, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(
+    ///     time_units.get("sEc"),
+    ///     Some((TimeUnit::Second, Multiplier(1, 0)))
+    /// );
+    /// assert_eq!(time_units.get("does_not_match"), None);
+    /// ```
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)>;
 }
 
@@ -305,8 +510,8 @@ pub trait SaturatingInto<T>: Sized {
 /// The `Duration` of this library implements conversions to a [`std::time::Duration`] and if the
 /// feature is activated into a [`time::Duration`] respectively [`chrono::Duration`]. This crates
 /// duration is a superset of the aforementioned durations, so converting to fundu's duration with
-/// `From` or `Into` is lossless. Converting from [`crate::Duration`] to the other durations can
-/// overflow the other duration's value range, but `TryFrom` is implement for all of these
+/// `From` or `Into` is lossless. Converting from [`crate::time::Duration`] to the other durations
+/// can overflow the other duration's value range, but `TryFrom` is implement for all of these
 /// durations. Note that fundu's duration also implements [`SaturatingInto`] for the above durations
 /// which performs the conversion saturating at the maximum or minimum of these durations.
 ///

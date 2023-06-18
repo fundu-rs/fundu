@@ -3,6 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+//! A collection of useful functions, constants which are in use across the whole crate
+
 pub const POW10: [u64; 20] = [
     1,
     10,

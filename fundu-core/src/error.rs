@@ -3,7 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! Provide the [`ParseError`]
+//! Provide the errors used in fundu like [`ParseError`] and [`TryFromDurationError`]
 
 use std::error::Error;
 use std::fmt::Display;
@@ -63,7 +63,7 @@ impl Display for ParseError {
     }
 }
 
-/// This error may occur when converting a [`crate::Duration`] to a different duration like
+/// This error may occur when converting a [`crate::time::Duration`] to a different duration like
 /// [`std::time::Duration`]
 #[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

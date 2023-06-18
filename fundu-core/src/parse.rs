@@ -18,16 +18,16 @@ use crate::util::POW10;
 pub const ATTOS_PER_SEC: u64 = 1_000_000_000_000_000_000;
 pub const ATTOS_PER_NANO: u64 = 1_000_000_000;
 
-/// The core duration parser to parse strings into a [`crate::Duration`]
+/// The core duration parser to parse strings into a [`crate::time::Duration`]
 ///
-/// To be able to use the [`Parser::parse`] method an implementation of the [`crate::TimeUnitsLike`]
-/// trait is needed for the time units (even if there are no time units) and optionally for
-/// [`crate::TimeKeyword`]s. The `custom` and `standard` features have such implementations and
-/// their parsers are more convenient to use than using this parser directly. However, for example,
-/// the `custom` feature's [`crate::CustomDurationParser`] cannot be fully built in `const` context
-/// and is a slightly slower than this parser. So, using this parser is more involved but if maximum
-/// performance and building a parser in `const` context is wanted then this parser is the better
-/// choice.
+/// To be able to use the [`Parser::parse`] method an implementation of the
+/// [`crate::time::TimeUnitsLike`] trait is needed for the time units (even if there are no time
+/// units) and optionally for time keywords (like `yesterday` and `tomorrow` etc.). The `custom` and
+/// `standard` features have such implementations and their parsers are more convenient to use than
+/// using this parser directly. However, for example, the `custom` feature's
+/// [`fundu::CustomDurationParser`] cannot be fully built in `const` context and is a slightly
+/// slower than this parser. So, using this parser is more involved but if maximum performance and
+/// building a parser in `const` context is wanted then this parser is the better choice.
 ///
 /// # Examples
 ///
@@ -74,9 +74,11 @@ pub const ATTOS_PER_NANO: u64 = 1_000_000_000;
 ///     ))
 /// );
 /// ```
+///
+/// [`fundu::CustomDurationParser`]: https://docs.rs/fundu/latest/fundu/struct.CustomDurationParser.html
 #[derive(Debug, PartialEq, Eq)]
 pub struct Parser<'a> {
-    /// The [`crate::Config`] of this [`Parser`]
+    /// The [`crate::config::Config`] of this [`Parser`]
     ///
     /// For convenience, there are also the const [`Parser::new`] and const [`Parser::with_config`]
     /// methods to create a new [`Parser`].
@@ -84,14 +86,14 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    /// Convenience method to create a new parser with the default [`crate::Config`]
+    /// Convenience method to create a new parser with the default [`crate::config::Config`]
     pub const fn new() -> Self {
         Self {
             config: DEFAULT_CONFIG,
         }
     }
 
-    /// Convenience method to create a new parser with the the given [`crate::Config`]
+    /// Convenience method to create a new parser with the the given [`crate::config::Config`]
     pub const fn with_config(config: Config<'a>) -> Self {
         Self { config }
     }
@@ -148,20 +150,21 @@ impl<'a> Parser<'a> {
             })
     }
 
-    /// Parse the `source` string into a saturating [`crate::Duration`]
+    /// Parse the `source` string into a saturating [`crate::time::Duration`]
     ///
-    /// This method needs a struct implementing the [`crate::TimeUnitsLike`] for time units and
-    /// optionally for [`crate::TimeKeyword`]s. The `standard` and `custom` features offer such
-    /// implementations and are more convenient to use than using this method directly. They both
-    /// provide an own parser which uses this method in the end.
+    /// This method needs a struct implementing the [`crate::time::TimeUnitsLike`] for time units
+    /// and optionally for time keywords (like `yesterday`, `tomorrow`). The `standard` and `custom`
+    /// features of `fundu`  offer such implementations and are more convenient to use than using
+    /// this method directly. They both provide facades and and an own parser which uses this method
+    /// in the end.
     ///
     /// # Errors
     ///
-    /// Returns a [`crate::ParseError`] if the given `source` string is invalid
+    /// Returns a [`crate::error::ParseError`] if the given `source` string is invalid
     ///
     /// # Examples
     ///
-    /// An example with a quick and dirty implementation of [`crate::TimeUnitsLike`]
+    /// An example with a quick and dirty implementation of [`crate::time::TimeUnitsLike`]
     ///
     /// ```
     /// use fundu_core::error::ParseError;
