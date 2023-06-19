@@ -51,8 +51,6 @@ their [documentation](https://www.freedesktop.org/software/systemd/man/systemd.t
 | `"123456789"` |`Duration::positive(123_456_789, 0)` |
 | `"infinity"` |`Duration::positive(u64::MAX, 999_999_999)` |
 
-into a `Duration`.
-
 Note that `fundu` parses into its own `Duration` which is a superset of other `Durations` like
 [`std::time::Duration`], [`chrono::Duration`] and [`time::Duration`]. See the
 [documentation](https://docs.rs/fundu/latest/fundu/index.html#fundus-duration) how to easily
@@ -71,11 +69,26 @@ This crate is not for you if you want to customize the parser to a format which 
 compatible with `systemd`. See the main [fundu](../README.md) project, if you want to use a parser
 tailored to your needs.
 
+# Installation
+
+Add this to `Cargo.toml`
+
+```toml
+[dependencies]
+fundu-systemd = "0.1.0"
+```
+
+or install with `cargo add fundu-systemd`.
+
+Activating the `chrono` or `time` feature provides a `TryFrom` implementation for
+[`chrono::Duration`] or [`time::Duration`].  Activating the `serde` feature allows some structs and
+enums to be serialized or deserialized with [serde](https://docs.rs/serde/latest/serde/)
+
 # Description of the Format
 
 Supported time units:
 
-- `nsec`, `ns` (can be switched off)
+- `nsec`, `ns` (can be switched on, per default these are not included)
 - `usec`, `us`, `µs`
 - `msec,` `ms`
 - `seconds`, `second`, `sec`, `s`
@@ -93,7 +106,8 @@ A summary of the rest of the format:
 - For numbers without a time unit (like `"1234"`) the default time unit is usually `second` but can
 be changed since in some case systemd uses a different granularity.
 - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
-- The parsed duration represents the value exactly (without rounding errors as would occur in floating point calculations) as it is specified in the source string (just like systemd).
+- The parsed duration represents the value exactly (without rounding errors as would occur in
+floating point calculations) as it is specified in the source string (just like systemd).
 - The maximum supported duration has `u64::MAX` seconds (`18_446_744_073_709_551_615`) and
 `999_999_999` nano seconds.
 - The special value `"infinity"` evaluates to the maximum supported duration what effectively is
