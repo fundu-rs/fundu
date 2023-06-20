@@ -32,7 +32,8 @@ use fundu::{
     TimeUnitsLike,
 };
 
-const DELIMITER: Delimiter = |byte| matches!(byte, b' ' | 0x9..=0xd);
+// whitespace definition of: b' ', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D'
+const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
 
 const CONFIG: Config = ConfigBuilder::new()
     .allow_delimiter(DELIMITER)
@@ -108,7 +109,7 @@ impl<'a> TimeSpanParser<'a> {
     /// # Errors
     pub fn parse_with_max(&self, source: &str, max: Duration) -> Result<Duration, ParseError> {
         assert!(max.is_positive());
-        let trimmed = source.trim_matches(|c| matches!(c, ' ' | '\x09'..='\x0d'));
+        let trimmed = trim(source);
         match Self::parse_infinity(trimmed, max) {
             Some(duration) => Ok(duration),
             None => self
@@ -136,7 +137,7 @@ impl<'a> TimeSpanParser<'a> {
         max: Duration,
     ) -> Result<Duration, ParseError> {
         assert!(max.is_positive());
-        let trimmed = source.trim_matches(|c| matches!(c, ' ' | '\x09'..='\x0d'));
+        let trimmed = trim(source);
         match Self::parse_infinity(trimmed, max) {
             Some(duration) => Ok(duration),
             None => self
@@ -253,6 +254,28 @@ pub fn parse_nanos(
             parser.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NSEC_DURATION))
         }
     }
+}
+
+// This is a faster alternative to str::trim_matches. We're exploiting that we're using the posix
+// definition of whitespace which only contains ascii characters as whitespace
+fn trim(source: &str) -> &str {
+    let mut bytes = source.as_bytes();
+    while let Some((byte, remainder)) = bytes.split_first() {
+        if byte == &b' ' || byte.wrapping_sub(9) < 5 {
+            bytes = remainder;
+        } else {
+            break;
+        }
+    }
+    while let Some((byte, remainder)) = bytes.split_last() {
+        if byte == &b' ' || byte.wrapping_sub(9) < 5 {
+            bytes = remainder;
+        } else {
+            break;
+        }
+    }
+    // SAFETY: We've trimmed only ascii characters and therefore valid utf-8
+    unsafe { std::str::from_utf8_unchecked(bytes) }
 }
 
 #[cfg(test)]

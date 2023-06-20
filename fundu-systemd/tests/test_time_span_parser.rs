@@ -57,7 +57,7 @@ fn test_parser_parse_infinity_when_invalid_then_error(
 #[case::leading_spaces("    infinity")]
 #[case::leading_all_posix_whitespace("\x09\x0A\x0B\x0C\x0D infinity")]
 #[case::trailing_whitespace("infinity   ")]
-#[case::trailing_spaces("infinity \x09\x0A\x0B\x0C\x0D")]
+#[case::trailing_all_posix_whitespace("infinity \x09\x0A\x0B\x0C\x0D")]
 fn test_parser_parse_infinity(#[case] input: &str) {
     assert_eq!(
         TimeSpanParser::new().parse(input),
