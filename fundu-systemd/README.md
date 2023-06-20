@@ -81,8 +81,9 @@ fundu-systemd = "0.1.0"
 or install with `cargo add fundu-systemd`.
 
 Activating the `chrono` or `time` feature provides a `TryFrom` implementation for
-[`chrono::Duration`] or [`time::Duration`].  Activating the `serde` feature allows some structs and
-enums to be serialized or deserialized with [serde](https://docs.rs/serde/latest/serde/)
+[`chrono::Duration`] or [`time::Duration`]. Converting from/to [`std::time::Duration`] does not require
+an additional feature. Activating the `serde` feature allows some structs and enums to be serialized
+or deserialized with [serde](https://docs.rs/serde/latest/serde/)
 
 # Description of the Format
 
@@ -101,23 +102,29 @@ Supported time units:
 
 A summary of the rest of the format:
 
-- Only simple numbers (like in `"123 days"`) without fraction (like in `"1.2 days"`) and exponent
-(like in `"3e9 days"`) are allowed
+- Only numbers like `"123 days"` or with fraction `"1.2 days"` but without exponent (like `"3e9
+days"`) are allowed
 - For numbers without a time unit (like `"1234"`) the default time unit is usually `second` but can
 be changed since in some case systemd uses a different granularity.
 - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
 - The parsed duration represents the value exactly (without rounding errors as would occur in
 floating point calculations) as it is specified in the source string (just like systemd).
-- The maximum supported duration has `u64::MAX` seconds (`18_446_744_073_709_551_615`) and
-`999_999_999` nano seconds.
-- The special value `"infinity"` evaluates to the maximum supported duration what effectively is
-around `584_542_046_090` years.
-- parsed durations larger than the maximum supported duration (like `"100000000000000years"`)
-saturate at the maximum supported duration
+- The maximum supported duration (`Duration::MAX`) has `u64::MAX` seconds
+(`18_446_744_073_709_551_615`) and `999_999_999` nano seconds. However, systemd uses `u64::MAX`
+micro seconds as maximum duration when parsing without nanos and `u64::MAX` nano seconds when
+parsing with nanos. `fundu-systemd` provides the `parse` and `parse_nanos` functions to reflect
+that. If you don't like the maximum duration of `systemd` it's still possible via `parse_with_max`
+and `parse_nanos_with_max` to adjust this limit to a duration ranging from `Duration::ZERO` to
+`Duration::MAX`.
+- The special value `"infinity"` evaluates to the maximum systemd duration. Note the maximum
+duration depends on whether parsing with nano seconds or without.
+- parsed durations larger than the maximum duration (like `"100000000000000years"`)
+saturate at the maximum duration
 - Negative durations are not allowed, also no intermediate negative durations like in `"5day -1ms"`
 although the final duration would not be negative.
-- Any whitespace between the number and the time unit (like in `"1 \n sec"`) and multiple durations
-(like in `"1week \n 2minutes"`) is ignored and follows the posix definition of whitespace which is:
+- Any leading, trailing whitespace or whitespace between the number and the time unit (like in `"1
+\n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows the posix
+definition of whitespace which is:
     - Space (`' '`)
     - Horizontal Tab (`'\x09'`)
     - Line Feed (`'\x0A'`)
@@ -135,14 +142,23 @@ description of their format.
 
 ### Issue
 
-Instead of returning an error for durations larger than the maximum duration, fundu saturates at its
-maximum supported duration of `u64::MAX` seconds and `999_999_999` nano seconds. In contrast,
-systemd's maximum supported duration is `u64::MAX` micro seconds.
+The maximum duration sometimes is `i64::MAX` (`9223372036854775807`) micro seconds and sometimes
+`u64::MAX` (`18446744073709551615`) micro seconds depending on the time units in the input string.
+This looks like a bug in systemd. For example:
+
+- `systemd-analyze timespan infinity` returns `u64::MAX` micro seconds,
+- `systemd-analyze timespan 18446744073709551615 usec` returns an error
+- `systemd-analyze timespan 9223372036854775807 usec` is valid
+- `systemd-analyze timespan 9223372036854775808 usec` returns an error
+- `systemd-analyze timespan 584541 years` returns `18446711061600000000` micro seconds which is larger than `i64::MAX`
+
+`fundu-systemd` doesn't make these differences and saturates at the maximum duration of `u64::MAX`
+micro seconds (or `u64::MAX` nano seconds if parsing with `parse_nanos`) no matter the time unit in
+the input string.
 
 ### Mitigation
 
-Check if the parsed duration is larger than `u64::MAX` micro seconds and perform the error handling
-manually
+The maximum duration of fundu-systemd's parser is adjustable to a lower value than `u64::MAX` micro seconds or nano seconds, if needed.
 
 # License
 
