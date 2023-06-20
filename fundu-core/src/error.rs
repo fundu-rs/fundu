@@ -12,7 +12,7 @@ use std::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 /// Error type emitted during the parsing
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[non_exhaustive]
 pub enum ParseError {
@@ -22,6 +22,8 @@ pub enum ParseError {
     /// reason.
     Syntax(usize, String),
     /// Currently only used internally for overflows of the maximum Duration.
+    /// TODO: Rename to positive overflow
+    /// TODO: Add NegativeOverflow
     Overflow,
     /// An error concerning time units. Like [`ParseError::Syntax`]  the position where the error
     /// occurred is included.
@@ -65,7 +67,7 @@ impl Display for ParseError {
 
 /// This error may occur when converting a [`crate::time::Duration`] to a different duration like
 /// [`std::time::Duration`]
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum TryFromDurationError {
     /// The duration was negative and the destination duration doesn't support negative durations

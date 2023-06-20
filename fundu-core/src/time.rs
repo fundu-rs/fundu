@@ -152,7 +152,7 @@ impl TimeUnit {
 ///
 /// Example for a simple and small fixed set of time units.
 ///
-/// ```
+/// ```rust
 /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
 ///
 /// struct TimeUnits {}
