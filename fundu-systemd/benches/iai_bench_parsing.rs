@@ -10,9 +10,9 @@ use iai_callgrind::{black_box, main};
 type Result<T> = std::result::Result<T, ParseError>;
 
 const SMALL_INPUT: &str = "1";
-const MIXED_INPUT_7: &str = "1234567";
-const MIXED_INPUT_8: &str = "12345678";
-const MIXED_INPUT_9: &str = "123456789";
+const MIXED_INPUT_7: &str = "1234567.1234567";
+const MIXED_INPUT_8: &str = "12345678.12345678";
+const MIXED_INPUT_9: &str = "123456789.123456789";
 
 #[inline(never)]
 #[export_name = "__iai_setup::setup_parser"]
@@ -23,7 +23,7 @@ fn setup_parser<'a>() -> TimeSpanParser<'a> {
 #[inline(never)]
 #[export_name = "__iai_setup::generate_large_input"]
 fn generate_large_input() -> String {
-    "1".repeat(1022)
+    format!("{0}.{0}", "1".repeat(1022))
 }
 
 #[inline(never)]

@@ -30,7 +30,7 @@ fn parsing_when_no_time_unit() -> Result<Duration> {
 #[inline(never)]
 fn parsing_nano_second() -> Result<Duration> {
     let parser = setup_parser();
-    black_box(parser).parse(black_box(INPUT_NANO_SECOND))
+    black_box(parser).parse_nanos(black_box(INPUT_NANO_SECOND))
 }
 
 #[inline(never)]
