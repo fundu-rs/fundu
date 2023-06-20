@@ -37,13 +37,15 @@ const DELIMITER: Delimiter = |byte| matches!(byte, b' ' | 0x9..=0xd);
 const CONFIG: Config = ConfigBuilder::new()
     .allow_delimiter(DELIMITER)
     .disable_exponent()
-    .disable_fraction()
     .disable_infinity()
     .number_is_optional()
     .parse_multiple(DELIMITER, None)
     .build();
 
-const TIME_UNITS: TimeUnits = TimeUnits {};
+/// TODO: DOCUMENT
+pub const TIME_UNITS_WITH_NANOS: TimeUnitsWithNanos = TimeUnitsWithNanos {};
+/// TODO: DOCUMENT
+pub const TIME_UNITS: TimeUnits = TimeUnits {};
 
 const NANO_SECOND: (TimeUnit, Multiplier) = (NanoSecond, Multiplier(1, 0));
 const MICRO_SECOND: (TimeUnit, Multiplier) = (MicroSecond, Multiplier(1, 0));
@@ -56,25 +58,97 @@ const WEEK: (TimeUnit, Multiplier) = (Week, Multiplier(1, 0));
 const MONTH: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
 const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
+const PARSER: TimeSpanParser<'static> = TimeSpanParser::new();
+
 /// TODO: DOCUMENT
+pub const SYSTEMD_MAX_USEC_DURATION: Duration =
+    Duration::positive(u64::MAX / 1_000_000, (u64::MAX % 1_000_000) as u32 * 1000);
+/// TODO: DOCUMENT
+pub const SYSTEMD_MAX_NSEC_DURATION: Duration =
+    Duration::positive(u64::MAX / 1_000_000_000, (u64::MAX % 1_000_000_000) as u32);
+
+/// TODO: DOCUMENT
+#[derive(Debug, Eq, PartialEq)]
 pub struct TimeSpanParser<'a> {
-    parser: Parser<'a>,
+    raw: Parser<'a>,
 }
 
 impl<'a> TimeSpanParser<'a> {
     /// TODO: DOCUMENT
     pub const fn new() -> Self {
         Self {
-            parser: Parser::with_config(CONFIG),
+            raw: Parser::with_config(CONFIG),
+        }
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn with_default_unit(time_unit: TimeUnit) -> Self {
+        let mut config = CONFIG;
+        config.default_unit = time_unit;
+        Self {
+            raw: Parser::with_config(config),
+        }
+    }
+
+    fn parse_infinity(source: &str, max: Duration) -> Option<Duration> {
+        (source == "infinity").then_some(max)
+    }
+
+    /// TODO: DOCUMENT
+    ///
+    /// # Errors
+    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
+        self.parse_with_max(source, SYSTEMD_MAX_USEC_DURATION)
+    }
+
+    /// TODO: DOCUMENT
+    ///
+    /// # Panics
+    ///
+    /// # Errors
+    pub fn parse_with_max(&self, source: &str, max: Duration) -> Result<Duration, ParseError> {
+        assert!(max.is_positive());
+        let trimmed = source.trim_matches(|c| matches!(c, ' ' | '\x09'..='\x0d'));
+        match Self::parse_infinity(trimmed, max) {
+            Some(duration) => Ok(duration),
+            None => self
+                .raw
+                .parse(trimmed, &TIME_UNITS, None)
+                .map(|duration| duration.min(max)),
         }
     }
 
     /// TODO: DOCUMENT
     ///
     /// # Errors
-    #[inline]
-    pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        self.parser.parse(source, &TIME_UNITS, None)
+    pub fn parse_nanos(&self, source: &str) -> Result<Duration, ParseError> {
+        self.parse_nanos_with_max(source, SYSTEMD_MAX_NSEC_DURATION)
+    }
+
+    /// TODO: DOCUMENT
+    ///
+    /// # Panics
+    ///
+    /// # Errors
+    pub fn parse_nanos_with_max(
+        &self,
+        source: &str,
+        max: Duration,
+    ) -> Result<Duration, ParseError> {
+        assert!(max.is_positive());
+        let trimmed = source.trim_matches(|c| matches!(c, ' ' | '\x09'..='\x0d'));
+        match Self::parse_infinity(trimmed, max) {
+            Some(duration) => Ok(duration),
+            None => self
+                .raw
+                .parse(trimmed, &TIME_UNITS_WITH_NANOS, None)
+                .map(|duration| duration.min(max)),
+        }
+    }
+
+    /// TODO: DOCUMENT
+    pub fn set_default_unit(&mut self, time_unit: TimeUnit) {
+        self.raw.config.default_unit = time_unit;
     }
 }
 
@@ -95,61 +169,137 @@ impl TimeUnitsLike for TimeUnits {
 
     #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
-        let bytes = identifier.as_bytes();
-        match bytes.len() {
-            1 => match bytes {
-                b"s" => Some(SECOND),
-                b"m" => Some(MINUTE),
-                b"h" => Some(HOUR),
-                b"d" => Some(DAY),
-                b"w" => Some(WEEK),
-                b"M" => Some(MONTH),
-                b"y" => Some(YEAR),
-                _ => None,
-            },
-            2 => match bytes {
-                b"ns" => Some(NANO_SECOND),
-                b"us" => Some(MICRO_SECOND),
-                b"ms" => Some(MILLI_SECOND),
-                b"hr" => Some(HOUR),
-                _ => None,
-            },
-            3 => match bytes {
-                b"\xc2\xb5s" => Some(MICRO_SECOND),
-                b"sec" => Some(SECOND),
-                b"min" => Some(MINUTE),
-                b"day" => Some(DAY),
-                _ => None,
-            },
-            4 => match bytes {
-                b"nsec" => Some(NANO_SECOND),
-                b"usec" => Some(MICRO_SECOND),
-                b"msec" => Some(MILLI_SECOND),
-                b"hour" => Some(HOUR),
-                b"days" => Some(DAY),
-                b"week" => Some(WEEK),
-                b"year" => Some(YEAR),
-                _ => None,
-            },
-            5 => match bytes {
-                b"hours" => Some(HOUR),
-                b"weeks" => Some(WEEK),
-                b"month" => Some(MONTH),
-                b"years" => Some(YEAR),
-                _ => None,
-            },
-            6 => match bytes {
-                b"second" => Some(SECOND),
-                b"minute" => Some(MINUTE),
-                b"months" => Some(MONTH),
-                _ => None,
-            },
-            7 => match bytes {
-                b"seconds" => Some(SECOND),
-                b"minutes" => Some(MINUTE),
-                _ => None,
-            },
+        match identifier {
+            // These are two different letters: the greek small letter mu U+03BC and the micro sign
+            // U+00B5
+            "us" | "\u{03bc}s" | "\u{00b5}s" | "usec" => Some(MICRO_SECOND),
+            "ms" | "msec" => Some(MILLI_SECOND),
+            "s" | "sec" | "second" | "seconds" => Some(SECOND),
+            "m" | "min" | "minute" | "minutes" => Some(MINUTE),
+            "h" | "hr" | "hour" | "hours" => Some(HOUR),
+            "d" | "day" | "days" => Some(DAY),
+            "w" | "week" | "weeks" => Some(WEEK),
+            "M" | "month" | "months" => Some(MONTH),
+            "y" | "year" | "years" => Some(YEAR),
             _ => None,
         }
+    }
+}
+
+/// TODO: DOCUMENT
+pub struct TimeUnitsWithNanos {}
+
+impl TimeUnitsLike for TimeUnitsWithNanos {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        false
+    }
+
+    #[inline]
+    fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
+        match identifier {
+            "ns" | "nsec" => Some(NANO_SECOND),
+            // These are two different letters: the greek small letter mu U+03BC and the micro sign
+            // U+00B5
+            "us" | "\u{03bc}s" | "\u{00b5}s" | "usec" => Some(MICRO_SECOND),
+            "ms" | "msec" => Some(MILLI_SECOND),
+            "s" | "sec" | "second" | "seconds" => Some(SECOND),
+            "m" | "min" | "minute" | "minutes" => Some(MINUTE),
+            "h" | "hr" | "hour" | "hours" => Some(HOUR),
+            "d" | "day" | "days" => Some(DAY),
+            "w" | "week" | "weeks" => Some(WEEK),
+            "M" | "month" | "months" => Some(MONTH),
+            "y" | "year" | "years" => Some(YEAR),
+            _ => None,
+        }
+    }
+}
+
+/// TODO: DOCUMENT
+///
+/// # Errors
+pub fn parse(
+    source: &str,
+    default_unit: Option<TimeUnit>,
+    max: Option<Duration>,
+) -> Result<Duration, ParseError> {
+    match default_unit {
+        None | Some(TimeUnit::Second) => {
+            PARSER.parse_with_max(source, max.unwrap_or(SYSTEMD_MAX_USEC_DURATION))
+        }
+        Some(time_unit) => {
+            let mut parser = PARSER;
+            parser.set_default_unit(time_unit);
+            parser.parse_with_max(source, max.unwrap_or(SYSTEMD_MAX_USEC_DURATION))
+        }
+    }
+}
+
+/// TODO: DOCUMENT
+///
+/// # Errors
+pub fn parse_nanos(
+    source: &str,
+    default_unit: Option<TimeUnit>,
+    max: Option<Duration>,
+) -> Result<Duration, ParseError> {
+    match default_unit {
+        None | Some(TimeUnit::Second) => {
+            PARSER.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NSEC_DURATION))
+        }
+        Some(time_unit) => {
+            let mut parser = PARSER;
+            parser.set_default_unit(time_unit);
+            parser.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NSEC_DURATION))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+
+    use super::*;
+
+    #[test]
+    fn test_parser_new() {
+        let parser = TimeSpanParser::new();
+        assert_eq!(parser.raw.config, CONFIG);
+    }
+
+    #[rstest]
+    #[case::not_second(TimeUnit::Week)]
+    #[case::second(TimeUnit::Second)]
+    fn test_parser_with_default_unit(#[case] time_unit: TimeUnit) {
+        let parser = TimeSpanParser::with_default_unit(time_unit);
+        let mut config = CONFIG;
+        config.default_unit = time_unit;
+        assert_eq!(parser.raw.config, config);
+    }
+
+    #[rstest]
+    #[case::not_second(TimeUnit::Week)]
+    #[case::second(TimeUnit::Second)]
+    fn test_parser_set_default_unit(#[case] time_unit: TimeUnit) {
+        let mut config = CONFIG;
+        config.default_unit = time_unit;
+
+        let mut parser = TimeSpanParser::new();
+        parser.set_default_unit(time_unit);
+
+        assert_eq!(parser.raw.config, config);
+    }
+
+    #[test]
+    fn test_parser_default() {
+        assert_eq!(TimeSpanParser::new(), TimeSpanParser::default());
+        assert_eq!(TimeSpanParser::default(), PARSER);
+    }
+
+    #[rstest]
+    #[case::time_units(&TimeUnits {})]
+    #[case::time_units_with_nanos(&TimeUnitsWithNanos {})]
+    fn test_time_units_is_not_empty(#[case] time_units_like: &dyn TimeUnitsLike) {
+        assert!(!time_units_like.is_empty());
     }
 }
