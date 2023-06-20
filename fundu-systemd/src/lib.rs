@@ -109,7 +109,7 @@ impl<'a> TimeSpanParser<'a> {
     /// # Errors
     pub fn parse_with_max(&self, source: &str, max: Duration) -> Result<Duration, ParseError> {
         assert!(max.is_positive());
-        let trimmed = trim(source);
+        let trimmed = trim_whitespace(source);
         match Self::parse_infinity(trimmed, max) {
             Some(duration) => Ok(duration),
             None => self
@@ -137,7 +137,7 @@ impl<'a> TimeSpanParser<'a> {
         max: Duration,
     ) -> Result<Duration, ParseError> {
         assert!(max.is_positive());
-        let trimmed = trim(source);
+        let trimmed = trim_whitespace(source);
         match Self::parse_infinity(trimmed, max) {
             Some(duration) => Ok(duration),
             None => self
@@ -258,7 +258,7 @@ pub fn parse_nanos(
 
 // This is a faster alternative to str::trim_matches. We're exploiting that we're using the posix
 // definition of whitespace which only contains ascii characters as whitespace
-fn trim(source: &str) -> &str {
+fn trim_whitespace(source: &str) -> &str {
     let mut bytes = source.as_bytes();
     while let Some((byte, remainder)) = bytes.split_first() {
         if byte == &b' ' || byte.wrapping_sub(9) < 5 {
