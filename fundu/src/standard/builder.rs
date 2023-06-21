@@ -63,6 +63,7 @@ enum TimeUnitsChoice<'a> {
 ///     .parse_multiple(|byte| byte.is_ascii_whitespace(), None)
 ///     .build();
 /// assert_eq!(PARSER.parse("1h").unwrap(), Duration::positive(60 * 60, 0));
+/// ```
 #[derive(Debug, PartialEq, Eq)]
 pub struct DurationParserBuilder<'a> {
     time_units_choice: TimeUnitsChoice<'a>,

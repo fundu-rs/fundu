@@ -67,7 +67,7 @@ pub type Delimiter = fn(u8) -> bool;
 /// units are allowed in the input string. The final `Config` uses [`TimeUnit::MilliSecond`] as
 /// default time unit instead of [`TimeUnit::Second`] and allows negative durations.
 ///
-/// ```
+/// ```rust
 /// use fundu_core::config::{Config, ConfigBuilder};
 /// use fundu_core::parse::Parser;
 /// use fundu_core::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
@@ -215,7 +215,7 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::Config;
     /// use fundu_core::time::{Multiplier, TimeUnit};
     ///
@@ -255,7 +255,7 @@ impl<'a> Config<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     /// use fundu_core::time::TimeUnit;
     ///
@@ -279,7 +279,7 @@ impl<'a> Config<'a> {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
 /// use fundu_core::config::{Config, ConfigBuilder};
 /// use fundu_core::time::TimeUnit;
 ///
@@ -303,7 +303,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::ConfigBuilder;
     ///
     /// let config = ConfigBuilder::new().allow_negative().build();
@@ -320,7 +320,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new().disable_fraction().build();
@@ -337,7 +337,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new()
@@ -353,7 +353,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// or with the rust whitespace definition
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new()
@@ -380,7 +380,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     /// use fundu_core::time::TimeUnit;
     ///
@@ -401,7 +401,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new().disable_exponent().build();
@@ -419,7 +419,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new().disable_fraction().build();
@@ -437,7 +437,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new().disable_infinity().build();
@@ -455,7 +455,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new().number_is_optional().build();
@@ -473,7 +473,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new().allow_negative().build();
@@ -492,7 +492,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder, Delimiter};
     ///
     /// const DELIMITER: Delimiter = |byte| matches!(byte, b' ' | b'\n');
@@ -525,7 +525,7 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new()

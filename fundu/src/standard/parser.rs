@@ -499,18 +499,17 @@ impl<'a> DurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{DurationParser, TimeUnit::*};
+    /// use fundu::DurationParser;
+    /// use fundu::TimeUnit::*;
     ///
     /// let parser = DurationParser::without_time_units();
-    /// assert_eq!(
-    ///     parser.get_current_time_units(),
-    ///     vec![]
-    /// );
+    /// assert_eq!(parser.get_current_time_units(), vec![]);
     ///
     /// assert_eq!(
     ///     DurationParser::with_time_units(&[NanoSecond]).get_current_time_units(),
     ///     vec![NanoSecond]
     /// );
+    /// ```
     pub fn get_current_time_units(&self) -> Vec<TimeUnit> {
         self.time_units.get_time_units()
     }

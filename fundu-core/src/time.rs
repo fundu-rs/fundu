@@ -189,9 +189,9 @@ pub trait TimeUnitsLike {
     ///
     /// # Examples
     ///
-    /// Example for an empty set of time units and `is_empty` returning `false`
+    /// Example for an empty set of time units and `is_empty` returning `true`
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
     ///
     /// struct TimeUnits {}
@@ -213,7 +213,7 @@ pub trait TimeUnitsLike {
     /// are given, but the essential point is, that as soon as the `string` can be matched against
     /// one time unit in the `get` method, `is_empty` must return false.
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
     ///
     /// struct TimeUnits {}
@@ -256,7 +256,7 @@ pub trait TimeUnitsLike {
     /// Full example for a fixed fantasy set of time units with a derived time unit `fortnight` and
     /// micro seconds with an utf-8 multi-byte character
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
     ///
     /// struct TimeUnits {}
@@ -306,7 +306,7 @@ pub trait TimeUnitsLike {
     /// matching case insensitive. See the following short example which also tries to avoid any
     /// unnecessary calculation to the lowercase pendant of the original `identifier`
     ///
-    /// ```
+    /// ```rust
     /// use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
     ///
     /// struct TimeUnits {}
