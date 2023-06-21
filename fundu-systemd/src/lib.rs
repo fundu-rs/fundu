@@ -1,6 +1,187 @@
 // spell-checker: ignore econd inute onths nute nths econds inutes
 
-//! TODO: DOCUMENT
+//! A simple to use, fast and accurate systemd time span parser fully compatible with the
+//! [systemd time span format](https://www.freedesktop.org/software/systemd/man/systemd.time.html)
+//!
+//! `fundu-systemd` can parse rust strings like
+//!
+//! | `&str` | Duration |
+//! | -- | -- |
+//! | `"2 h"` | `Duration::positive(2 * 60 * 60, 0)` |
+//! | `"2hours"` |`Duration::positive(2 * 60 * 60, 0)` |
+//! | `"second"` |`Duration::positive(1, 0)` |
+//! | `"48hr"` |`Duration::positive(48 * 60 * 60, 0)` |
+//! | `"12.3 seconds"` |`Duration::positive(12, 300_000_000)` |
+//! | `"1y 12month"` | `Duration::positive(63_115_200, 0)` |
+//! | `"999us +1d"` |`Duration::positive(86_400, 999_000)` |
+//! | `"55s500ms"` | `Duration::positive(55, 500_000_000)` |
+//! | `"300ms20s 5day"` |`Duration::positive(20 + 5 * 60 * 60 * 24, 300_000_000)` |
+//! | `"123456789"` |`Duration::positive(123_456_789, 0)` (Default: Second) |
+//! | `"100"` |`Duration::positive(0, 100_000)` (when default is set to MicroSecond) |
+//! | `"infinity"` | variable: the maximum duration which is currently in use (see below) |
+//!
+//! Note that `fundu` parses into its own [`Duration`] which is a superset of other `Durations` like
+//! [`std::time::Duration`], [`chrono::Duration`] and [`time::Duration`]. See the
+//! [documentation](https://docs.rs/fundu/latest/fundu/index.html#fundus-duration) how to easily
+//! handle the conversion between these durations.
+//!
+//! # The Format
+//!
+//! Supported time units:
+//!
+//! - `nsec`, `ns` (can be switched on, per default these are not included)
+//! - `usec`, `us`, `µs`
+//! - `msec,` `ms`
+//! - `seconds`, `second`, `sec`, `s`
+//! - `minutes`, `minute`, `min`, `m`
+//! - `hours`, `hour`, `hr`, `h`
+//! - `days`, `day`, `d`
+//! - `weeks`, `week`, `w`
+//! - `months`, `month`, `M` (defined as `30.44` days or a `1/12` year)
+//! - `years`, `year`, `y` (defined as `365.25` days)
+//!
+//! Summary of the rest of the format:
+//!
+//! - Only numbers like `"123 days"` or with fraction `"1.2 days"` but without exponent (like `"3e9
+//! days"`) are allowed
+//! - For numbers without a time unit (like `"1234"`) the default time unit is usually `second` but
+//!   can
+//! be changed since in some case systemd uses a different granularity.
+//! - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
+//! - The parsed duration represents the value exactly (without rounding errors as would occur in
+//! floating point calculations) as it is specified in the source string (just like systemd).
+//! - The maximum supported duration (`Duration::MAX`) has `u64::MAX` seconds
+//! (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds. However, systemd uses `u64::MAX`
+//! micro seconds as maximum duration when parsing without nanos and `u64::MAX` nano seconds when
+//! parsing with nanos. `fundu-systemd` provides the `parse` and `parse_nanos` functions to reflect
+//! that. If you don't like the maximum duration of `systemd` it's still possible via
+//! `parse_with_max` and `parse_nanos_with_max` to adjust this limit to a duration ranging from
+//! `Duration::ZERO` to `Duration::MAX`.
+//! - The special value `"infinity"` evaluates to the maximum duration. Note the maximum duration
+//! depends on whether parsing with nano seconds or without. If the maximum duration is manually set
+//! to a different value then it evaluates to that maximum duration.
+//! - parsed durations larger than the maximum duration (like `"100000000000000years"`)
+//! saturate at the maximum duration
+//! - Negative durations are not allowed, also no intermediate negative durations like in `"5day
+//!   -1ms"`
+//! although the final duration would not be negative.
+//! - Any leading, trailing whitespace or whitespace between the number and the time unit (like in
+//!   `"1
+//! \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows the
+//! posix definition of whitespace which is:
+//!     - Space (`' '`)
+//!     - Horizontal Tab (`'\x09'`)
+//!     - Line Feed (`'\x0A'`)
+//!     - Vertical Tab (`'\x0B'`)
+//!     - Form Feed (`'\x0C'`)
+//!     - Carriage Return (`'\x0D'`)
+//!
+//! Please see also the systemd
+//! [documentation](https://www.freedesktop.org/software/systemd/man/systemd.time.html) for a
+//! description of their format.
+//!
+//! # Examples
+//!
+//! A re-usable parser providing different parse methods
+//!
+//! ```rust
+//! use fundu::Duration;
+//! use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION};
+//!
+//! const PARSER: TimeSpanParser = TimeSpanParser::new();
+//!
+//! let parser = &PARSER;
+//! assert_eq!(parser.parse("2h"), Ok(Duration::positive(2 * 60 * 60, 0)));
+//! assert_eq!(parser.parse("second"), Ok(Duration::positive(1, 0)));
+//! assert_eq!(
+//!     parser.parse("48hr"),
+//!     Ok(Duration::positive(48 * 60 * 60, 0))
+//! );
+//! assert_eq!(
+//!     parser.parse("12.3 seconds"),
+//!     Ok(Duration::positive(12, 300_000_000))
+//! );
+//! assert_eq!(
+//!     parser.parse("300ms20s 5day"),
+//!     Ok(Duration::positive(20 + 5 * 60 * 60 * 24, 300_000_000))
+//! );
+//! assert_eq!(
+//!     parser.parse("123456789"),
+//!     Ok(Duration::positive(123_456_789, 0))
+//! );
+//! assert_eq!(parser.parse("infinity"), Ok(SYSTEMD_MAX_MICRO_DURATION));
+//!
+//! // Or parsing nano seconds
+//! assert_eq!(
+//!     parser.parse_nanos("7809 nsec"),
+//!     Ok(Duration::positive(0, 7809))
+//! );
+//! assert_eq!(
+//!     parser.parse_nanos("infinity"),
+//!     Ok(SYSTEMD_MAX_NANOS_DURATION)
+//! );
+//! ```
+//!
+//! Change the default unit to something different than `Second`
+//! ```rust
+//! use fundu::{Duration, TimeUnit};
+//! use fundu_systemd::TimeSpanParser;
+//!
+//! let parser = TimeSpanParser::with_default_unit(TimeUnit::MicroSecond);
+//! assert_eq!(parser.parse("100"), Ok(Duration::positive(0, 100_000)));
+//!
+//! let mut parser = TimeSpanParser::new();
+//! parser.set_default_unit(TimeUnit::MicroSecond);
+//!
+//! assert_eq!(parser.parse("100"), Ok(Duration::positive(0, 100_000)));
+//! ```
+//!
+//! Or use one of the global methods [`parse`], [`parse_nanos`].
+//!
+//! ```rust
+//! use fundu::{Duration, ParseError, TimeUnit};
+//! use fundu_systemd::{
+//!     parse, parse_nanos, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION,
+//! };
+//!
+//! assert_eq!(parse("123 sec", None, None), Ok(Duration::positive(123, 0)));
+//!
+//! // This is an error with `parse` because the nano seconds are excluded
+//! assert_eq!(
+//!     parse("123 nsec", None, None),
+//!     Err(ParseError::TimeUnit(
+//!         4,
+//!         "Invalid time unit: 'nsec'".to_string()
+//!     ))
+//! );
+//!
+//! // Use `parse_nanos` if the nano second time units should be included
+//! assert_eq!(
+//!     parse_nanos("123 nsec", None, None),
+//!     Ok(Duration::positive(0, 123))
+//! );
+//!
+//! // The maximum duration differs depending on the method in use
+//! assert_eq!(
+//!     parse("infinity", None, None),
+//!     Ok(SYSTEMD_MAX_MICRO_DURATION)
+//! );
+//! assert_eq!(
+//!     parse_nanos("infinity", None, None),
+//!     Ok(SYSTEMD_MAX_NANOS_DURATION)
+//! );
+//!
+//! // But can be easily changed
+//! assert_eq!(
+//!     parse_nanos("infinity", None, Some(Duration::MAX)),
+//!     Ok(Duration::MAX)
+//! );
+//! ```
+//!
+//! For further details see [`parse`], [`parse_nanos`] or the documentation of [`TimeSpanParser`]
+//!
+//! [`chrono::Duration`]: https://docs.rs/chrono/latest/chrono/struct.Duration.html
+//! [`time::Duration`]: https://docs.rs/time/latest/time/struct.Duration.html
 
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc(test(attr(warn(unused))))]
@@ -43,10 +224,8 @@ const CONFIG: Config = ConfigBuilder::new()
     .parse_multiple(DELIMITER, None)
     .build();
 
-/// TODO: DOCUMENT
-pub const TIME_UNITS_WITH_NANOS: TimeUnitsWithNanos = TimeUnitsWithNanos {};
-/// TODO: DOCUMENT
-pub const TIME_UNITS: TimeUnits = TimeUnits {};
+const TIME_UNITS_WITH_NANOS: TimeUnitsWithNanos = TimeUnitsWithNanos {};
+const TIME_UNITS: TimeUnits = TimeUnits {};
 
 const NANO_SECOND: (TimeUnit, Multiplier) = (NanoSecond, Multiplier(1, 0));
 const MICRO_SECOND: (TimeUnit, Multiplier) = (MicroSecond, Multiplier(1, 0));
@@ -61,28 +240,123 @@ const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
 const PARSER: TimeSpanParser<'static> = TimeSpanParser::new();
 
-/// TODO: DOCUMENTATION
+/// The maximum duration used when parsing with micro seconds precision
 pub const SYSTEMD_MAX_MICRO_DURATION: Duration =
     Duration::positive(u64::MAX / 1_000_000, (u64::MAX % 1_000_000) as u32 * 1000);
-/// TODO: DOCUMENT
+
+/// The maximum duration used when parsing with nano seconds precision
 pub const SYSTEMD_MAX_NANOS_DURATION: Duration =
     Duration::positive(u64::MAX / 1_000_000_000, (u64::MAX % 1_000_000_000) as u32);
 
-/// TODO: DOCUMENT
+/// The main systemd time span parser
+///
+/// Note this parser can be created as const at compile time.
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::Duration;
+/// use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION};
+///
+/// const PARSER: TimeSpanParser = TimeSpanParser::new();
+///
+/// let parser = &PARSER;
+/// assert_eq!(parser.parse("2h"), Ok(Duration::positive(2 * 60 * 60, 0)));
+/// assert_eq!(
+///     parser.parse("2hours"),
+///     Ok(Duration::positive(2 * 60 * 60, 0))
+/// );
+/// assert_eq!(parser.parse("second"), Ok(Duration::positive(1, 0)));
+/// assert_eq!(
+///     parser.parse("48hr"),
+///     Ok(Duration::positive(48 * 60 * 60, 0))
+/// );
+/// assert_eq!(
+///     parser.parse("12.3 seconds"),
+///     Ok(Duration::positive(12, 300_000_000))
+/// );
+/// assert_eq!(
+///     parser.parse("1y 12month"),
+///     Ok(Duration::positive(63_115_200, 0))
+/// );
+/// assert_eq!(
+///     parser.parse("999us +1d"),
+///     Ok(Duration::positive(86_400, 999_000))
+/// );
+/// assert_eq!(
+///     parser.parse("55s500ms"),
+///     Ok(Duration::positive(55, 500_000_000))
+/// );
+/// assert_eq!(
+///     parser.parse("300ms20s 5day"),
+///     Ok(Duration::positive(20 + 5 * 60 * 60 * 24, 300_000_000))
+/// );
+/// assert_eq!(
+///     parser.parse("123456789"),
+///     Ok(Duration::positive(123_456_789, 0))
+/// );
+/// assert_eq!(parser.parse("infinity"), Ok(SYSTEMD_MAX_MICRO_DURATION));
+/// ```
+///
+/// It's possible to change the default unit to something different than `Second` either during the
+/// initialization with [`TimeSpanParser::with_default_unit`] or at runtime with
+/// [`TimeSpanParser::set_default_unit`]
+///
+/// ```rust
+/// use fundu::{Duration, TimeUnit};
+/// use fundu_systemd::TimeSpanParser;
+///
+/// let parser = TimeSpanParser::with_default_unit(TimeUnit::MicroSecond);
+/// assert_eq!(parser.parse("100"), Ok(Duration::positive(0, 100_000)));
+///
+/// let mut parser = TimeSpanParser::new();
+/// parser.set_default_unit(TimeUnit::MicroSecond);
+///
+/// assert_eq!(parser.parse("100"), Ok(Duration::positive(0, 100_000)));
+/// ```
 #[derive(Debug, Eq, PartialEq)]
 pub struct TimeSpanParser<'a> {
     raw: Parser<'a>,
 }
 
 impl<'a> TimeSpanParser<'a> {
-    /// TODO: DOCUMENT
+    /// Create a new `TimeSpanParser` with [`TimeUnit::Second`] as default unit
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    /// use fundu_systemd::TimeSpanParser;
+    ///
+    /// let parser = TimeSpanParser::new();
+    /// assert_eq!(parser.parse("2h"), Ok(Duration::positive(2 * 60 * 60, 0)));
+    /// assert_eq!(parser.parse("123"), Ok(Duration::positive(123, 0)));
+    /// assert_eq!(
+    ///     parser.parse("3us +10sec"),
+    ///     Ok(Duration::positive(10, 3_000))
+    /// );
+    /// ```
     pub const fn new() -> Self {
         Self {
             raw: Parser::with_config(CONFIG),
         }
     }
 
-    /// TODO: DOCUMENT
+    /// Create a new `TimeSpanParser` with the specified [`TimeUnit`] as default
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, TimeUnit};
+    /// use fundu_systemd::TimeSpanParser;
+    ///
+    /// let parser = TimeSpanParser::with_default_unit(TimeUnit::MicroSecond);
+    /// assert_eq!(parser.parse("123"), Ok(Duration::positive(0, 123_000)));
+    /// assert_eq!(
+    ///     parser.parse("3us +10sec"),
+    ///     Ok(Duration::positive(10, 3_000))
+    /// );
+    /// ```
     pub const fn with_default_unit(time_unit: TimeUnit) -> Self {
         let mut config = CONFIG;
         config.default_unit = time_unit;
@@ -95,18 +369,83 @@ impl<'a> TimeSpanParser<'a> {
         (source == "infinity").then_some(max)
     }
 
-    /// TODO: DOCUMENT
+    /// Parse the `source` string into a [`Duration`]
+    ///
+    /// This method does not include the time units for nano seconds unlike the
+    /// [`TimeSpanParser::parse_nanos`] method. The parser saturates at the maximum [`Duration`] of
+    /// `u64::MAX` micro seconds. If you need a different maximum use the
+    /// [`TimeSpanParser::parse_with_max`] method.
     ///
     /// # Errors
+    ///
+    /// Returns a [`ParseError`] if an error during the parsing process occurred
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    /// use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION};
+    ///
+    /// let parser = TimeSpanParser::new();
+    /// assert_eq!(
+    ///     parser.parse("2hours"),
+    ///     Ok(Duration::positive(2 * 60 * 60, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("12.3 seconds"),
+    ///     Ok(Duration::positive(12, 300_000_000))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("100000000000000000000000000000years"),
+    ///     Ok(SYSTEMD_MAX_MICRO_DURATION)
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("1y 12month"),
+    ///     Ok(Duration::positive(63_115_200, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse("123456789"),
+    ///     Ok(Duration::positive(123_456_789, 0))
+    /// );
+    /// assert_eq!(parser.parse("infinity"), Ok(SYSTEMD_MAX_MICRO_DURATION));
+    /// ```
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         self.parse_with_max(source, SYSTEMD_MAX_MICRO_DURATION)
     }
 
-    /// TODO: DOCUMENT
+    /// Parse the `source` string into a [`Duration`] saturating at the given `max` [`Duration`]
+    ///
+    /// This method does not include the time units for nano seconds unlike the
+    /// [`TimeSpanParser::parse_nanos_with_max`] method
     ///
     /// # Panics
     ///
+    /// This method panics if `max` is a a negative [`Duration`].
+    ///
     /// # Errors
+    ///
+    /// Returns a [`ParseError`] if an error during the parsing process occurred
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    /// use fundu_systemd::TimeSpanParser;
+    ///
+    /// let parser = TimeSpanParser::new();
+    /// assert_eq!(
+    ///     parser.parse_with_max("100000000000000000000000000000years", Duration::MAX),
+    ///     Ok(Duration::MAX)
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_with_max("123 sec", Duration::positive(1, 0)),
+    ///     Ok(Duration::positive(1, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_with_max("infinity", Duration::positive(i64::MAX as u64, 123)),
+    ///     Ok(Duration::positive(i64::MAX as u64, 123))
+    /// );
+    /// ```
     pub fn parse_with_max(&self, source: &str, max: Duration) -> Result<Duration, ParseError> {
         assert!(max.is_positive());
         let trimmed = trim_whitespace(source);
@@ -119,18 +458,86 @@ impl<'a> TimeSpanParser<'a> {
         }
     }
 
-    /// TODO: DOCUMENT
+    /// Parse the `source` string into a [`Duration`]
+    ///
+    /// This method does include the time units for nano seconds unlike the
+    /// [`TimeSpanParser::parse`] method. The parser saturates at the maximum [`Duration`] of
+    /// `u64::MAX` nano seconds. If you need a different maximum use the
+    /// [`TimeSpanParser::parse_nanos_with_max`] method.
     ///
     /// # Errors
+    ///
+    /// Returns a [`ParseError`] if an error during the parsing process occurred
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    /// use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_NANOS_DURATION};
+    ///
+    /// let parser = TimeSpanParser::new();
+    /// assert_eq!(
+    ///     parser.parse_nanos("2hours"),
+    ///     Ok(Duration::positive(2 * 60 * 60, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos("12.3 seconds"),
+    ///     Ok(Duration::positive(12, 300_000_000))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos("100000000000000000000000000000years"),
+    ///     Ok(SYSTEMD_MAX_NANOS_DURATION)
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos("1y 12month"),
+    ///     Ok(Duration::positive(63_115_200, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos("123456789"),
+    ///     Ok(Duration::positive(123_456_789, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos("infinity"),
+    ///     Ok(SYSTEMD_MAX_NANOS_DURATION)
+    /// );
+    /// ```
     pub fn parse_nanos(&self, source: &str) -> Result<Duration, ParseError> {
         self.parse_nanos_with_max(source, SYSTEMD_MAX_NANOS_DURATION)
     }
 
-    /// TODO: DOCUMENT
+    /// Parse the `source` string into a [`Duration`] saturating at the given `max` [`Duration`]
+    ///
+    /// This method does include the time units for nano seconds unlike the
+    /// [`TimeSpanParser::parse_with_max`] method
     ///
     /// # Panics
     ///
+    /// This method panics if `max` is a a negative [`Duration`].
+    ///
     /// # Errors
+    ///
+    /// Returns a [`ParseError`] if an error during the parsing process occurred
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::Duration;
+    /// use fundu_systemd::TimeSpanParser;
+    ///
+    /// let parser = TimeSpanParser::new();
+    /// assert_eq!(
+    ///     parser.parse_nanos_with_max("100000000000000000000000000000years", Duration::MAX),
+    ///     Ok(Duration::MAX)
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos_with_max("1234567890 nsec", Duration::positive(1, 0)),
+    ///     Ok(Duration::positive(1, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_nanos_with_max("infinity", Duration::positive(i64::MAX as u64, 123)),
+    ///     Ok(Duration::positive(i64::MAX as u64, 123))
+    /// );
+    /// ```
     pub fn parse_nanos_with_max(
         &self,
         source: &str,
@@ -147,7 +554,31 @@ impl<'a> TimeSpanParser<'a> {
         }
     }
 
-    /// TODO: DOCUMENT
+    /// Set the default [`TimeUnit`] during runtime
+    ///
+    /// The default unit is applied to numbers without time units
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, TimeUnit};
+    /// use fundu_systemd::TimeSpanParser;
+    ///
+    /// let mut parser = TimeSpanParser::with_default_unit(TimeUnit::MicroSecond);
+    /// assert_eq!(parser.parse("100"), Ok(Duration::positive(0, 100_000)));
+    ///
+    /// parser.set_default_unit(TimeUnit::Second);
+    /// assert_eq!(parser.parse("100"), Ok(Duration::positive(100, 0)));
+    ///
+    /// let mut parser = TimeSpanParser::new();
+    /// assert_eq!(parser.parse("123456"), Ok(Duration::positive(123456, 0)));
+    ///
+    /// parser.set_default_unit(TimeUnit::MicroSecond);
+    /// assert_eq!(
+    ///     parser.parse("123456"),
+    ///     Ok(Duration::positive(0, 123_456_000))
+    /// );
+    /// ```
     pub fn set_default_unit(&mut self, time_unit: TimeUnit) {
         self.raw.config.default_unit = time_unit;
     }
@@ -159,7 +590,7 @@ impl<'a> Default for TimeSpanParser<'a> {
     }
 }
 
-/// TODO: DOCUMENT
+/// This struct is used internally to hold the time units without nano second time units
 pub struct TimeUnits {}
 
 impl TimeUnitsLike for TimeUnits {
@@ -187,7 +618,7 @@ impl TimeUnitsLike for TimeUnits {
     }
 }
 
-/// TODO: DOCUMENT
+/// This struct is used internally to hold the time units with nano second time units
 pub struct TimeUnitsWithNanos {}
 
 impl TimeUnitsLike for TimeUnitsWithNanos {
@@ -216,9 +647,56 @@ impl TimeUnitsLike for TimeUnitsWithNanos {
     }
 }
 
-/// TODO: DOCUMENT
+/// Parse the `source` string into a [`Duration`]
+///
+/// This method does not include the time units for nano seconds unlike the
+/// [`TimeSpanParser::parse_nanos`] method. The parser saturates at the maximum [`Duration`] of
+/// `u64::MAX` micro seconds if not specified otherwise. Optionally, it's possible to specify a
+/// different default time unit than [`TimeUnit::Second`]
+///
+/// # Panics
+///
+/// This method panics if `max` is a a negative [`Duration`].
 ///
 /// # Errors
+///
+/// Returns a [`ParseError`] if an error during the parsing process occurred
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::{Duration, TimeUnit};
+/// use fundu_systemd::{parse, SYSTEMD_MAX_MICRO_DURATION};
+///
+/// assert_eq!(
+///     parse("2hours", None, None),
+///     Ok(Duration::positive(2 * 60 * 60, 0))
+/// );
+/// assert_eq!(
+///     parse("1y 12month", None, None),
+///     Ok(Duration::positive(63_115_200, 0))
+/// );
+/// assert_eq!(
+///     parse("12.3", Some(TimeUnit::MilliSecond), None),
+///     Ok(Duration::positive(0, 12_300_000))
+/// );
+/// assert_eq!(
+///     parse("100000000000000000000000000000years", None, None),
+///     Ok(SYSTEMD_MAX_MICRO_DURATION)
+/// );
+/// assert_eq!(
+///     parse(
+///         "100000000000000000000000000000years",
+///         None,
+///         Some(Duration::MAX)
+///     ),
+///     Ok(Duration::MAX)
+/// );
+/// assert_eq!(
+///     parse("infinity", None, None),
+///     Ok(SYSTEMD_MAX_MICRO_DURATION)
+/// );
+/// ```
 pub fn parse(
     source: &str,
     default_unit: Option<TimeUnit>,
@@ -236,9 +714,55 @@ pub fn parse(
     }
 }
 
-/// TODO: DOCUMENT
+/// Parse the `source` string into a [`Duration`] with nano second time units
+///
+/// This method does include the time units for nano seconds unlike the [`parse`] method. The parser
+/// saturates at the maximum [`Duration`] of `u64::MAX` nano seconds if not specified otherwise.
+/// Optionally, it's possible to specify a different default time unit than [`TimeUnit::Second`]
+///
+/// # Panics
+///
+/// This method panics if `max` is a a negative [`Duration`].
 ///
 /// # Errors
+///
+/// Returns a [`ParseError`] if an error during the parsing process occurred
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu::{Duration, TimeUnit};
+/// use fundu_systemd::{parse_nanos, SYSTEMD_MAX_NANOS_DURATION};
+///
+/// assert_eq!(
+///     parse_nanos("2nsec", None, None),
+///     Ok(Duration::positive(0, 2))
+/// );
+/// assert_eq!(
+///     parse_nanos("1y 12month", None, None),
+///     Ok(Duration::positive(63_115_200, 0))
+/// );
+/// assert_eq!(
+///     parse_nanos("12.3", Some(TimeUnit::MilliSecond), None),
+///     Ok(Duration::positive(0, 12_300_000))
+/// );
+/// assert_eq!(
+///     parse_nanos("100000000000000000000000000000years", None, None),
+///     Ok(SYSTEMD_MAX_NANOS_DURATION)
+/// );
+/// assert_eq!(
+///     parse_nanos(
+///         "100000000000000000000000000000years",
+///         None,
+///         Some(Duration::MAX)
+///     ),
+///     Ok(Duration::MAX)
+/// );
+/// assert_eq!(
+///     parse_nanos("infinity", None, None),
+///     Ok(SYSTEMD_MAX_NANOS_DURATION)
+/// );
+/// ```
 pub fn parse_nanos(
     source: &str,
     default_unit: Option<TimeUnit>,

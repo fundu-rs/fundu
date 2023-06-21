@@ -75,10 +75,28 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
     );
     for (_, input) in inputs {
         group.bench_with_input(
-            BenchmarkId::new("parse function".to_string(), input),
+            BenchmarkId::new("time units without number".to_string(), input),
             &input,
             |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
+    }
+    group.finish();
+}
+
+fn benchmark_parsing_multiple(criterion: &mut Criterion) {
+    let inputs = [
+        "1ns 1us",
+        "1ns          1us",
+        "1ns 1us 1ns 1us",
+        "1ns 1us 1ms 1s",
+        &"1ns 1us".repeat(100),
+    ];
+    let parser = TimeSpanParser::new();
+    let mut group = criterion.benchmark_group("time span parser parsing speed multiple");
+    for input in inputs {
+        group.bench_with_input(input, &input, |b, input| {
+            b.iter(|| black_box(&parser).parse_nanos(input).unwrap())
+        });
     }
     group.finish();
 }
@@ -98,4 +116,14 @@ criterion_group!(
     config = criterion_config();
     targets = benchmark_parsing_with_time_units
 );
-criterion_main!(initialization, parsing, parsing_time_units);
+criterion_group!(
+    name = parsing_multiple;
+    config = criterion_config();
+    targets = benchmark_parsing_multiple
+);
+criterion_main!(
+    initialization,
+    parsing,
+    parsing_time_units,
+    parsing_multiple
+);
