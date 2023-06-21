@@ -55,9 +55,9 @@ enum TimeUnitsChoice<'a> {
 ///
 /// ```rust
 /// use fundu::TimeUnit::*;
-/// use fundu::{DurationParser, DurationParserBuilder, Duration};
+/// use fundu::{Duration, DurationParser, DurationParserBuilder};
 ///
-/// const PARSER : DurationParser = DurationParserBuilder::new()
+/// const PARSER: DurationParser = DurationParserBuilder::new()
 ///     .time_units(&[Second, Minute, Hour, Day])
 ///     .allow_negative()
 ///     .parse_multiple(|byte| byte.is_ascii_whitespace(), None)
