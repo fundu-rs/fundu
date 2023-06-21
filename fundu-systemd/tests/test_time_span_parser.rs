@@ -7,7 +7,7 @@
 
 use fundu::{Duration, ParseError, TimeUnit};
 use fundu_systemd::{
-    parse, parse_nanos, TimeSpanParser, SYSTEMD_MAX_NSEC_DURATION, SYSTEMD_MAX_USEC_DURATION,
+    parse, parse_nanos, TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION,
 };
 use rstest::rstest;
 
@@ -61,16 +61,16 @@ fn test_parser_parse_infinity_when_invalid_then_error(
 fn test_parser_parse_infinity(#[case] input: &str) {
     assert_eq!(
         TimeSpanParser::new().parse(input),
-        Ok(SYSTEMD_MAX_USEC_DURATION)
+        Ok(SYSTEMD_MAX_MICRO_DURATION)
     );
-    assert_eq!(parse(input, None, None), Ok(SYSTEMD_MAX_USEC_DURATION));
+    assert_eq!(parse(input, None, None), Ok(SYSTEMD_MAX_MICRO_DURATION));
     assert_eq!(
         TimeSpanParser::new().parse_nanos(input),
-        Ok(SYSTEMD_MAX_NSEC_DURATION)
+        Ok(SYSTEMD_MAX_NANOS_DURATION)
     );
     assert_eq!(
         parse_nanos(input, None, None),
-        Ok(SYSTEMD_MAX_NSEC_DURATION)
+        Ok(SYSTEMD_MAX_NANOS_DURATION)
     );
 }
 
@@ -112,9 +112,9 @@ fn test_parser_parse_when_invalid_time_units(#[case] input: &str, #[case] expect
 fn test_parser_parse_when_saturating(#[case] input: &str) {
     assert_eq!(
         TimeSpanParser::new().parse(input),
-        Ok(SYSTEMD_MAX_USEC_DURATION)
+        Ok(SYSTEMD_MAX_MICRO_DURATION)
     );
-    assert_eq!(parse(input, None, None), Ok(SYSTEMD_MAX_USEC_DURATION));
+    assert_eq!(parse(input, None, None), Ok(SYSTEMD_MAX_MICRO_DURATION));
 }
 
 #[rstest]
@@ -178,7 +178,7 @@ fn test_parse_and_parse_nanos_with_time_units(
 
 #[rstest]
 #[case::none("123.123", None, Duration::positive(123, 123_000_000))]
-#[case::none_when_saturating("123456789y", None, SYSTEMD_MAX_USEC_DURATION)]
+#[case::none_when_saturating("123456789y", None, SYSTEMD_MAX_MICRO_DURATION)]
 #[case::duration_zero("123.123", Some(Duration::ZERO), Duration::ZERO)]
 #[case::duration_max("123.123", Some(Duration::MAX), Duration::positive(123, 123_000_000))]
 #[case::duration_max_when_saturating(&format!("{}", u128::MAX), Some(Duration::MAX), Duration::MAX)]

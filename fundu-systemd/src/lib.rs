@@ -61,11 +61,11 @@ const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
 const PARSER: TimeSpanParser<'static> = TimeSpanParser::new();
 
-/// TODO: DOCUMENT
-pub const SYSTEMD_MAX_USEC_DURATION: Duration =
+/// TODO: DOCUMENTATION
+pub const SYSTEMD_MAX_MICRO_DURATION: Duration =
     Duration::positive(u64::MAX / 1_000_000, (u64::MAX % 1_000_000) as u32 * 1000);
 /// TODO: DOCUMENT
-pub const SYSTEMD_MAX_NSEC_DURATION: Duration =
+pub const SYSTEMD_MAX_NANOS_DURATION: Duration =
     Duration::positive(u64::MAX / 1_000_000_000, (u64::MAX % 1_000_000_000) as u32);
 
 /// TODO: DOCUMENT
@@ -99,7 +99,7 @@ impl<'a> TimeSpanParser<'a> {
     ///
     /// # Errors
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
-        self.parse_with_max(source, SYSTEMD_MAX_USEC_DURATION)
+        self.parse_with_max(source, SYSTEMD_MAX_MICRO_DURATION)
     }
 
     /// TODO: DOCUMENT
@@ -123,7 +123,7 @@ impl<'a> TimeSpanParser<'a> {
     ///
     /// # Errors
     pub fn parse_nanos(&self, source: &str) -> Result<Duration, ParseError> {
-        self.parse_nanos_with_max(source, SYSTEMD_MAX_NSEC_DURATION)
+        self.parse_nanos_with_max(source, SYSTEMD_MAX_NANOS_DURATION)
     }
 
     /// TODO: DOCUMENT
@@ -226,12 +226,12 @@ pub fn parse(
 ) -> Result<Duration, ParseError> {
     match default_unit {
         None | Some(TimeUnit::Second) => {
-            PARSER.parse_with_max(source, max.unwrap_or(SYSTEMD_MAX_USEC_DURATION))
+            PARSER.parse_with_max(source, max.unwrap_or(SYSTEMD_MAX_MICRO_DURATION))
         }
         Some(time_unit) => {
             let mut parser = PARSER;
             parser.set_default_unit(time_unit);
-            parser.parse_with_max(source, max.unwrap_or(SYSTEMD_MAX_USEC_DURATION))
+            parser.parse_with_max(source, max.unwrap_or(SYSTEMD_MAX_MICRO_DURATION))
         }
     }
 }
@@ -246,12 +246,12 @@ pub fn parse_nanos(
 ) -> Result<Duration, ParseError> {
     match default_unit {
         None | Some(TimeUnit::Second) => {
-            PARSER.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NSEC_DURATION))
+            PARSER.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NANOS_DURATION))
         }
         Some(time_unit) => {
             let mut parser = PARSER;
             parser.set_default_unit(time_unit);
-            parser.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NSEC_DURATION))
+            parser.parse_nanos_with_max(source, max.unwrap_or(SYSTEMD_MAX_NANOS_DURATION))
         }
     }
 }
