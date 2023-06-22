@@ -3,6 +3,7 @@ resolver = "2"
 members = [
   "fundu",
   "fundu-systemd",
+  "fundu-gnu",
   "fundu-core"
 ]
 

@@ -1,0 +1,48 @@
+[package]
+name = "fundu-gnu"
+version = "0.1.0"
+edition = "2021"
+authors = ["Joining7943 <joining@posteo.de>"]
+description = "Fast and precise gnu relative time parser of rust strings to a Duration"
+readme = "README.md"
+license = "MIT"
+keywords = ["fundu", "fundu-gnu", "gnu", "relative", "parse", "string", "duration", "time"]
+categories = ["command-line-interface", "parsing", "date-and-time"]
+homepage = "https://github.com/Joining7943/fundu"
+repository = "https://github.com/Joining7943/fundu"
+rust-version = "1.64.0"
+
+[features]
+default = []
+chrono = ["fundu/chrono"]
+serde = ["fundu/serde"]
+time = ["fundu/time"]
+with-iai = ["fundu/with-iai"]
+with-flamegraph = ["fundu/with-flamegraph"]
+
+[dependencies]
+fundu = { path = "../fundu", version = "=1.0.0", default-features = false, features = ["base"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rstest = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+iai-callgrind = { workspace = true }
+inferno = { workspace = true }
+pprof = { workspace = true, features = ["flamegraph", "criterion"] }
+
+[[bench]]
+name = "benchmarks"
+harness = false
+
+[[bench]]
+name = "flamegraph"
+harness = false
+bench = false
+required-features = ["with-flamegraph"]
+
+[[bench]]
+name = "iai_bench_parsing"
+harness = false
+required-features = ["with-iai"]
