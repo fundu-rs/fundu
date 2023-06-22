@@ -154,11 +154,6 @@ pub struct Config<'a> {
     /// time unit can occur without number like `"second"` and a number with value `1` is assumed.
     pub number_is_optional: bool,
 
-    /// TODO REMOVE ??
-    pub max_exponent: i16,
-    /// TODO REMOVE ??
-    pub min_exponent: i16,
-
     /// TODO: RENAME to delimiter_parse_multiple
     ///
     /// When set to `Some` this setting allows multiple `durations` in the input (Default: `None`)
@@ -241,8 +236,6 @@ impl<'a> Config<'a> {
             disable_exponent: false,
             disable_fraction: false,
             number_is_optional: false,
-            max_exponent: i16::MAX,
-            min_exponent: i16::MIN,
             disable_infinity: false,
             parse_multiple_delimiter: None,
             parse_multiple_conjunctions: None,
