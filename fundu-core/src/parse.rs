@@ -216,7 +216,7 @@ impl<'a> Parser<'a> {
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
-        self.config.parse_multiple_delimiter.map_or_else(
+        self.config.delimiter_multiple.map_or_else(
             || self.parse_single(source, time_units, keywords),
             |delimiter| {
                 self.parse_multiple(
@@ -1642,7 +1642,7 @@ mod tests {
 
         let mut config = Config::new();
         let delimiter = |byte| byte == b' ';
-        config.parse_multiple_delimiter = Some(delimiter);
+        config.delimiter_multiple = Some(delimiter);
         let mut parser = ReprParserMultiple::new(&input, delimiter, &[]);
         let (duration_repr, maybe_parser) = parser.parse(&config, &TimeUnitsFixture, None).unwrap();
         assert!(maybe_parser.is_none());

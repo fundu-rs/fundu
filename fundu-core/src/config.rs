@@ -164,7 +164,7 @@ pub struct Config<'a> {
     /// matches!(byte, b' ' | b'\n'))` would parse the following strings `"1second \n2seconds"` to
     /// a `Duration::positive(3, 0)` but also `"3seconds1second"` to a `Duration::positive(4,
     /// 0)`.
-    pub parse_multiple_delimiter: Option<Delimiter>,
+    pub delimiter_multiple: Option<Delimiter>,
 
     /// TODO: RENAME to conjunctions_parse_multiple or just conjunctions
     ///
@@ -223,7 +223,7 @@ impl<'a> Config<'a> {
     /// assert_eq!(DEFAULT_CONFIG.disable_fraction, false);
     /// assert_eq!(DEFAULT_CONFIG.number_is_optional, false);
     /// assert_eq!(DEFAULT_CONFIG.disable_infinity, false);
-    /// assert_eq!(DEFAULT_CONFIG.parse_multiple_delimiter, None);
+    /// assert_eq!(DEFAULT_CONFIG.delimiter_multiple, None);
     /// assert_eq!(DEFAULT_CONFIG.parse_multiple_conjunctions, None);
     /// assert_eq!(DEFAULT_CONFIG.allow_negative, false);
     /// assert_eq!(DEFAULT_CONFIG.allow_ago, None);
@@ -237,7 +237,7 @@ impl<'a> Config<'a> {
             disable_fraction: false,
             number_is_optional: false,
             disable_infinity: false,
-            parse_multiple_delimiter: None,
+            delimiter_multiple: None,
             parse_multiple_conjunctions: None,
             allow_negative: false,
             allow_ago: None,
@@ -480,7 +480,7 @@ impl<'a> ConfigBuilder<'a> {
 
     /// When set this setting allows multiple `durations` in the input (Default: `None`)
     ///
-    /// See also the documentation of [`Config::parse_multiple_delimiter`] and
+    /// See also the documentation of [`Config::delimiter_multiple`] and
     /// [`Config::parse_multiple_conjunctions`].
     ///
     /// # Examples
@@ -494,9 +494,9 @@ impl<'a> ConfigBuilder<'a> {
     ///     .parse_multiple(DELIMITER, Some(CONJUNCTIONS))
     ///     .build();
     ///
-    /// assert!(CONFIG.parse_multiple_delimiter.is_some());
-    /// assert!(CONFIG.parse_multiple_delimiter.unwrap()(b' '));
-    /// assert!(CONFIG.parse_multiple_delimiter.unwrap()(b'\n'));
+    /// assert!(CONFIG.delimiter_multiple.is_some());
+    /// assert!(CONFIG.delimiter_multiple.unwrap()(b' '));
+    /// assert!(CONFIG.delimiter_multiple.unwrap()(b'\n'));
     ///
     /// assert_eq!(CONFIG.parse_multiple_conjunctions, Some(CONJUNCTIONS));
     /// ```
@@ -505,7 +505,7 @@ impl<'a> ConfigBuilder<'a> {
         delimiter: Delimiter,
         conjunctions: Option<&'a [&'a str]>,
     ) -> Self {
-        self.config.parse_multiple_delimiter = Some(delimiter);
+        self.config.delimiter_multiple = Some(delimiter);
         self.config.parse_multiple_conjunctions = conjunctions;
         self
     }
@@ -645,7 +645,7 @@ mod tests {
             .build();
 
         let mut expected = Config::new();
-        expected.parse_multiple_delimiter = Some(test_delimiter);
+        expected.delimiter_multiple = Some(test_delimiter);
         expected.parse_multiple_conjunctions = None;
 
         assert_eq!(config, expected);
@@ -659,7 +659,7 @@ mod tests {
             .build();
 
         let mut expected = Config::new();
-        expected.parse_multiple_delimiter = Some(test_delimiter);
+        expected.delimiter_multiple = Some(test_delimiter);
         expected.parse_multiple_conjunctions = Some(conjunctions);
 
         assert_eq!(config, expected);
