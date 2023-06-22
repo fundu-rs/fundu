@@ -1676,4 +1676,16 @@ mod tests {
         let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]); // cov:excl-line
         assert_eq!(parser.parse_fract(), expected);
     }
+
+    #[test]
+    fn test_fract_is_empty() {
+        assert!(Fract(0, 0).is_empty());
+        assert!(Fract(9, 9).is_empty());
+    }
+
+    #[test]
+    fn test_whole_is_empty() {
+        assert!(Whole(0, 0).is_empty());
+        assert!(Whole(9, 9).is_empty());
+    }
 }

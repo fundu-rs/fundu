@@ -546,10 +546,139 @@ impl<'a> ConfigBuilder<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rstest::{fixture, rstest};
+
     use super::*;
+
+    #[fixture]
+    pub fn test_delimiter() -> Delimiter {
+        |byte| byte == b' ' // cov:excl-line
+    }
+
+    #[fixture]
+    pub fn test_time_unit() -> TimeUnit {
+        TimeUnit::MilliSecond
+    }
 
     #[test]
     fn test_default_for_config() {
         assert_eq!(Config::default(), Config::new());
+    }
+
+    #[test]
+    fn test_default_for_config_builder() {
+        assert_eq!(ConfigBuilder::new().build(), Config::new());
+    }
+
+    #[test]
+    fn test_config_method_builder() {
+        assert_eq!(Config::builder().build(), Config::new());
+    }
+
+    #[rstest]
+    fn test_config_builder_allow_delimiter(test_delimiter: Delimiter) {
+        let config = ConfigBuilder::new().allow_delimiter(test_delimiter).build();
+
+        let mut expected = Config::new();
+        expected.allow_delimiter = Some(test_delimiter);
+
+        assert_eq!(config, expected);
+    }
+
+    #[rstest]
+    fn test_config_builder_default_unit(test_time_unit: TimeUnit) {
+        let config = ConfigBuilder::new().default_unit(test_time_unit).build();
+
+        let mut expected = Config::new();
+        expected.default_unit = test_time_unit;
+
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_builder_disable_exponent() {
+        let config = ConfigBuilder::new().disable_exponent().build();
+
+        let mut expected = Config::new();
+        expected.disable_exponent = true;
+
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_builder_disable_fraction() {
+        let config = ConfigBuilder::new().disable_fraction().build();
+
+        let mut expected = Config::new();
+        expected.disable_fraction = true;
+
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_builder_number_is_optional() {
+        let config = ConfigBuilder::new().number_is_optional().build();
+
+        let mut expected = Config::new();
+        expected.number_is_optional = true;
+
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_builder_disable_infinity() {
+        let config = ConfigBuilder::new().disable_infinity().build();
+
+        let mut expected = Config::new();
+        expected.disable_infinity = true;
+
+        assert_eq!(config, expected);
+    }
+
+    #[test]
+    fn test_config_builder_allow_negative() {
+        let config = ConfigBuilder::new().allow_negative().build();
+
+        let mut expected = Config::new();
+        expected.allow_negative = true;
+
+        assert_eq!(config, expected);
+    }
+
+    #[rstest]
+    fn test_config_builder_parse_multiple_when_no_conjunctions(test_delimiter: Delimiter) {
+        let config = ConfigBuilder::new()
+            .parse_multiple(test_delimiter, None)
+            .build();
+
+        let mut expected = Config::new();
+        expected.parse_multiple_delimiter = Some(test_delimiter);
+        expected.parse_multiple_conjunctions = None;
+
+        assert_eq!(config, expected);
+    }
+
+    #[rstest]
+    fn test_config_builder_parse_multiple_when_conjunctions(test_delimiter: Delimiter) {
+        let conjunctions = &["and", ","];
+        let config = ConfigBuilder::new()
+            .parse_multiple(test_delimiter, Some(conjunctions))
+            .build();
+
+        let mut expected = Config::new();
+        expected.parse_multiple_delimiter = Some(test_delimiter);
+        expected.parse_multiple_conjunctions = Some(conjunctions);
+
+        assert_eq!(config, expected);
+    }
+
+    #[rstest]
+    fn test_config_builder_allow_ago(test_delimiter: Delimiter) {
+        let config = ConfigBuilder::new().allow_ago(test_delimiter).build();
+
+        let mut expected = Config::new();
+        expected.allow_ago = Some(test_delimiter);
+
+        assert_eq!(config, expected);
     }
 }
