@@ -216,13 +216,13 @@ impl<'a> Parser<'a> {
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
     ) -> Result<Duration, ParseError> {
-        self.config.parse_multiple_delimiter.map_or_else(
+        self.config.delimiter_multiple.map_or_else(
             || self.parse_single(source, time_units, keywords),
             |delimiter| {
                 self.parse_multiple(
                     source,
                     delimiter,
-                    self.config.parse_multiple_conjunctions.unwrap_or_default(),
+                    self.config.conjunctions.unwrap_or_default(),
                     time_units,
                     keywords,
                 )
@@ -1642,7 +1642,7 @@ mod tests {
 
         let mut config = Config::new();
         let delimiter = |byte| byte == b' ';
-        config.parse_multiple_delimiter = Some(delimiter);
+        config.delimiter_multiple = Some(delimiter);
         let mut parser = ReprParserMultiple::new(&input, delimiter, &[]);
         let (duration_repr, maybe_parser) = parser.parse(&config, &TimeUnitsFixture, None).unwrap();
         assert!(maybe_parser.is_none());
@@ -1675,5 +1675,17 @@ mod tests {
     fn test_duration_repr_parser_parse_fract_multiple(input: &str, expected: Fract) {
         let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]); // cov:excl-line
         assert_eq!(parser.parse_fract(), expected);
+    }
+
+    #[test]
+    fn test_fract_is_empty() {
+        assert!(Fract(0, 0).is_empty());
+        assert!(Fract(9, 9).is_empty());
+    }
+
+    #[test]
+    fn test_whole_is_empty() {
+        assert!(Whole(0, 0).is_empty());
+        assert!(Whole(9, 9).is_empty());
     }
 }

@@ -513,8 +513,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
         delimiter: Delimiter,
         conjunctions: Option<&'a [&'a str]>,
     ) -> Self {
-        self.config.parse_multiple_delimiter = Some(delimiter);
-        self.config.parse_multiple_conjunctions = conjunctions;
+        self.config.delimiter_multiple = Some(delimiter);
+        self.config.conjunctions = conjunctions;
         self
     }
 
@@ -626,8 +626,8 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_builder_when_parse_multiple() {
         let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff, None);
-        assert!(builder.config.parse_multiple_delimiter.unwrap()(b'\xff'));
-        assert!(builder.config.parse_multiple_conjunctions.is_none());
+        assert!(builder.config.delimiter_multiple.unwrap()(b'\xff'));
+        assert!(builder.config.conjunctions.is_none());
     }
 
     #[test]
