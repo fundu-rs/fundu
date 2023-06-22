@@ -26,7 +26,7 @@
         <img src="https://docs.rs/fundu/badge.svg" alt="docs.rs"/>
     </a>
     <a href="https://github.com/rust-lang/rust">
-        <img src="https://img.shields.io/badge/MSRV-1.61.0-brightgreen" alt="MSRV"/>
+        <img src="https://img.shields.io/badge/MSRV-1.64.0-brightgreen" alt="MSRV"/>
     </a>
 </div>
 
@@ -86,6 +86,11 @@ spans](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html) or [gnu re
 [Comparison](#comparison-fundu-vs-durationfrom_secs_f64).
 
 For further details see the [Documentation](https://docs.rs/crate/fundu)!
+
+# Notice
+
+This project currently (after the release of `1.0.0`) undergoes a bigger internal restructuring and
+this README might not be up-to-date. Especially, this README describes the main `fundu` package.
 
 # Installation
 

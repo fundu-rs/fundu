@@ -1,0 +1,53 @@
+[package]
+name = "fundu-systemd"
+version = "0.1.0"
+edition = "2021"
+authors = ["Joining7943 <joining@posteo.de>"]
+description = "Fast and precise systemd time span parser of rust strings to a Duration"
+readme = "README.md"
+license = "MIT"
+keywords = ["fundu", "fundu-systemd", "systemd", "timespan", "parse", "string", "duration", "time"]
+categories = ["command-line-interface", "parsing", "date-and-time"]
+homepage = "https://github.com/Joining7943/fundu"
+repository = "https://github.com/Joining7943/fundu"
+rust-version = "1.64.0"
+
+[features]
+default = []
+chrono = ["fundu/chrono"]
+serde = ["fundu/serde"]
+time = ["fundu/time"]
+with-flamegraph = ["fundu/with-flamegraph"]
+with-iai = ["fundu/with-iai"]
+
+[dependencies]
+fundu = { path = "../fundu", version = "=1.0.0", default-features = false, features = ["base"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rstest = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+iai-callgrind = { workspace = true }
+inferno = { workspace = true }
+pprof = { workspace = true, features = ["flamegraph", "criterion"] }
+
+[[bench]]
+name = "benchmarks"
+harness = false
+
+[[bench]]
+name = "iai_bench_parsing"
+harness = false
+required-features = ["with-iai"]
+
+[[bench]]
+name = "iai_bench_parsing_time_units"
+harness = false
+required-features = ["with-iai"]
+
+[[bench]]
+name = "flamegraph"
+harness = false
+bench = false
+required-features = ["with-flamegraph"]
