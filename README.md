@@ -87,6 +87,11 @@ spans](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html) or [gnu re
 
 For further details see the [Documentation](https://docs.rs/crate/fundu)!
 
+# Notice
+
+This project currently (after the release of `1.0.0`) undergoes a bigger internal restructuring and
+this README might not be up-to-date. Especially, this README describes the main `fundu` package.
+
 # Installation
 
 Add this to `Cargo.toml` for `fundu` with the `standard` feature.
