@@ -319,7 +319,6 @@ jobs:
           workflow_conclusion: success
           name: iai-callgrind-benchmarks
           check_artifacts: true
-          path: target/iai
           if_no_artifact_found: warn
       - name: Run iai-callgrind standard feature benchmarks
         run: |
@@ -365,7 +364,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: iai-callgrind-benchmarks
-          path: target/iai
+          path: "**/target/iai"
 
   miri:
     needs: [base, cross]
