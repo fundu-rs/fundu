@@ -222,7 +222,7 @@ impl<'a> Parser<'a> {
                 self.parse_multiple(
                     source,
                     delimiter,
-                    self.config.parse_multiple_conjunctions.unwrap_or_default(),
+                    self.config.conjunctions.unwrap_or_default(),
                     time_units,
                     keywords,
                 )

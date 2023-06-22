@@ -154,8 +154,6 @@ pub struct Config<'a> {
     /// time unit can occur without number like `"second"` and a number with value `1` is assumed.
     pub number_is_optional: bool,
 
-    /// TODO: RENAME to delimiter_parse_multiple
-    ///
     /// When set to `Some` this setting allows multiple `durations` in the input (Default: `None`)
     ///
     /// The [`Delimiter`] follows the same rules as the `Delimiter` of the `allow_delimiter`
@@ -166,16 +164,14 @@ pub struct Config<'a> {
     /// 0)`.
     pub delimiter_multiple: Option<Delimiter>,
 
-    /// TODO: RENAME to conjunctions_parse_multiple or just conjunctions
-    ///
     /// When parsing multiple durations, allow conjunctions in addition to the [`Delimiter`]
     /// (Default: `None`)
     ///
     /// Conjunctions are words like `"and"`, `"or"` but also single characters like `","` or ";".
     /// So, a string like `"3seconds and 1second"` would parse to a `Duration::positive(4, 0)` and
-    /// `"1second, 2seconds" would parse to a `Duration::positive(3, 0)`. Unlike a [`Delimiter`],
+    /// `"1second, 2seconds"` would parse to a `Duration::positive(3, 0)`. Unlike a [`Delimiter`],
     /// conjunctions can occur only once between two durations.
-    pub parse_multiple_conjunctions: Option<&'a [&'a str]>,
+    pub conjunctions: Option<&'a [&'a str]>,
 
     /// Allow parsing negative durations (Default: `false`)
     ///
@@ -224,7 +220,7 @@ impl<'a> Config<'a> {
     /// assert_eq!(DEFAULT_CONFIG.number_is_optional, false);
     /// assert_eq!(DEFAULT_CONFIG.disable_infinity, false);
     /// assert_eq!(DEFAULT_CONFIG.delimiter_multiple, None);
-    /// assert_eq!(DEFAULT_CONFIG.parse_multiple_conjunctions, None);
+    /// assert_eq!(DEFAULT_CONFIG.conjunctions, None);
     /// assert_eq!(DEFAULT_CONFIG.allow_negative, false);
     /// assert_eq!(DEFAULT_CONFIG.allow_ago, None);
     /// ```
@@ -238,7 +234,7 @@ impl<'a> Config<'a> {
             number_is_optional: false,
             disable_infinity: false,
             delimiter_multiple: None,
-            parse_multiple_conjunctions: None,
+            conjunctions: None,
             allow_negative: false,
             allow_ago: None,
         }
@@ -481,7 +477,7 @@ impl<'a> ConfigBuilder<'a> {
     /// When set this setting allows multiple `durations` in the input (Default: `None`)
     ///
     /// See also the documentation of [`Config::delimiter_multiple`] and
-    /// [`Config::parse_multiple_conjunctions`].
+    /// [`Config::conjunctions`].
     ///
     /// # Examples
     ///
@@ -498,7 +494,7 @@ impl<'a> ConfigBuilder<'a> {
     /// assert!(CONFIG.delimiter_multiple.unwrap()(b' '));
     /// assert!(CONFIG.delimiter_multiple.unwrap()(b'\n'));
     ///
-    /// assert_eq!(CONFIG.parse_multiple_conjunctions, Some(CONJUNCTIONS));
+    /// assert_eq!(CONFIG.conjunctions, Some(CONJUNCTIONS));
     /// ```
     pub const fn parse_multiple(
         mut self,
@@ -506,7 +502,7 @@ impl<'a> ConfigBuilder<'a> {
         conjunctions: Option<&'a [&'a str]>,
     ) -> Self {
         self.config.delimiter_multiple = Some(delimiter);
-        self.config.parse_multiple_conjunctions = conjunctions;
+        self.config.conjunctions = conjunctions;
         self
     }
 
@@ -646,7 +642,7 @@ mod tests {
 
         let mut expected = Config::new();
         expected.delimiter_multiple = Some(test_delimiter);
-        expected.parse_multiple_conjunctions = None;
+        expected.conjunctions = None;
 
         assert_eq!(config, expected);
     }
@@ -660,7 +656,7 @@ mod tests {
 
         let mut expected = Config::new();
         expected.delimiter_multiple = Some(test_delimiter);
-        expected.parse_multiple_conjunctions = Some(conjunctions);
+        expected.conjunctions = Some(conjunctions);
 
         assert_eq!(config, expected);
     }

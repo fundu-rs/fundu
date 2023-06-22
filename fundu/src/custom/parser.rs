@@ -660,7 +660,7 @@ impl<'a> CustomDurationParser<'a> {
         conjunctions: Option<&'a [&'a str]>,
     ) -> &mut Self {
         self.inner.config.delimiter_multiple = delimiter;
-        self.inner.config.parse_multiple_conjunctions = conjunctions;
+        self.inner.config.conjunctions = conjunctions;
         self
     }
 
@@ -860,7 +860,7 @@ mod tests {
         parser.parse_multiple(Some(|byte| byte == 0xff), None);
 
         assert!(parser.inner.config.delimiter_multiple.unwrap()(b'\xff'));
-        assert!(parser.inner.config.parse_multiple_conjunctions.is_none());
+        assert!(parser.inner.config.conjunctions.is_none());
     }
 
     #[test]

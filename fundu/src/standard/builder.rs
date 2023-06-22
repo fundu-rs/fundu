@@ -447,7 +447,7 @@ impl<'a> DurationParserBuilder<'a> {
         conjunctions: Option<&'a [&'a str]>,
     ) -> Self {
         self.config.delimiter_multiple = Some(delimiter);
-        self.config.parse_multiple_conjunctions = conjunctions;
+        self.config.conjunctions = conjunctions;
         self
     }
 

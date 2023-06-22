@@ -490,7 +490,7 @@ impl<'a> DurationParser<'a> {
         conjunctions: Option<&'static [&'static str]>,
     ) -> &mut Self {
         self.inner.config.delimiter_multiple = delimiter;
-        self.inner.config.parse_multiple_conjunctions = conjunctions;
+        self.inner.config.conjunctions = conjunctions;
         self
     }
 
@@ -611,7 +611,7 @@ mod tests {
         parser.parse_multiple(Some(|byte: u8| byte == 0xff), None);
 
         assert!(parser.inner.config.delimiter_multiple.unwrap()(b'\xff'));
-        assert!(parser.inner.config.parse_multiple_conjunctions.is_none());
+        assert!(parser.inner.config.conjunctions.is_none());
     }
 
     #[test]
