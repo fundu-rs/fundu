@@ -44,6 +44,15 @@
 //! with fully customizable identifiers for each [`TimeUnit`]. With the [`CustomDurationParser`]
 //! it is also possible to define completely new time units, a [`CustomTimeUnit`].
 //!
+//! ## `base`
+//!
+//! The `base` feature exports the basic parser [`Parser`] and the [`Config`] on which the
+//! `standard` and `custom` features are built. It may lack the convenience of the other features
+//! but provides greater freedom. To be able to use this [`Parser`] an implementation of
+//! [`TimeUnitsLike`] is needed for time units and optionally for time keywords. For fixed sets of
+//! time units and time keywords this is usually a simple and straightforward process. See the
+//! documentation of the [`Parser`] and [`TimeUnitsLike`] for examples.
+//!
 //! ## `chrono` and `time`
 //!
 //! The `chrono` feature activates methods of [`Duration`] to convert from and to a
