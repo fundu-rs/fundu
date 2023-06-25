@@ -14,14 +14,14 @@ rust-version = "1.64.0"
 
 [features]
 default = []
-chrono = ["fundu/chrono"]
-serde = ["fundu/serde"]
-time = ["fundu/time"]
-with-iai = ["fundu/with-iai"]
-with-flamegraph = ["fundu/with-flamegraph"]
+chrono = ["fundu-core/chrono"]
+serde = ["fundu-core/serde"]
+time = ["fundu-core/time"]
+with-iai = []
+with-flamegraph = []
 
 [dependencies]
-fundu = { path = "../fundu", version = "=1.0.0", default-features = false, features = ["base"] }
+fundu-core = { path = "../fundu-core", version = "=0.1.0" }
 
 [dev-dependencies]
 criterion = { workspace = true }

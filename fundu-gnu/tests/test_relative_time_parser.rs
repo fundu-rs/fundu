@@ -4,8 +4,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{Duration, ParseError};
-use fundu_gnu::RelativeTimeParser;
+use fundu_gnu::{Duration, ParseError, RelativeTimeParser};
 use rstest::rstest;
 
 const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4

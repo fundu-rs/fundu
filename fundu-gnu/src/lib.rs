@@ -79,8 +79,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use fundu::Duration;
-//! use fundu_gnu::RelativeTimeParser;
+//! use fundu_gnu::{Duration, RelativeTimeParser};
 //!
 //! let parser = RelativeTimeParser::new();
 //! assert_eq!(parser.parse("1hour"), Ok(Duration::positive(60 * 60, 0)));
@@ -138,8 +137,7 @@
 //! struct.
 //!
 //! ```rust
-//! use fundu::Duration;
-//! use fundu_gnu::parse;
+//! use fundu_gnu::{parse, Duration};
 //!
 //! assert_eq!(parse("123 sec"), Ok(Duration::positive(123, 0)));
 //! assert_eq!(parse("1sec3min"), Ok(Duration::positive(1 + 3 * 60, 0)));
@@ -172,11 +170,12 @@
 #![allow(clippy::enum_glob_use)]
 #![allow(clippy::module_name_repetitions)]
 
-use fundu::TimeUnit::*;
-use fundu::{
-    Config, ConfigBuilder, Delimiter, Duration, Multiplier, ParseError, Parser, TimeUnit,
-    TimeUnitsLike,
-};
+use fundu_core::config::{Config, ConfigBuilder, Delimiter};
+pub use fundu_core::error::{ParseError, TryFromDurationError};
+use fundu_core::parse::Parser;
+use fundu_core::time::TimeUnit::*;
+pub use fundu_core::time::{Duration, SaturatingInto};
+use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
 
 // whitespace definition of: b' ', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D'
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
@@ -213,8 +212,7 @@ const PARSER: RelativeTimeParser<'static> = RelativeTimeParser::new();
 /// # Examples
 ///
 /// ```rust
-/// use fundu::Duration;
-/// use fundu_gnu::RelativeTimeParser;
+/// use fundu_gnu::{Duration, RelativeTimeParser};
 ///
 /// const PARSER: RelativeTimeParser = RelativeTimeParser::new();
 ///
@@ -280,8 +278,7 @@ impl<'a> RelativeTimeParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
-    /// use fundu_gnu::RelativeTimeParser;
+    /// use fundu_gnu::{Duration, RelativeTimeParser};
     ///
     /// let parser = RelativeTimeParser::new();
     /// assert_eq!(
@@ -311,8 +308,7 @@ impl<'a> RelativeTimeParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::Duration;
-    /// use fundu_gnu::RelativeTimeParser;
+    /// use fundu_gnu::{Duration, RelativeTimeParser};
     ///
     /// let parser = RelativeTimeParser::new();
     /// assert_eq!(
@@ -350,7 +346,7 @@ impl<'a> Default for RelativeTimeParser<'a> {
 }
 
 /// This struct is used internally to hold the time units used by gnu
-pub struct TimeUnits {}
+struct TimeUnits {}
 
 impl TimeUnitsLike for TimeUnits {
     #[inline]
@@ -375,7 +371,7 @@ impl TimeUnitsLike for TimeUnits {
 }
 
 /// This struct is used internally to hold the time keywords used by gnu
-pub struct TimeKeywords {}
+struct TimeKeywords {}
 
 impl TimeUnitsLike for TimeKeywords {
     #[inline]
@@ -406,8 +402,7 @@ impl TimeUnitsLike for TimeKeywords {
 /// # Examples
 ///
 /// ```rust
-/// use fundu::Duration;
-/// use fundu_gnu::parse;
+/// use fundu_gnu::{parse, Duration};
 ///
 /// assert_eq!(parse("2hours"), Ok(Duration::positive(2 * 60 * 60, 0)));
 /// assert_eq!(parse("12 seconds"), Ok(Duration::positive(12, 0)));

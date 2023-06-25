@@ -3,8 +3,7 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{Duration, ParseError};
-use fundu_gnu::RelativeTimeParser;
+use fundu_gnu::{Duration, ParseError, RelativeTimeParser};
 use iai_callgrind::{black_box, main};
 
 type Result<T> = std::result::Result<T, ParseError>;
