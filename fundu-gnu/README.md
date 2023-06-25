@@ -38,15 +38,16 @@
     - [Installation](#installation)
     - [Format description](#description-of-the-format)
     - [Benchmarks](#benchmarks)
+    - [Todo](#todo)
     - [License](#license)
 
 # Overview
 
-This crate provides a simple to use and fast parser based on [fundu](../README.md) aiming for full compatibility with
-the [gnu](https://www.gnu.org/) relative items in date strings format as specified in
+This crate provides a simple to use and fast parser based on [fundu](../README.md) aiming for full
+compatibility with [gnu](https://www.gnu.org/) relative items in date strings format as specified in
 their [documentation].
 
-`fundu-gnu` can parse rust strings like
+`fundu-gnu` can parse rust strings with `RelativeTimeParser::parse` or the global `parse` method:
 
 | `&str` | Duration |
 | -- | -- |
@@ -68,14 +69,14 @@ their [documentation].
 Note that `fundu` parses into its own `Duration` which is a superset of other `Durations` like
 [`std::time::Duration`], [`chrono::Duration`] and [`time::Duration`]. See the
 [documentation](https://docs.rs/fundu/latest/fundu/index.html#fundus-duration) how to easily handle
-the conversion between these durations. For a full description of this crate see the
+the conversion between these durations. For a full description of this crate and examples see the
 [docs](https://docs.rs/fundu-gnu/latest/fundu-gnu)!
 
 # Audience
 
 This crate is for you if you
 
-- seek a fast and reliable gnu compatible duration parser
+- seek a fast and precise gnu compatible duration parser
 - want it to simply just work without diving into many customizations
 - just like the gnu format
 - ...
@@ -95,10 +96,10 @@ fundu-gnu = "0.1.0"
 
 or install with `cargo add fundu-gnu`.
 
-Activating the `chrono` or `time` feature provides a `TryFrom` implementation for
-[`chrono::Duration`] or [`time::Duration`]. Converting from/to [`std::time::Duration`] does not require
-an additional feature. Activating the `serde` feature allows some structs and enums to be serialized
-or deserialized with [serde](https://docs.rs/serde/latest/serde/)
+Activating the `chrono` or `time` feature provides a `TryFrom` and `SaturatingInto` implementation
+for [`chrono::Duration`] or [`time::Duration`]. Converting from/to [`std::time::Duration`] does not
+require an additional feature. Activating the `serde` feature allows some structs and enums to be
+serialized or deserialized with [serde](https://docs.rs/serde/latest/serde/)
 
 # Description of the Format
 
@@ -142,78 +143,6 @@ definition of whitespace which is:
 
 Please see also the gnu [documentation] for a description of their format.
 
-# Examples
-
-A re-usable parser
-
-```rust
-use fundu::Duration;
-use fundu_gnu::RelativeTimeParser;
-
-const PARSER: RelativeTimeParser = RelativeTimeParser::new();
-
-let parser = &PARSER;
-assert_eq!(parser.parse("1hour"), Ok(Duration::positive(60 * 60, 0)));
-assert_eq!(parser.parse("minute"), Ok(Duration::positive(60, 0)));
-assert_eq!(
-    parser.parse("2 hours"),
-    Ok(Duration::positive(2 * 60 * 60, 0))
-);
-assert_eq!(parser.parse("second"), Ok(Duration::positive(1, 0)));
-assert_eq!(
-    parser.parse("1year 12months"),
-    Ok(Duration::positive(63_115_200, 0))
-);
-assert_eq!(parser.parse("-3minutes"), Ok(Duration::negative(3 * 60, 0)));
-assert_eq!(
-    parser.parse("3 mins ago"),
-    Ok(Duration::negative(3 * 60, 0))
-);
-assert_eq!(
-    parser.parse("999sec +1day"),
-    Ok(Duration::positive(86_400 + 999, 0))
-);
-assert_eq!(
-    parser.parse("55secs500week"),
-    Ok(Duration::positive(55 + 500 * 7 * 24 * 60 * 60, 0))
-);
-assert_eq!(
-    parser.parse("300mins20secs 5hour"),
-    Ok(Duration::positive(300 * 60 + 20 + 5 * 60 * 60, 0))
-);
-assert_eq!(
-    parser.parse("123456789"),
-    Ok(Duration::positive(123_456_789, 0))
-);
-assert_eq!(
-    parser.parse("42fortnight"),
-    Ok(Duration::positive(42 * 2 * 7 * 24 * 60 * 60, 0))
-);
-assert_eq!(
-    parser.parse("yesterday"),
-    Ok(Duration::negative(24 * 60 * 60, 0))
-);
-assert_eq!(parser.parse("now"), Ok(Duration::positive(0, 0)));
-assert_eq!(
-    parser.parse("today -10seconds"),
-    Ok(Duration::negative(10, 0))
-);
-assert_eq!(
-    parser.parse("1000000000000000000000000000000000000years"),
-    Ok(Duration::MAX)
-);
-```
-
-Or use the global method [`parse`]
-
-```rust
-use fundu::Duration;
-use fundu_gnu::parse;
-
-assert_eq!(parse("123 sec"), Ok(Duration::positive(123, 0)));
-assert_eq!(parse("1sec3min"), Ok(Duration::positive(1 + 3 * 60, 0)));
-```
-
 # Benchmarks
 
 To run the benchmarks on your machine, clone the repository
@@ -235,7 +164,8 @@ The `iai-callgrind` (feature = `with-iai`) and `flamegraph` (feature = `with-fla
 can only be run on unix. Use the `--features` option of cargo to run the benchmarks with these
 features.
 
-To get a rough idea about the parsing times, here the average parsing speed of some inputs (Quad core 3000Mhz, 8GB DDR3, Linux):
+To get a rough idea about the parsing times, here the average parsing speed of some inputs (Quad
+core 3000Mhz, 8GB DDR3, Linux):
 
 Input | avg parsing time
 --- | ---:|
@@ -249,12 +179,12 @@ Input | avg parsing time
 `1sec 1min 1hour 1day` | `527.04 ns`
 `"1sec 1min".repeat(100)` | `22.895 µs`
 
-# TODO
+# Todo
 
 - Gnu allows numerals like `this second`, `next week` etc. (See issue
 [#23](https://github.com/Joining7943/fundu/issues/23))
-- Gnu treats years and months in the source string as fuzzy. Currently `fundu` only supports static
-years and month definitions like `1year = 365.25 days`
+- Gnu treats years and months in the source string as fuzzy. Currently `fundu` uses static years and
+month definitions like `1year = 365.25 days`
 
 # License
 

@@ -133,7 +133,7 @@
 //! );
 //! ```
 //!
-//! Or use the global method [`parse`] which does the same without the need to create a parser
+//! Or use the global [`parse`] method which does the same without the need to create a parser
 //! struct.
 //!
 //! ```rust
@@ -141,6 +141,27 @@
 //!
 //! assert_eq!(parse("123 sec"), Ok(Duration::positive(123, 0)));
 //! assert_eq!(parse("1sec3min"), Ok(Duration::positive(1 + 3 * 60, 0)));
+//! ```
+//!
+//! Convert fundu's `Duration` into a [`std::time::Duration`]. Converting to [`chrono::Duration`] or
+//! [`time::Duration`] works the same but needs the `chrono` or `time` feature activated.
+//!
+//! ```rust
+//! use fundu_gnu::{parse, SaturatingInto};
+//!
+//! let duration = parse("123 sec").unwrap();
+//! assert_eq!(
+//!     TryInto::<std::time::Duration>::try_into(duration),
+//!     Ok(std::time::Duration::new(123, 0))
+//! );
+//!
+//! // With saturating_into the duration will saturate at the minimum and maximum of
+//! // std::time::Duration, so for negative values at std::time::Duration::ZERO and for positive values
+//! // at std::time::Duration::MAX
+//! assert_eq!(
+//!     SaturatingInto::<std::time::Duration>::saturating_into(duration),
+//!     std::time::Duration::new(123, 0)
+//! );
 //! ```
 //!
 //! [`chrono::Duration`]: https://docs.rs/chrono/latest/chrono/struct.Duration.html
