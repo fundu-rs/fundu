@@ -30,9 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Changed
 
-* Big internal restructuring which splits fundu into a `fundu-core` and `fundu` package.
+* Big internal restructuring which splits fundu into a `fundu-core` and `fundu` package
+* Internal refactor of `fundu-core`
 * The minimum supported rust version changed from `1.61.0` to `1.64.0`
-* Some optional dependencies were updated to use their latest possible version.
+* The optional `time` dependency was updated from `0.3.16` to `0.3.20`
 
 ## [1.0.0] - 2023-05-29
 
