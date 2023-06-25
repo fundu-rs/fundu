@@ -449,4 +449,21 @@ fn trim_whitespace(source: &str) -> &str {
 }
 
 #[cfg(test)]
-mod tests {}
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_relative_time_parser_new() {
+        assert_eq!(RelativeTimeParser::new(), RelativeTimeParser::default());
+    }
+
+    #[test]
+    fn test_time_units_is_empty_returns_false() {
+        assert!(!TimeUnits {}.is_empty());
+    }
+
+    #[test]
+    fn test_keywords_is_empty_returns_false() {
+        assert!(!TimeKeywords {}.is_empty());
+    }
+}
