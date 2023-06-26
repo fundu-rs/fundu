@@ -10,7 +10,7 @@ members = [
 [workspace.dependencies]
 chrono = { version = "0.4.24", default-features = false }
 clap = "4.3.0"
-criterion = "0.4.0"
+criterion = "0.5.1"
 iai-callgrind = "0.3.1"
 inferno = "0.11.15"
 pprof = "0.11.1"
