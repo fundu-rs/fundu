@@ -32,7 +32,7 @@ with-flamegraph = []
 
 [dependencies]
 fundu-core = { path = "../fundu-core", version = "=0.1.0" }
-serde = { workspace = true, optional = true, features=["derive"]} # XXX still needed?
+serde = { workspace = true, optional = true, features=["derive"]}
 
 [dev-dependencies]
 chrono = { workspace = true }

@@ -2,9 +2,9 @@
 resolver = "2"
 members = [
   "fundu",
-  "fundu-systemd",
+  "fundu-core",
   "fundu-gnu",
-  "fundu-core"
+  "fundu-systemd"
 ]
 
 [workspace.dependencies]

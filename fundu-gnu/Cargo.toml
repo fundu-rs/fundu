@@ -34,6 +34,10 @@ iai-callgrind = { workspace = true }
 inferno = { workspace = true }
 pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [[bench]]
 name = "benchmarks"
 harness = false
