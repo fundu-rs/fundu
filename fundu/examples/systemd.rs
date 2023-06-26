@@ -3,8 +3,9 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! A systemd time span parser as specified in `man systemd.time`. The output of this example is
-//! imitating the output of `systemd-analyze timespan SYSTEMD_TIME_SPAN`
+//! A systemd time span parser as specified in `man systemd.time` built with the `custom` feature.
+//! The output of this example is imitating the output of `systemd-analyze timespan
+//! SYSTEMD_TIME_SPAN`
 
 use std::time::Duration;
 
@@ -95,7 +96,6 @@ fn main() {
     let parser = CustomDurationParser::builder()
         .time_units(&SYSTEMD_TIME_UNITS)
         .disable_exponent()
-        .disable_fraction()
         .disable_infinity()
         .allow_delimiter(delimiter)
         .parse_multiple(delimiter, None)
