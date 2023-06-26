@@ -146,7 +146,6 @@ impl TimeUnit {
 /// Usually, time units are a fixed set of strings and implementing `TimeUnitsLike` is a simple
 /// straight forward process. For more advanced usages see for example the implementations of fundu.
 /// The most important method is [`TimeUnitsLike::get`]. See there for additional information.
-/// Generally, `inlining` the `is_empty` and `get` method speeds up the parsing a little bit.
 ///
 /// # Examples
 ///
@@ -157,12 +156,10 @@ impl TimeUnit {
 ///
 /// struct TimeUnits {}
 /// impl TimeUnitsLike for TimeUnits {
-///     #[inline]
 ///     fn is_empty(&self) -> bool {
 ///         false
 ///     }
 ///
-///     #[inline]
 ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
 ///         match identifier {
 ///             "s" | "sec" => Some((TimeUnit::Second, Multiplier(1, 0))),
@@ -261,12 +258,10 @@ pub trait TimeUnitsLike {
     ///
     /// struct TimeUnits {}
     /// impl TimeUnitsLike for TimeUnits {
-    ///     #[inline]
     ///     fn is_empty(&self) -> bool {
     ///         false
     ///     }
     ///
-    ///     #[inline]
     ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
     ///         match identifier {
     ///             "ns" | "nsec" => Some((TimeUnit::NanoSecond, Multiplier(1, 0))),
@@ -311,12 +306,10 @@ pub trait TimeUnitsLike {
     ///
     /// struct TimeUnits {}
     /// impl TimeUnitsLike for TimeUnits {
-    ///     #[inline]
     ///     fn is_empty(&self) -> bool {
     ///         false
     ///     }
     ///
-    ///     #[inline]
     ///     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
     ///         // We use the fact that none of our time units have a string length greater than `4`
     ///         // and lower than `1`

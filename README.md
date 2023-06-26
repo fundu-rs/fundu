@@ -1,3 +1,5 @@
+<!-- spell-checker: ignore jonhteper samply -->
+
 <!--
  Copyright (c) 2023 Joining <joining@posteo.de>
  
@@ -39,16 +41,15 @@
     - [Time Units](#time-units)
     - [Customization](#customization)
     - [Benchmarks](#benchmarks)
-    - [Comparison](#comparison-fundu-vs-durationfrom_secs_f64)
-    - [Platform support](#platform-support)
+    - [Contributing](#contributing)
     - [License](#license)
   
 # Overview
 
-`fundu` provides a flexible and fast parser to convert rust strings into a `Duration`. `fundu` parses into
-its own `Duration` but provides methods to convert into [`std::time::Duration`],
-[`chrono::Duration`] and [`time::Duration`]. Some examples for valid input strings with the
-`standard` feature:
+`fundu` provides a flexible and fast parser to convert rust strings into a `Duration`. `fundu`
+parses into its own `Duration` but provides methods to convert into [`std::time::Duration`],
+[`chrono::Duration`] and [`time::Duration`]. If not stated otherwise, this README describes the main
+`fundu` package. Some examples for valid input strings with the `standard` feature
 
 - `"1.41"`
 - `"42"`
@@ -58,12 +59,21 @@ its own `Duration` but provides methods to convert into [`std::time::Duration`],
 - `"inf"`, `"+inf"`, `"infinity"`, `"+infinity"`
 - `"1w"` (1 week) or likewise `"7d"`, `"168h"`, `"10080m"`, `"604800s"`, ...
 
-For examples of the `custom` feature see [Customization section](#customization).
-Summary of features provided by this crate:
+and the `custom` (or `base`) feature assuming some defined custom time units `s`, `secs`, `minutes`,
+, `day`, `days`, `year`, `years`, `century` and the time keyword `yesterday`
+
+- `"1.41minutes"` or likewise `"1.41 minutes"` if `allow_delimiter` is set
+- `"years"` or likewise `"1 years"`, `"1years"` if `number_is_optional` is set
+- `"42 secs ago"` or likewise `"-42 secs"` if `allow_ago` and `allow_negative` is set
+- `"9e-3s"`, `"9e3s"` (or likewise `"9.0e+3s"`)
+- `"yesterday"` or likewise `"-1day"`, `"-1days"` if `allow_negative` is set
+- `"9 century"` or likewise `"900 years"`
+
+For more examples of the `custom` feature see the [Customization section](#customization).  Summary
+of features provided by this crate:
 
 - __Precision__: There are no floating point calculations and the input is precisely parsed as it
-is. So, what you put in you is what you get out within the range of a `Duration`. (See also
-[Comparison](#comparison-fundu-vs-durationfrom_secs_f64))
+is. So, what you put in you is what you get out within the range of a `Duration`.
 - __Performance__: The parser is blazingly fast ([Benchmarks](#benchmarks))
 - __Customization__: [`TimeUnits`](#time-units), the number format and other aspects are
 easily configurable ([Customization](#customization))
@@ -80,17 +90,17 @@ rust `stdlib`, and there are no additional dependencies required in the standard
 accepted number format is per default the scientific floating point format and compatible with
 [`f64::from_str`]. However, the number format and other aspects can be [customized](#customization)
 up to formats like [systemd time
-spans](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html) or [gnu relative times](https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html). See also the examples
-[Examples section](#examples) and the [examples](examples) folder. For a direct comparison of
-`fundu` vs the rust native methods `Duration::(try_)from_secs_f64` see
-[Comparison](#comparison-fundu-vs-durationfrom_secs_f64).
+spans](https://www.man7.org/linux/man-pages/man7/systemd.time.7.html) or [gnu relative
+times](https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html).
+There are two dedicated, simple to use fundu side-projects:
+
+- [`fundu-systemd`](fundu-systemd) for a fully compatible `systemd` time span parser
+- [`fundu-gnu`](fundu-gnu) for a fully compatible `GNU` relative time parser.
+
+See also the examples [Examples section](#examples) and the
+[examples](examples) folder.
 
 For further details see the [Documentation](https://docs.rs/crate/fundu)!
-
-# Notice
-
-This project currently (after the release of `1.0.0`) undergoes a bigger internal restructuring and
-this README might not be up-to-date. Especially, this README describes the main `fundu` package.
 
 # Installation
 
@@ -101,10 +111,11 @@ Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 fundu = "1.0.0"
 ```
 
-fundu is split into two main features, `standard` (providing `DurationParser` and `parse_duration`)
-and `custom` (providing the `CustomDurationParser`). The first is described here in in detail, the
-latter adds fully customizable identifiers for [time units](#time-units). Most of the time only one
-of the parsers is needed. To include only the `CustomDurationParser` add the following to
+fundu is split into three main features, `standard` (providing `DurationParser` and
+`parse_duration`) and `custom` (providing the `CustomDurationParser`) and `base` for a more basic
+approach to the core parser. The first is described here in in detail, the `custom` feature adds
+fully customizable identifiers for [time units](#time-units). Most of the time only one of the
+parsers is needed. For example, to include only the `CustomDurationParser` add the following to
 `Cargo.toml`:
 
 ```toml
@@ -112,9 +123,12 @@ of the parsers is needed. To include only the `CustomDurationParser` add the fol
 fundu = { version = "1.0.0", default-features = false, features = ["custom"] }
 ```
 
-Activating the `chrono` or `time` feature provides a `TryFrom` implementation for [`chrono::Duration`] or [`time::Duration`].
+Activating the `chrono` or `time` feature provides a `TryFrom` and `SaturatingInto` implementation
+for [`chrono::Duration`] or [`time::Duration`]. Converting to/from [`std::time::Duration`] is
+supported without the need of an additional feature.
 
-Activating the `serde` feature allows some structs and enums to be serialized or deserialized with [serde](https://docs.rs/serde/latest/serde/)
+Activating the `serde` feature allows some structs and enums to be serialized or deserialized with
+[serde](https://docs.rs/serde/latest/serde/)
 
 # Examples
 
@@ -474,50 +488,29 @@ cargo bench --help # The cargo help for bench
 cargo bench --bench benchmarks_standard -- --help # The criterion help
 ```
 
-To get a rough idea about the parsing times, here the average parsing speed of some inputs on a
-comparatively slow machine (Quad core 3000Mhz, 8GB DDR3, Linux)
+To get a rough idea about the parsing times, here the average parsing speed of some inputs (Quad
+core 3000Mhz, 8GB DDR3, Linux)
 
-Input | avg parsing time | ~ samples / s
---- | ---:| ---:
-`1` | `37.925 ns` | `26_367_831.245`
-`123456789.123456789` | `50.473 ns` | `19_812_573.058`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `371.02 ns` | `2_695_272.492`
+Input | avg parsing time
+--- | ---:|
+`1` | `38.705 ns`
+`123456789.123456789` | `67.578 ns`
+`format!("{0}.{0}e-1022", "1".repeat(1022))` | `464.65 ns`
+`1s` | `50.126 ns`
+`1ns` | `59.842 ns`
+`1y` | `83.729 ns`
+`1years` | `112.31 ns`
 
-For comparison, the precision and additional features of `fundu` result in a very low performance
-overhead due to the initial setup of structures, etc., and quickly catches up. Fundu even becomes
-more performant than the reference function from the `stdlib` as the input gets larger (the
-reference function is `Duration::from_secs_f64(input.parse().unwrap())`):
+# Contributing
 
-Input | avg parsing time | ~ samples / s
---- | ---:| ---:
-`1` | `25.630 ns` | `39_016_777.214`
-`123456789.123456789` | `45.007 ns` | `22_218_765.969`
-`format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022))` | `1.7457 µs` | `572_836.111`
+Contributions are always welcome! Either start with an issue that already exists or open a new issue
+where we can discuss everything so that no effort is wasted. Do not hesitate to ask questions!
 
-# Comparison `fundu` vs `Duration::from_secs_f64`
+# Projects using fundu
 
-Here's a short incomplete overview of differences and advantages of `fundu` over using
-`Duration::from_secs_f64(input.parse().unwrap())` (and
-`Duration::try_from_secs_f64(input.parse().unwrap())`)
-
-Input | `fundu` | `Duration::(try_)from_secs_f64`
----:| --- | ---
-`01271480964981728917.1` | `Duration::new(1_271_480_964_981_728_917, 100_000_000)` | `Duration::new(1_271_480_964_981_729_024, 0)`
-`1.11111111111e10` | `Duration::new(11_111_111_111, 100_000_000)` | `Duration::new(11_111_111_111, 100_000_381)`
-`1ns` | `Duration::new(0, 1)` | cannot parse time units
-`"1 2e-3 3e-9"`, `1s2ms3ns` | can parse multiple durations as one `Duration::new(1, 2_000_003)` | not possible
-`1000` | When changing the default unit to `MilliSecond` -> `Duration::new(1, 0)` | is always seconds based
-`1e20` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
-`infinity` | `Duration::MAX` | panics or returns an error due to: `can not convert float seconds to Duration: value is either too big or NaN`
-`-1`, `-1s`, ... | can parse negative durations if enabled | panics or returns an error
-
-# Platform support
-
-Since `fundu` is purely built on top of the rust `stdlib` without platform specific code, this
-library should be compatible with all platforms. Please open an issue if you find any unsupported
-platforms which `rust` itself supports.
-
-See also the [CI](https://github.com/Joining7943/fundu/actions/workflows/cicd.yml) for platforms on which `fundu` is tested.
+- `samply/beam`: <https://github.com/samply/beam>
+- `uutils/coreutils`: <https://github.com/uutils/coreutils>
+- `jonhteper/minos`: <https://github.com/jonhteper/minos>
 
 # License
 

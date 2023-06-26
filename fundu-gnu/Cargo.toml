@@ -1,12 +1,12 @@
 [package]
-name = "fundu-systemd"
+name = "fundu-gnu"
 version = "0.1.0"
 edition = "2021"
 authors = ["Joining7943 <joining@posteo.de>"]
-description = "Fast and precise systemd time span parser of rust strings to a Duration"
+description = "Fast and precise gnu relative time parser of rust strings to a Duration"
 readme = "README.md"
 license = "MIT"
-keywords = ["fundu", "fundu-systemd", "systemd", "timespan", "parse", "string", "duration", "time"]
+keywords = ["fundu", "fundu-gnu", "gnu", "relative", "parse", "string", "duration", "time"]
 categories = ["parsing", "date-and-time"]
 homepage = "https://github.com/Joining7943/fundu"
 repository = "https://github.com/Joining7943/fundu"
@@ -14,18 +14,20 @@ rust-version = "1.64.0"
 
 [features]
 default = []
-chrono = ["fundu/chrono"]
-serde = ["fundu/serde"]
-time = ["fundu/time"]
-with-flamegraph = ["fundu/with-flamegraph"]
-with-iai = ["fundu/with-iai"]
+chrono = ["fundu-core/chrono"]
+serde = ["fundu-core/serde"]
+time = ["fundu-core/time"]
+with-iai = []
+with-flamegraph = []
 
 [dependencies]
-fundu = { path = "../fundu", version = "=1.0.0", default-features = false, features = ["base"] }
+fundu-core = { path = "../fundu-core", version = "=0.1.0" }
 
 [dev-dependencies]
 criterion = { workspace = true }
 rstest = { workspace = true }
+clap = { workspace = true, features = ["cargo"]}
+chrono = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
 iai-callgrind = { workspace = true }
@@ -41,17 +43,17 @@ name = "benchmarks"
 harness = false
 
 [[bench]]
-name = "iai_bench_parsing"
-harness = false
-required-features = ["with-iai"]
-
-[[bench]]
-name = "iai_bench_parsing_time_units"
-harness = false
-required-features = ["with-iai"]
-
-[[bench]]
 name = "flamegraph"
 harness = false
 bench = false
 required-features = ["with-flamegraph"]
+
+[[bench]]
+name = "iai_bench_parsing"
+harness = false
+required-features = ["with-iai"]
+
+[[example]]
+name = "chrono"
+test = false
+required-features = ["chrono"]

@@ -362,7 +362,7 @@ impl<'a> CustomTimeUnits<'a> {
 
     pub(super) fn find_id(&self, id: &str) -> Option<(TimeUnit, Multiplier)> {
         self.time_units.iter().find_map(|(data, v)| {
-            (data.check(id) && v.contains(&id)).then(|| (data.time_unit, data.multiplier))
+            (data.check(id) && v.contains(&id)).then_some((data.time_unit, data.multiplier))
         })
     }
 
