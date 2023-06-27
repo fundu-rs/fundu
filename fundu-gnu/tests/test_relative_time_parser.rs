@@ -29,8 +29,12 @@ const MONTH: u64 = YEAR / 12;
 #[case::multiple("1 sec 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_all_whitespace("1 sec\x09\x0A\x0B\x0C\x0D 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_ago("1 sec ago 1 sec", Duration::ZERO)]
+#[case::multiple_when_other_is_zero("1 sec 0 sec", Duration::positive(1, 0))]
 #[case::fraction_when_no_time_unit("1.1", Duration::positive(1, 100_000_000))]
 #[case::fraction_when_second_time_unit("1.1sec", Duration::positive(1, 100_000_000))]
+#[case::fraction_without_whole_part(".1sec", Duration::positive(0, 100_000_000))]
+#[case::fraction_with_whole_zero("0.1sec", Duration::positive(0, 100_000_000))]
+#[case::fraction_gets_capped("0.0123456789sec", Duration::positive(0, 12_345_678))]
 fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
     assert_eq!(fundu_gnu::parse(input), Ok(expected));
@@ -97,4 +101,15 @@ fn test_parser_trims_whitespace(#[case] input: &str) {
         RelativeTimeParser::new().parse(input),
         Ok(Duration::positive(1, 0))
     );
+}
+
+#[rstest]
+#[case::number_one_too_high(&format!("{}", u64::MAX as u128 + 1), Duration::MAX)]
+#[case::number_one_too_low(&format!("-{}", u64::MAX as u128 + 1), Duration::MIN)]
+#[case::number_far_too_high(&format!("{}", u128::MAX), Duration::MAX)]
+#[case::number_far_too_low(&format!("-{}", u128::MAX), Duration::MIN)]
+#[case::time_unit_causes_positive_overflow(&format!("{}min", u64::MAX - 1), Duration::MAX)]
+#[case::time_unit_causes_negative_overflow(&format!("-{}min", u64::MAX - 1), Duration::MIN)]
+fn test_parser_when_overflow(#[case] input: &str, #[case] expected: Duration) {
+    assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
 }
