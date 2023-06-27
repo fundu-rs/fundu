@@ -254,7 +254,7 @@ pub trait Parse8Digits {
 }
 
 #[derive(Debug, PartialEq, Eq, Default)]
-pub struct Whole(usize, usize);
+pub struct Whole(pub usize, pub usize);
 
 impl Parse8Digits for Whole {}
 
@@ -339,7 +339,7 @@ impl Whole {
 }
 
 #[derive(Debug, PartialEq, Eq, Default)]
-pub struct Fract(usize, usize);
+pub struct Fract(pub usize, pub usize);
 
 impl Parse8Digits for Fract {}
 
