@@ -233,22 +233,27 @@ const PARSER: RelativeTimeParser<'static> = RelativeTimeParser::new();
 struct DurationReprParser<'a>(DurationRepr<'a>);
 
 impl<'a> DurationReprParser<'a> {
-    #[allow(clippy::too_many_lines)]
     fn parse(&mut self) -> Result<Duration, ParseError> {
-        let (digits, whole, fract) = match (self.0.whole.take(), self.0.fract.take()) {
+        let (whole, fract) = match (self.0.whole.take(), self.0.fract.take()) {
             (None, None) if self.0.number_is_optional => {
-                let digits = Some(vec![0x31]);
-                (digits, Whole(0, 1), Fract(1, 1))
+                let Multiplier(coefficient, _) = self.0.unit.multiplier() * self.0.multiplier;
+                let duration_is_negative = self.0.is_negative ^ coefficient.is_negative();
+                return Ok(Self::calculate_duration(
+                    duration_is_negative,
+                    1,
+                    0,
+                    coefficient,
+                ));
             }
             (None, None) => unreachable!(), // cov:excl-line
             (None, Some(fract)) if self.0.unit == TimeUnit::Second => {
-                (None, Whole(fract.0, fract.0), fract)
+                (Whole(fract.0, fract.0), fract)
             }
             (Some(whole), None) => {
                 let fract_start_and_end = whole.1;
-                (None, whole, Fract(fract_start_and_end, fract_start_and_end))
+                (whole, Fract(fract_start_and_end, fract_start_and_end))
             }
-            (Some(whole), Some(fract)) if self.0.unit == TimeUnit::Second => (None, whole, fract),
+            (Some(whole), Some(fract)) if self.0.unit == TimeUnit::Second => (whole, fract),
             (Some(_) | None, Some(_)) => {
                 return Err(ParseError::InvalidInput(
                     "Fraction only allowed together with seconds as time unit".to_owned(),
@@ -256,64 +261,65 @@ impl<'a> DurationReprParser<'a> {
             }
         };
 
-        let digits = digits.as_ref().map_or(self.0.input, |d| d.as_slice());
-
         // Panic on overflow during the multiplication of the multipliers or adding the exponents
         let Multiplier(coefficient, _) = self.0.unit.multiplier() * self.0.multiplier;
-
-        let seconds = Whole::parse(&digits[whole.0..whole.1], None, None);
-        let attos = seconds
-            .is_ok()
-            .then(|| Fract::parse(&digits[fract.0..fract.1], None, None));
-        let (seconds, attos) = (Some(seconds), attos);
-
         let duration_is_negative = self.0.is_negative ^ coefficient.is_negative();
 
-        // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
-        // maximum `Duration`.
-        let (seconds, attos) = match seconds {
-            Some(result) => match result {
-                Ok(seconds) => (seconds, attos.unwrap_or_default()),
-                Err(ParseError::Overflow) if duration_is_negative => {
-                    return Ok(Duration::MIN);
-                }
-                Err(ParseError::Overflow) => {
-                    return Ok(Duration::MAX);
-                }
-                // only ParseError::Overflow is returned by `Seconds::parse`
-                Err(_) => unreachable!(), // cov:excl-line
-            },
-            None => (0, attos.unwrap_or_default()),
+        let digits = self.0.input;
+        let result = Whole::parse(&digits[whole.0..whole.1], None, None)
+            .map(|s| (s, Fract::parse(&digits[fract.0..fract.1], None, None)));
+
+        // interpret the result and a seconds overflow as maximum (minimum) `Duration`
+        let (seconds, attos) = match result {
+            Ok(value) => value,
+            Err(ParseError::Overflow) if duration_is_negative => {
+                return Ok(Duration::MIN);
+            }
+            Err(ParseError::Overflow) => {
+                return Ok(Duration::MAX);
+            }
+            // only ParseError::Overflow is returned by `Seconds::parse`
+            Err(_) => unreachable!(), // cov:excl-line
         };
 
-        // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
-        // as zero duration
+        Ok(Self::calculate_duration(
+            duration_is_negative,
+            seconds,
+            attos,
+            coefficient,
+        ))
+    }
+
+    fn calculate_duration(
+        is_negative: bool,
+        seconds: u64,
+        attos: u64,
+        coefficient: i64,
+    ) -> Duration {
         if seconds == 0 && attos == 0 {
-            Ok(Duration::ZERO)
+            Duration::ZERO
         } else if coefficient == 1 || coefficient == -1 {
-            Ok(Duration::from_std(
-                duration_is_negative,
+            Duration::from_std(
+                is_negative,
                 StdDuration::new(seconds, (attos / ATTOS_PER_NANO).try_into().unwrap()),
-            ))
+            )
         } else {
             let unsigned_coefficient = coefficient.unsigned_abs();
 
             let attos = u128::from(attos) * u128::from(unsigned_coefficient);
-            Ok(
-                match seconds.checked_mul(unsigned_coefficient).and_then(|s| {
-                    s.checked_add((attos / u128::from(ATTOS_PER_SEC)).try_into().unwrap())
-                }) {
-                    Some(s) => Duration::from_std(
-                        duration_is_negative,
-                        StdDuration::new(
-                            s,
-                            ((attos / u128::from(ATTOS_PER_NANO)) % 1_000_000_000) as u32,
-                        ),
+            match seconds.checked_mul(unsigned_coefficient).and_then(|s| {
+                s.checked_add((attos / u128::from(ATTOS_PER_SEC)).try_into().unwrap())
+            }) {
+                Some(s) => Duration::from_std(
+                    is_negative,
+                    StdDuration::new(
+                        s,
+                        ((attos / u128::from(ATTOS_PER_NANO)) % 1_000_000_000) as u32,
                     ),
-                    None if duration_is_negative => Duration::MIN,
-                    None => Duration::MAX,
-                },
-            )
+                ),
+                None if is_negative => Duration::MIN,
+                None => Duration::MAX,
+            }
         }
     }
 }
