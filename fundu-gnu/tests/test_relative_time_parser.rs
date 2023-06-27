@@ -29,6 +29,8 @@ const MONTH: u64 = YEAR / 12;
 #[case::multiple("1 sec 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_all_whitespace("1 sec\x09\x0A\x0B\x0C\x0D 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_ago("1 sec ago 1 sec", Duration::ZERO)]
+#[case::fraction_when_no_time_unit("1.1", Duration::positive(1, 100_000_000))]
+#[case::fraction_when_second_time_unit("1.1sec", Duration::positive(1, 100_000_000))]
 fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
     assert_eq!(fundu_gnu::parse(input), Ok(expected));
@@ -37,12 +39,12 @@ fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration
 #[rstest]
 #[case::empty("", ParseError::Empty)]
 #[case::only_whitespace("    ", ParseError::Empty)]
-#[case::fraction("1.1", ParseError::Syntax(1, "No fraction allowed".to_string()))]
 #[case::exponent("1e2", ParseError::Syntax(1, "No exponent allowed".to_string()))]
 #[case::infinity_short("inf", ParseError::TimeUnit(0, "Invalid time unit: 'inf'".to_string()))]
 #[case::infinity_long("infinity", ParseError::TimeUnit(0, "Invalid time unit: 'infinity'".to_string()))]
 #[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::keyword_with_ago("today ago", ParseError::TimeUnit(6, "Invalid time unit: 'ago'".to_string()))]
+#[case::fraction_when_not_second_time_unit("1.1year", ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned()))]
 fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(
         RelativeTimeParser::new().parse(input),

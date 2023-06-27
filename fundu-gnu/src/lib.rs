@@ -191,9 +191,14 @@
 #![allow(clippy::enum_glob_use)]
 #![allow(clippy::module_name_repetitions)]
 
+use std::time::Duration as StdDuration;
+
 use fundu_core::config::{Config, ConfigBuilder, Delimiter};
 pub use fundu_core::error::{ParseError, TryFromDurationError};
-use fundu_core::parse::Parser;
+use fundu_core::parse::{
+    DurationRepr, Fract, Parser, ReprParserMultiple, ReprParserTemplate, Whole, ATTOS_PER_NANO,
+    ATTOS_PER_SEC,
+};
 use fundu_core::time::TimeUnit::*;
 pub use fundu_core::time::{Duration, SaturatingInto};
 use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
@@ -206,9 +211,8 @@ const CONFIG: Config = ConfigBuilder::new()
     .allow_ago(DELIMITER)
     .disable_exponent()
     .disable_infinity()
-    .disable_fraction()
-    .number_is_optional()
     .allow_negative()
+    .number_is_optional()
     .parse_multiple(DELIMITER, None)
     .build();
 
@@ -225,6 +229,94 @@ const MONTH: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
 const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
 const PARSER: RelativeTimeParser<'static> = RelativeTimeParser::new();
+
+struct DurationReprParser<'a>(DurationRepr<'a>);
+
+impl<'a> DurationReprParser<'a> {
+    #[allow(clippy::too_many_lines)]
+    fn parse(&mut self) -> Result<Duration, ParseError> {
+        let (digits, whole, fract) = match (self.0.whole.take(), self.0.fract.take()) {
+            (None, None) if self.0.number_is_optional => {
+                let digits = Some(vec![0x31]);
+                (digits, Whole(0, 1), Fract(1, 1))
+            }
+            (None, None) => unreachable!(), // cov:excl-line
+            (None, Some(fract)) if self.0.unit == TimeUnit::Second => {
+                (None, Whole(fract.0, fract.0), fract)
+            }
+            (Some(whole), None) => {
+                let fract_start_and_end = whole.1;
+                (None, whole, Fract(fract_start_and_end, fract_start_and_end))
+            }
+            (Some(whole), Some(fract)) if self.0.unit == TimeUnit::Second => (None, whole, fract),
+            (Some(_) | None, Some(_)) => {
+                return Err(ParseError::InvalidInput(
+                    "Fraction only allowed together with seconds as time unit".to_owned(),
+                ));
+            }
+        };
+
+        let digits = digits.as_ref().map_or(self.0.input, |d| d.as_slice());
+
+        // Panic on overflow during the multiplication of the multipliers or adding the exponents
+        let Multiplier(coefficient, _) = self.0.unit.multiplier() * self.0.multiplier;
+
+        let seconds = Whole::parse(&digits[whole.0..whole.1], None, None);
+        let attos = seconds
+            .is_ok()
+            .then(|| Fract::parse(&digits[fract.0..fract.1], None, None));
+        let (seconds, attos) = (Some(seconds), attos);
+
+        let duration_is_negative = self.0.is_negative ^ coefficient.is_negative();
+
+        // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
+        // maximum `Duration`.
+        let (seconds, attos) = match seconds {
+            Some(result) => match result {
+                Ok(seconds) => (seconds, attos.unwrap_or_default()),
+                Err(ParseError::Overflow) if duration_is_negative => {
+                    return Ok(Duration::MIN);
+                }
+                Err(ParseError::Overflow) => {
+                    return Ok(Duration::MAX);
+                }
+                // only ParseError::Overflow is returned by `Seconds::parse`
+                Err(_) => unreachable!(), // cov:excl-line
+            },
+            None => (0, attos.unwrap_or_default()),
+        };
+
+        // allow -0 or -0.0 etc., or in general numbers x with abs(x) < 1e-18 and interpret them
+        // as zero duration
+        if seconds == 0 && attos == 0 {
+            Ok(Duration::ZERO)
+        } else if coefficient == 1 || coefficient == -1 {
+            Ok(Duration::from_std(
+                duration_is_negative,
+                StdDuration::new(seconds, (attos / ATTOS_PER_NANO).try_into().unwrap()),
+            ))
+        } else {
+            let unsigned_coefficient = coefficient.unsigned_abs();
+
+            let attos = u128::from(attos) * u128::from(unsigned_coefficient);
+            Ok(
+                match seconds.checked_mul(unsigned_coefficient).and_then(|s| {
+                    s.checked_add((attos / u128::from(ATTOS_PER_SEC)).try_into().unwrap())
+                }) {
+                    Some(s) => Duration::from_std(
+                        duration_is_negative,
+                        StdDuration::new(
+                            s,
+                            ((attos / u128::from(ATTOS_PER_NANO)) % 1_000_000_000) as u32,
+                        ),
+                    ),
+                    None if duration_is_negative => Duration::MIN,
+                    None => Duration::MAX,
+                },
+            )
+        }
+    }
+}
 
 /// The main gnu relative time parser
 ///
@@ -322,6 +414,10 @@ impl<'a> RelativeTimeParser<'a> {
     /// Any leading and trailing whitespace is ignored. The parser saturates at the maximum of
     /// [`Duration::MAX`].
     ///
+    /// # Panics
+    ///
+    /// TODO
+    ///
     /// # Errors
     ///
     /// Returns a [`ParseError`] if an error during the parsing process occurred
@@ -356,7 +452,31 @@ impl<'a> RelativeTimeParser<'a> {
     /// ```
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
         let trimmed = trim_whitespace(source);
-        self.raw.parse(trimmed, &TIME_UNITS, Some(&TIME_KEYWORDS))
+        let mut duration = Duration::ZERO;
+
+        let mut parser = &mut ReprParserMultiple::new(
+            trimmed,
+            self.raw.config.delimiter_multiple.unwrap(),
+            self.raw.config.conjunctions.unwrap_or_default(),
+        );
+        loop {
+            let (duration_repr, maybe_parser) =
+                parser.parse(&self.raw.config, &TIME_UNITS, Some(&TIME_KEYWORDS))?;
+            let parsed_duration = DurationReprParser(duration_repr).parse()?;
+            duration = if !self.raw.config.allow_negative && parsed_duration.is_negative() {
+                return Err(ParseError::NegativeNumber);
+            } else if parsed_duration.is_zero() {
+                duration
+            } else if duration.is_zero() {
+                parsed_duration
+            } else {
+                duration.saturating_add(parsed_duration)
+            };
+            match maybe_parser {
+                Some(p) => parser = p,
+                None => break Ok(duration),
+            }
+        }
     }
 }
 
