@@ -469,12 +469,10 @@ impl<'a> RelativeTimeParser<'a> {
             let (duration_repr, maybe_parser) =
                 parser.parse(&self.raw.config, &TIME_UNITS, Some(&TIME_KEYWORDS))?;
             let parsed_duration = DurationReprParser(duration_repr).parse()?;
-            duration = if !self.raw.config.allow_negative && parsed_duration.is_negative() {
-                return Err(ParseError::NegativeNumber);
+            duration = if duration.is_zero() {
+                parsed_duration
             } else if parsed_duration.is_zero() {
                 duration
-            } else if duration.is_zero() {
-                parsed_duration
             } else {
                 duration.saturating_add(parsed_duration)
             };
