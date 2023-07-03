@@ -6,7 +6,6 @@
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu_core::time::TimeUnit::*;
 use fundu_gnu::RelativeTimeParser;
 
 fn criterion_config() -> Criterion {
@@ -56,22 +55,28 @@ fn benchmark_parsing(criterion: &mut Criterion) {
 }
 
 fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
-    let inputs = [
-        (Second, "sec"),
-        (Second, "seconds"),
-        (Minute, "min"),
-        (Minute, "minutes"),
-        (Year, "year"),
-    ];
+    let inputs = ["sec", "seconds", "min", "minutes", "year"];
     let parser = RelativeTimeParser::new();
     let mut group = criterion.benchmark_group("relative time parser parsing speed time units");
-    for (_, input) in inputs {
+    for input in inputs {
         let input = &format!("1{}", input);
         group.bench_with_input(
             BenchmarkId::new("time units without number".to_string(), input),
             &input,
             |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
+    }
+    group.finish();
+}
+
+fn benchmark_parsing_years(criterion: &mut Criterion) {
+    let inputs = ["1year", "10year", "10000000year"];
+    let parser = RelativeTimeParser::new();
+    let mut group = criterion.benchmark_group("relative time parser parsing speed year");
+    for input in inputs {
+        group.bench_with_input(input, &input, |b, input| {
+            b.iter(|| black_box(&parser).parse(input).unwrap())
+        });
     }
     group.finish();
 }
@@ -114,9 +119,15 @@ criterion_group!(
     config = criterion_config();
     targets = benchmark_parsing_multiple
 );
+criterion_group!(
+    name = parsing_years;
+    config = criterion_config();
+    targets = benchmark_parsing_years
+);
 criterion_main!(
     initialization,
     parsing,
     parsing_time_units,
-    parsing_multiple
+    parsing_multiple,
+    parsing_years
 );

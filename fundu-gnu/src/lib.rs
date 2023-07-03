@@ -14,7 +14,6 @@
 //! `"1hour"`| `Duration::positive(60 * 60, 0)` |
 //! `"minute"`| `Duration::positive(60, 0)` |
 //! `"2 hours"`| `Duration::positive(2 * 60 * 60, 0)` |
-//! `"1year 12months"`| `Duration::positive(63_115_200, 0)` |
 //! `"-3minutes"`| `Duration::negative(3 * 60, 0)` |
 //! `"3 mins ago"`| `Duration::negative(3 * 60, 0)` |
 //! `"999sec +1day"`| `Duration::positive(86_400 + 999, 0)` |
@@ -24,7 +23,6 @@
 //! `"yesterday"`| `Duration::negative(24 * 60 * 60, 0)` |
 //! `"now"`| `Duration::positive(0, 0)` |
 //! `"today -10seconds"`| `Duration::negative(10, 0)` |
-//! `"1000000000000000000000000000000000000years"`| `Duration::MAX` |
 //!
 //! Note that `fundu` parses into its own [`Duration`] which is a superset of other `Durations` like
 //! [`std::time::Duration`], [`chrono::Duration`] and [`time::Duration`]. See the
@@ -32,7 +30,7 @@
 //! handle the conversion between these durations.
 //!
 //! # The Format
-//!
+//! TODO: FIX months and years description
 //! Supported time units:
 //!
 //! - `seconds`, `second`, `secs`, `sec`
@@ -89,10 +87,6 @@
 //!     Ok(Duration::positive(2 * 60 * 60, 0))
 //! );
 //! assert_eq!(parser.parse("second"), Ok(Duration::positive(1, 0)));
-//! assert_eq!(
-//!     parser.parse("1year 12months"),
-//!     Ok(Duration::positive(63_115_200, 0))
-//! );
 //! assert_eq!(parser.parse("-3minutes"), Ok(Duration::negative(3 * 60, 0)));
 //! assert_eq!(
 //!     parser.parse("3 mins ago"),
@@ -126,10 +120,6 @@
 //! assert_eq!(
 //!     parser.parse("today -10seconds"),
 //!     Ok(Duration::negative(10, 0))
-//! );
-//! assert_eq!(
-//!     parser.parse("1000000000000000000000000000000000000years"),
-//!     Ok(Duration::MAX)
 //! );
 //! ```
 //!
@@ -191,8 +181,12 @@
 #![allow(clippy::enum_glob_use)]
 #![allow(clippy::module_name_repetitions)]
 
+mod datetime;
+mod util;
+
 use std::time::Duration as StdDuration;
 
+pub use datetime::{DateTime, JulianDay};
 use fundu_core::config::{Config, ConfigBuilder, Delimiter};
 pub use fundu_core::error::{ParseError, TryFromDurationError};
 use fundu_core::parse::{
@@ -202,6 +196,8 @@ use fundu_core::parse::{
 use fundu_core::time::TimeUnit::*;
 pub use fundu_core::time::{Duration, SaturatingInto};
 use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
+#[cfg(test)]
+pub use rstest_reuse;
 
 // whitespace definition of: b' ', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D'
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
@@ -229,6 +225,23 @@ const MONTH: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
 const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
 const PARSER: RelativeTimeParser<'static> = RelativeTimeParser::new();
+
+enum FuzzyUnit {
+    Month,
+    Year,
+}
+
+struct FuzzyTime {
+    unit: FuzzyUnit,
+    value: i64,
+}
+
+impl FuzzyTime {}
+
+enum ParseFuzzyOutput {
+    Duration(Duration),
+    FuzzyTime(FuzzyTime),
+}
 
 struct DurationReprParser<'a>(DurationRepr<'a>);
 
@@ -290,6 +303,57 @@ impl<'a> DurationReprParser<'a> {
         ))
     }
 
+    fn parse_fuzzy(&mut self) -> Result<ParseFuzzyOutput, ParseError> {
+        let fuzzy_unit = match self.0.unit {
+            Month => FuzzyUnit::Month,
+            Year => FuzzyUnit::Year,
+            _ => return self.parse().map(ParseFuzzyOutput::Duration),
+        };
+
+        if self.0.fract.is_some() {
+            return Err(ParseError::InvalidInput(
+                "Fraction only allowed together with seconds as time unit".to_owned(),
+            ));
+        }
+
+        let whole = match self.0.whole.take() {
+            Some(whole) => whole,
+            None if self.0.number_is_optional => {
+                return Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
+                    unit: fuzzy_unit,
+                    value: if self.0.is_negative { -1 } else { 1 },
+                }));
+            }
+            None => unreachable!(), // cov:excl-line
+        };
+
+        let result = Whole::parse(&self.0.input[whole.0..whole.1], None, None);
+        // interpret the result and a years or month overflow as maximum (minimum) `Duration`
+        let value = match result {
+            Ok(value) => value,
+            Err(ParseError::Overflow) if self.0.is_negative => {
+                return Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
+                    unit: fuzzy_unit,
+                    value: i64::MIN,
+                }));
+            }
+            Err(ParseError::Overflow) => {
+                return Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
+                    unit: fuzzy_unit,
+                    value: i64::MAX,
+                }));
+            }
+            // only ParseError::Overflow is returned by `Seconds::parse`
+            Err(_) => unreachable!(), // cov:excl-line
+        };
+
+        let value = i64::try_from(value).unwrap_or(i64::MAX);
+        Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
+            unit: fuzzy_unit,
+            value: if self.0.is_negative { -value } else { value },
+        }))
+    }
+
     fn calculate_duration(
         is_negative: bool,
         seconds: u64,
@@ -343,10 +407,6 @@ impl<'a> DurationReprParser<'a> {
 ///     Ok(Duration::positive(2 * 60 * 60, 0))
 /// );
 /// assert_eq!(parser.parse("second"), Ok(Duration::positive(1, 0)));
-/// assert_eq!(
-///     parser.parse("1year 12months"),
-///     Ok(Duration::positive(63_115_200, 0))
-/// );
 /// assert_eq!(parser.parse("-3minutes"), Ok(Duration::negative(3 * 60, 0)));
 /// assert_eq!(
 ///     parser.parse("3 mins ago"),
@@ -380,10 +440,6 @@ impl<'a> DurationReprParser<'a> {
 /// assert_eq!(
 ///     parser.parse("today -10seconds"),
 ///     Ok(Duration::negative(10, 0))
-/// );
-/// assert_eq!(
-///     parser.parse("1000000000000000000000000000000000000years"),
-///     Ok(Duration::MAX)
 /// );
 /// ```
 #[derive(Debug, Eq, PartialEq)]
@@ -440,45 +496,94 @@ impl<'a> RelativeTimeParser<'a> {
     /// );
     /// assert_eq!(parser.parse("12 seconds"), Ok(Duration::positive(12, 0)));
     /// assert_eq!(
-    ///     parser.parse("1year 12months"),
-    ///     Ok(Duration::positive(63_115_200, 0))
-    /// );
-    /// assert_eq!(
     ///     parser.parse("123456789"),
     ///     Ok(Duration::positive(123_456_789, 0))
-    /// );
-    /// assert_eq!(
-    ///     parser.parse("100000000000000000000000000000years"),
-    ///     Ok(Duration::MAX)
     /// );
     /// assert_eq!(
     ///     parser.parse("yesterday"),
     ///     Ok(Duration::negative(24 * 60 * 60, 0))
     /// );
     /// ```
+    #[inline]
     pub fn parse(&self, source: &str) -> Result<Duration, ParseError> {
+        self.parse_with_date(source, None)
+    }
+
+    /// .
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn parse_with_date(
+        &self,
+        source: &str,
+        date: Option<DateTime>,
+    ) -> Result<Duration, ParseError> {
+        let (years, months, duration) = self.parse_fuzzy(source)?;
+        if years == 0 && months == 0 {
+            return Ok(duration);
+        }
+
+        // Delay the costly system call to get the utc time as late as possible
+        let orig = date.unwrap_or_else(DateTime::now_utc);
+        orig.checked_add_duration(&duration)
+            .and_then(|date| {
+                date.checked_add_gregorian(years, months, 0)
+                    .and_then(|date| date.duration_since(orig))
+            })
+            .ok_or_else(|| {
+                ParseError::InvalidInput("Overflow during calculation of duration".to_owned())
+            })
+    }
+
+    /// TODO: DOCUMENT
+    ///
+    /// # Panics
+    ///
+    /// Panics if .
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if .
+    pub fn parse_fuzzy(&self, source: &str) -> Result<(i64, i64, Duration), ParseError> {
         let trimmed = trim_whitespace(source);
+
         let mut duration = Duration::ZERO;
+        let mut years = 0i64;
+        let mut months = 0i64;
 
         let mut parser = &mut ReprParserMultiple::new(
             trimmed,
             self.raw.config.delimiter_multiple.unwrap(),
             self.raw.config.conjunctions.unwrap_or_default(),
         );
+
         loop {
             let (duration_repr, maybe_parser) =
                 parser.parse(&self.raw.config, &TIME_UNITS, Some(&TIME_KEYWORDS))?;
-            let parsed_duration = DurationReprParser(duration_repr).parse()?;
-            duration = if duration.is_zero() {
-                parsed_duration
-            } else if parsed_duration.is_zero() {
-                duration
-            } else {
-                duration.saturating_add(parsed_duration)
-            };
+
+            match DurationReprParser(duration_repr).parse_fuzzy()? {
+                ParseFuzzyOutput::Duration(parsed_duration) => {
+                    duration = if duration.is_zero() {
+                        parsed_duration
+                    } else if parsed_duration.is_zero() {
+                        duration
+                    } else {
+                        duration.saturating_add(parsed_duration)
+                    }
+                }
+                ParseFuzzyOutput::FuzzyTime(fuzzy) => match fuzzy.unit {
+                    FuzzyUnit::Month => months = months.saturating_add(fuzzy.value),
+                    FuzzyUnit::Year => years = years.saturating_add(fuzzy.value),
+                },
+            }
             match maybe_parser {
                 Some(p) => parser = p,
-                None => break Ok(duration),
+                None => break Ok((years, months, duration)),
             }
         }
     }
@@ -551,15 +656,7 @@ impl TimeUnitsLike for TimeKeywords {
 ///
 /// assert_eq!(parse("2hours"), Ok(Duration::positive(2 * 60 * 60, 0)));
 /// assert_eq!(parse("12 seconds"), Ok(Duration::positive(12, 0)));
-/// assert_eq!(
-///     parse("1year 12months"),
-///     Ok(Duration::positive(63_115_200, 0))
-/// );
 /// assert_eq!(parse("123456789"), Ok(Duration::positive(123_456_789, 0)));
-/// assert_eq!(
-///     parse("100000000000000000000000000000years"),
-///     Ok(Duration::MAX)
-/// );
 /// assert_eq!(parse("yesterday"), Ok(Duration::negative(24 * 60 * 60, 0)));
 /// ```
 pub fn parse(source: &str) -> Result<Duration, ParseError> {
