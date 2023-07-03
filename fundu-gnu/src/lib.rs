@@ -24,13 +24,12 @@
 //! `"now"`| `Duration::positive(0, 0)` |
 //! `"today -10seconds"`| `Duration::negative(10, 0)` |
 //!
-//! Note that `fundu` parses into its own [`Duration`] which is a superset of other `Durations` like
+//! `fundu` parses into its own [`Duration`] which is a superset of other `Durations` like
 //! [`std::time::Duration`], [`chrono::Duration`] and [`time::Duration`]. See the
 //! [documentation](https://docs.rs/fundu/latest/fundu/index.html#fundus-duration) how to easily
 //! handle the conversion between these durations.
 //!
 //! # The Format
-//! TODO: FIX months and years description
 //! Supported time units:
 //!
 //! - `seconds`, `second`, `secs`, `sec`
@@ -39,8 +38,11 @@
 //! - `days`, `day`
 //! - `weeks`, `week`
 //! - `fortnights`, `fortnight` (2 weeks)
-//! - `months`, `month` (defined as `30.44` days or a `1/12` year)
-//! - `years`, `year` (defined as `365.25` days)
+//! - `months`, `month` (fuzzy)
+//! - `years`, `year` (fuzzy)
+//!
+//! Fuzzy time units are not all of equal duration and depend on a given date. If no date is given
+//! when parsing, the system time of `now` in UTC +0 is assumed.
 //!
 //! The special keywords `yesterday` worth `-1 day`, `tomorrow` worth `+1 day`, `today` and `now`
 //! each worth a zero duration are allowed, too. These keywords count as a full duration and don't
@@ -48,17 +50,15 @@
 //!
 //! Summary of the rest of the format:
 //!
-//! - Only numbers like `"123 days"` without fraction (like in `"1.2 days"`) and without exponent
-//!   (like
-//! `"3e9 days"`) are allowed
+//! - Only numbers like `"123 days"` and without exponent (like `"3e9 days"`) are allowed. Only
+//! seconds time units allow a fraction (like in `"1.123456 secs"`)
 //! - Multiple durations like `"1sec 2min"` or `"1week2secs"` in the source string accumulate
 //! - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
 //! - The parsed duration represents the value exactly (without rounding errors as would occur in
 //! floating point calculations) as it is specified in the source string.
 //! - The maximum supported duration (`Duration::MAX`) has `u64::MAX` seconds
 //! (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds
-//! - parsed durations larger than the maximum duration (like `"100000000000000years"`) saturate at
-//! the maximum duration
+//! - parsed durations larger than the maximum duration saturate at the maximum duration
 //! - Negative durations like `"-1min"` or `"1 week ago"` are allowed
 //! - Any leading, trailing whitespace or whitespace between the number and the time unit (like in
 //! `"1 \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows the
@@ -123,8 +123,39 @@
 //! );
 //! ```
 //!
-//! Or use the global [`parse`] method which does the same without the need to create a parser
-//! struct.
+//! If parsing fuzzy units then the fuzz can cause different [`Duration`] based on the given
+//! [`DateTime`]:
+//!
+//! ```rust
+//! use fundu_gnu::{DateTime, Duration, RelativeTimeParser};
+//!
+//! let parser = RelativeTimeParser::new();
+//! let date_time = DateTime::from_gregorian_date_time(1970, 1, 1, 0, 0, 0, 0);
+//! assert_eq!(
+//!     parser.parse_with_date("+1year", Some(date_time)),
+//!     Ok(Duration::positive(365 * 86400, 0))
+//! );
+//! assert_eq!(
+//!     parser.parse_with_date("+2month", Some(date_time)),
+//!     Ok(Duration::positive((31 + 28) * 86400, 0))
+//! );
+//!
+//! // 1972 is a leap year
+//! let date_time = DateTime::from_gregorian_date_time(1972, 1, 1, 0, 0, 0, 0);
+//! assert_eq!(
+//!     parser.parse_with_date("+1year", Some(date_time)),
+//!     Ok(Duration::positive(366 * 86400, 0))
+//! );
+//! assert_eq!(
+//!     parser.parse_with_date("+2month", Some(date_time)),
+//!     Ok(Duration::positive((31 + 29) * 86400, 0))
+//! );
+//! ```
+//!
+//! If parsing fuzzy units with [`RelativeTimeParser::parse`], the [`DateTime`] of `now` in UTC +0
+//! is assumed.
+//!
+//! The global [`parse`] method does the same without the need to create a [`RelativeTimeParser`].
 //!
 //! ```rust
 //! use fundu_gnu::{parse, Duration};

@@ -425,7 +425,9 @@ impl DateTime {
     ///
     /// # Platform-specific behavior
     ///
-    /// This method is subject to the same restrictions as [`SystemTime::now`] does.
+    /// This method is subject to the same
+    /// [restrictions](https://doc.rust-lang.org/nightly/std/time/struct.SystemTime.html#platform-specific-behavior)
+    /// as [`SystemTime`] does.
     ///
     /// # Examples
     ///
@@ -1036,6 +1038,11 @@ mod tests {
         DateTime::from_gregorian_date_time(1970, 12, 1, 0, 0, 0, 0),
         (0, 11, 0),
         DateTime::from_gregorian_date_time(1971, 11, 1, 0, 0, 0, 0),
+    )]
+    #[case::month(
+        DateTime::from_gregorian_date_time(1972, 2, 1, 0, 0, 0, 0),
+        (0, 1, 0),
+        DateTime::from_gregorian_date_time(1972, 3, 1, 0, 0, 0, 0),
     )]
     fn test_date_time_checked_add_gregorian(
         #[case] datetime: DateTime,
