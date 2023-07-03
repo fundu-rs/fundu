@@ -39,6 +39,18 @@ pub const DEFAULT_ID_YEAR: &str = "y";
 
 pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 
+const SECS_PER_MINUTE: u64 = 60;
+const SECS_PER_HOUR: u64 = 3600;
+const SECS_PER_DAY: u64 = 86400;
+const SECS_PER_WEEK: u64 = 86400 * 7;
+
+const NANOS_PER_MILLI: i32 = 1_000_000;
+const NANOS_PER_MICRO: i32 = 1_000;
+
+const MILLIS_PER_SEC: i128 = 1_000;
+const MICROS_PER_SEC: i128 = 1_000_000;
+const NANOS_PER_SEC: i128 = 1_000_000_000;
+
 /// The time units used to define possible time units in the input string
 ///
 /// The parser calculates the final [`Duration`] based on the parsed number and time unit. Each
@@ -644,6 +656,120 @@ impl Duration {
         Self {
             is_negative: true,
             inner: std::time::Duration::new(secs, nanos),
+        }
+    }
+
+    // factor must be greater than 1
+    const fn as_whole(&self, factor: u64) -> i64 {
+        debug_assert!(factor > 1);
+
+        #[allow(clippy::cast_possible_wrap)]
+        let result = (self.inner.as_secs() / factor) as i64;
+        if self.is_negative { -result } else { result }
+    }
+
+    #[inline]
+    pub const fn as_weeks(&self) -> i64 {
+        self.as_whole(SECS_PER_WEEK)
+    }
+
+    #[inline]
+    pub const fn as_days(&self) -> i64 {
+        self.as_whole(SECS_PER_DAY)
+    }
+
+    #[inline]
+    pub const fn as_hours(&self) -> i64 {
+        self.as_whole(SECS_PER_HOUR)
+    }
+
+    #[inline]
+    pub const fn as_minutes(&self) -> i64 {
+        self.as_whole(SECS_PER_MINUTE)
+    }
+
+    #[inline]
+    pub const fn as_seconds(&self) -> i128 {
+        let seconds = self.inner.as_secs() as i128;
+        if self.is_negative { -seconds } else { seconds }
+    }
+
+    #[inline]
+    pub const fn as_millis(&self) -> i128 {
+        self.as_seconds() * MILLIS_PER_SEC + self.subsec_millis() as i128
+    }
+
+    #[inline]
+    pub const fn as_micros(&self) -> i128 {
+        self.as_seconds() * MICROS_PER_SEC + self.subsec_micros() as i128
+    }
+
+    #[inline]
+    pub const fn as_nanos(&self) -> i128 {
+        self.as_seconds() * NANOS_PER_SEC + self.subsec_nanos() as i128
+    }
+
+    #[inline]
+    pub const fn subsec_millis(&self) -> i32 {
+        self.subsec_nanos() / NANOS_PER_MILLI
+    }
+
+    #[inline]
+    pub const fn subsec_micros(&self) -> i32 {
+        self.subsec_nanos() / NANOS_PER_MICRO
+    }
+
+    #[inline]
+    pub const fn subsec_nanos(&self) -> i32 {
+        #[allow(clippy::cast_possible_wrap)]
+        let nanos = self.inner.subsec_nanos() as i32;
+        if self.is_negative { -nanos } else { nanos }
+    }
+
+    fn extract_i64(&mut self, factor: u64) -> i64 {
+        debug_assert!(factor > 1);
+
+        let secs = self.inner.as_secs();
+        let extracted = i64::try_from(secs / factor).unwrap();
+        if extracted > 0 {
+            self.inner = std::time::Duration::new(secs % factor, self.inner.subsec_nanos());
+            if self.is_negative {
+                extracted.neg()
+            } else {
+                extracted
+            }
+        } else {
+            0
+        }
+    }
+
+    #[inline]
+    pub fn extract_weeks(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_WEEK)
+    }
+
+    #[inline]
+    pub fn extract_days(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_DAY)
+    }
+
+    #[inline]
+    pub fn extract_hours(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_HOUR)
+    }
+
+    #[inline]
+    pub fn extract_minutes(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_MINUTE)
+    }
+
+    pub fn extract_seconds(&mut self) -> i128 {
+        let extracted = self.as_seconds();
+        if extracted == 0 {
+            0
+        } else {
+            self.inner = std::time::Duration::new(0, self.inner.subsec_nanos());
+            extracted
         }
     }
 
