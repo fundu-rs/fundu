@@ -50,11 +50,30 @@ const JD_BASE: i64 = 1_721_119;
 pub struct JulianDay(pub i64);
 
 impl JulianDay {
-    /// .
+    /// Calculate the `JulianDay` from a proleptic gregorian date
+    ///
+    /// For a non-panicking version see [`JulianDay::try_from_gregorian`].
     ///
     /// # Panics
     ///
-    /// Panics if .
+    /// Panics if the input arguments are invalid. Valid ranges are:
+    ///
+    /// * `1 <= month <= 12`
+    /// * `1 <= day <= 31`
+    ///
+    /// or an overflow occurred. Use the safer alternative [`JulianDay::try_from_gregorian`] if very
+    /// high values for years are expected.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(JulianDay::from_gregorian(-4713, 11, 24), JulianDay(0));
+    /// assert_eq!(JulianDay::from_gregorian(-4714, 11, 24), JulianDay(-365));
+    /// assert_eq!(JulianDay::from_gregorian(0, 1, 1), JulianDay(1_721_060));
+    /// assert_eq!(JulianDay::from_gregorian(1970, 1, 1), JulianDay(2440588));
+    /// ```
     pub const fn from_gregorian(year: i64, month: u8, day: u8) -> Self {
         match Self::try_from_gregorian(year, month, day) {
             Some(jd) => jd,
@@ -62,7 +81,46 @@ impl JulianDay {
         }
     }
 
-    /// .
+    /// Calculate the `JulianDay` from a proleptic gregorian date
+    ///
+    /// Returns None if an overflow occurred most likely to a year greater than approximately
+    /// `25_200_470_046_046_596` or smaller than approximately `-25_200_470_046_046_596`
+    ///
+    /// This method is based on the work of Peter Baum and his publication of
+    /// [Date Algorithms](https://www.researchgate.net/publication/316558298_Date_Algorithms).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the input arguments are invalid. Valid ranges are:
+    ///
+    /// * `1 <= month <= 12`
+    /// * `1 <= day <= 31`
+    ///
+    /// Note it is not an error to specify `day = 31` for example for the month 4 (April). In such a
+    /// case the month is assumed to be the next month (here May) and `day = 1`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(
+    ///     JulianDay::try_from_gregorian(-4713, 11, 24),
+    ///     Some(JulianDay(0))
+    /// );
+    /// assert_eq!(
+    ///     JulianDay::try_from_gregorian(-4714, 11, 24),
+    ///     Some(JulianDay(-365))
+    /// );
+    /// assert_eq!(
+    ///     JulianDay::try_from_gregorian(0, 1, 1),
+    ///     Some(JulianDay(1_721_060))
+    /// );
+    /// assert_eq!(
+    ///     JulianDay::try_from_gregorian(1970, 1, 1),
+    ///     Some(JulianDay(2440588))
+    /// );
+    /// ```
     pub const fn try_from_gregorian(year: i64, month: u8, day: u8) -> Option<Self> {
         validate!(month, 1, 12);
         validate!(day, 1, 31);
@@ -91,16 +149,37 @@ impl JulianDay {
         None
     }
 
-    /// .
+    /// Return the julian day
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(JulianDay(-1).as_days(), -1);
+    /// ```
     pub const fn as_days(self) -> i64 {
         self.0
     }
 
-    /// .
+    /// Calculate the proleptic gregorian date from this `JulianDay`
     ///
-    /// # Panics
+    /// The method returns None if an overflow occurred.
     ///
-    /// Panics if .
+    /// This method is based on the work of Peter Baum and his publication of
+    /// [Date Algorithms](https://www.researchgate.net/publication/316558298_Date_Algorithms).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(JulianDay(-365).as_gregorian(), Some((-4714, 11, 24)));
+    /// assert_eq!(JulianDay(0).as_gregorian(), Some((-4713, 11, 24)));
+    /// assert_eq!(JulianDay(1721060).as_gregorian(), Some((0, 1, 1)));
+    /// assert_eq!(JulianDay(2440588).as_gregorian(), Some((1970, 1, 1)));
+    /// ```
+    #[allow(clippy::missing_panics_doc)]
     pub fn as_gregorian(self) -> Option<(i64, u8, u8)> {
         let zero = self.0.checked_sub(JD_BASE)?;
         let c = zero.checked_mul(100)? - 25;
@@ -134,7 +213,19 @@ impl JulianDay {
         }
     }
 
-    /// .
+    /// Checked days addition. Computes `self.0 + days`, returning None if an overflow occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(
+    ///     JulianDay(0).checked_add_days(10_000),
+    ///     Some(JulianDay(10_000))
+    /// );
+    /// assert_eq!(JulianDay(0).checked_add_days(-1), Some(JulianDay(-1)));
+    /// ```
     pub const fn checked_add_days(self, days: i64) -> Option<Self> {
         match self.0.checked_add(days) {
             Some(x) => Some(Self(x)),
@@ -142,7 +233,19 @@ impl JulianDay {
         }
     }
 
-    /// .
+    /// Checked days subtraction. Computes `self.0 - days`, returning None if an overflow occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(
+    ///     JulianDay(1_700_000).checked_sub_days(1),
+    ///     Some(JulianDay(1_699_999))
+    /// );
+    /// assert_eq!(JulianDay(0).checked_sub_days(366), Some(JulianDay(-366)));
+    /// ```
     pub const fn checked_sub_days(self, days: i64) -> Option<Self> {
         match self.0.checked_sub(days) {
             Some(x) => Some(Self(x)),
@@ -150,7 +253,19 @@ impl JulianDay {
         }
     }
 
-    /// .
+    /// Checked addition. Computes `self + rhs`, returning None if an overflow occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(
+    ///     JulianDay(0).checked_add(JulianDay(10_000)),
+    ///     Some(JulianDay(10_000))
+    /// );
+    /// assert_eq!(JulianDay(0).checked_add(JulianDay(-1)), Some(JulianDay(-1)));
+    /// ```
     pub const fn checked_add(self, rhs: Self) -> Option<Self> {
         match self.0.checked_add(rhs.0) {
             Some(x) => Some(Self(x)),
@@ -158,7 +273,22 @@ impl JulianDay {
         }
     }
 
-    /// .
+    /// Checked subtraction. Computes `self - rhs`, returning None if an overflow occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::JulianDay;
+    ///
+    /// assert_eq!(
+    ///     JulianDay(1_700_000).checked_sub(JulianDay(1)),
+    ///     Some(JulianDay(1_699_999))
+    /// );
+    /// assert_eq!(
+    ///     JulianDay(0).checked_sub(JulianDay(366)),
+    ///     Some(JulianDay(-366))
+    /// );
+    /// ```
     pub const fn checked_sub(self, rhs: Self) -> Option<Self> {
         match self.0.checked_sub(rhs.0) {
             Some(x) => Some(Self(x)),
