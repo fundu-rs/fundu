@@ -1240,6 +1240,8 @@ mod tests {
         assert_eq!(datetime.duration_since(rhs), Some(expected));
     }
 
+    // SystemTime is not accurate on windows targets and results sometimes differ by 1 nano second
+    #[cfg(not(target_os = "windows"))]
     #[rstest]
     #[case::unix_epoch(SystemTime::UNIX_EPOCH, DateTime::UNIX_EPOCH)]
     #[case::second_before_unix_epoch(
