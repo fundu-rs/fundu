@@ -50,11 +50,17 @@ fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration
 #[case::infinity_long("infinity", ParseError::TimeUnit(0, "Invalid time unit: 'infinity'".to_string()))]
 #[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::keyword_with_ago("today ago", ParseError::TimeUnit(6, "Invalid time unit: 'ago'".to_string()))]
-#[case::fraction_when_not_second_time_unit_year("1.1year", ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned()))]
-#[case::fraction_when_not_second_time_unit_minute("1.1minute", ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned()))]
+#[case::fraction_when_not_second_time_unit_year(
+    "1.1year",
+    ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
+)]
+#[case::fraction_when_not_second_time_unit_minute(
+    "1.1minute",
+     ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
+)]
 #[case::positive_years_overflow(
     &format!("{}year", "2".repeat(30)),
-    ParseError::InvalidInput("Overflow during calculation of duration".to_owned())
+    ParseError::Overflow
 )]
 fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(

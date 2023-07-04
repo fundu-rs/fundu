@@ -338,8 +338,8 @@ impl JulianDay {
 ///
 /// If the `chrono` feature is activated a chrono date and time can be converted lossless to a
 /// `DateTime`
-///
-/// ```rust
+#[cfg_attr(feature = "chrono", doc = "```rust")]
+#[cfg_attr(not(feature = "chrono"), doc = "```rust,ignore")]
 /// use chrono::{FixedOffset, TimeZone};
 /// use fundu_gnu::DateTime;
 ///
@@ -364,8 +364,8 @@ impl JulianDay {
 /// ```
 ///
 /// And if the `time` feature is activated:
-///
-/// ```rust
+#[cfg_attr(feature = "time", doc = "```rust")]
+#[cfg_attr(not(feature = "time"), doc = "```rust,ignore")]
 /// use time::macros::{datetime, offset};
 /// use fundu_gnu::DateTime;
 ///
