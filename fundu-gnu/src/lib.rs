@@ -502,14 +502,10 @@ impl<'a> RelativeTimeParser<'a> {
             raw: Parser::with_config(CONFIG),
         }
     }
-    /// Parse the `source` string into a [`Duration`]
+    /// Parse the `source` string into a [`Duration`] relative to the date and time of `now`
     ///
     /// Any leading and trailing whitespace is ignored. The parser saturates at the maximum of
     /// [`Duration::MAX`].
-    ///
-    /// # Panics
-    ///
-    /// TODO
     ///
     /// # Errors
     ///
@@ -540,15 +536,49 @@ impl<'a> RelativeTimeParser<'a> {
         self.parse_with_date(source, None)
     }
 
-    /// .
+    /// Parse the `source` string into a [`Duration`] relative to the optionally given `date`
     ///
-    /// # Panics
-    ///
-    /// Panics if .
+    /// If the `date` is `None`, then the system time of `now` is assumed. Time units of `year` and
+    /// `month` are parsed fuzzy since years and months are not all of equal length. Any leading and
+    /// trailing whitespace is ignored. The parser saturates at the maximum of [`Duration::MAX`].
     ///
     /// # Errors
     ///
-    /// This function will return an error if .
+    /// Returns a [`ParseError`] if an error during the parsing process occurred or the calculation
+    /// of the calculation of the given `date` plus the duration of the `source` string overflows.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::{DateTime, Duration, RelativeTimeParser};
+    ///
+    /// let parser = RelativeTimeParser::new();
+    /// assert_eq!(
+    ///     parser.parse_with_date("2hours", None),
+    ///     Ok(Duration::positive(2 * 60 * 60, 0))
+    /// );
+    ///
+    /// let date_time = DateTime::from_gregorian_date_time(1970, 2, 1, 0, 0, 0, 0);
+    /// assert_eq!(
+    ///     parser.parse_with_date("+1month", Some(date_time)),
+    ///     Ok(Duration::positive(28 * 86400, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_with_date("+1year", Some(date_time)),
+    ///     Ok(Duration::positive(365 * 86400, 0))
+    /// );
+    ///
+    /// // 1972 is a leap year
+    /// let date_time = DateTime::from_gregorian_date_time(1972, 2, 1, 0, 0, 0, 0);
+    /// assert_eq!(
+    ///     parser.parse_with_date("+1month", Some(date_time)),
+    ///     Ok(Duration::positive(29 * 86400, 0))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_with_date("+1year", Some(date_time)),
+    ///     Ok(Duration::positive(366 * 86400, 0))
+    /// );
+    /// ```
     pub fn parse_with_date(
         &self,
         source: &str,
@@ -567,19 +597,41 @@ impl<'a> RelativeTimeParser<'a> {
                     .and_then(|date| date.duration_since(orig))
             })
             .ok_or_else(|| {
+                // TODO: make this an overflow error
                 ParseError::InvalidInput("Overflow during calculation of duration".to_owned())
             })
     }
 
-    /// TODO: DOCUMENT
+    /// Parse the `source` string extracting `year` and `month` time units from the [`Duration`]
     ///
-    /// # Panics
+    /// Unlike [`RelativeTimeParser::parse`] and [`RelativeTimeParser::parse_with_date`] this method
+    /// won't interpret the parsed `year` and `month` time units but simply returns the values
+    /// parsed from the `source` string.
     ///
-    /// Panics if .
+    /// The returned tuple (`years`, `months`, `Duration`) contains in the first component the
+    /// amount parsed `years` as `i64`, in the second component the parsed `months` as `i64` and in
+    /// the last component the rest of the parsed time units accumulated as [`Duration`].
     ///
     /// # Errors
     ///
-    /// This function will return an error if .
+    /// Returns a [`ParseError`] if an error during the parsing process occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_gnu::{Duration, RelativeTimeParser};
+    ///
+    /// let parser = RelativeTimeParser::new();
+    /// assert_eq!(
+    ///     parser.parse_fuzzy("2hours"),
+    ///     Ok((0, 0, Duration::positive(2 * 60 * 60, 0)))
+    /// );
+    /// assert_eq!(
+    ///     parser.parse_fuzzy("2hours +123month -10years"),
+    ///     Ok((-10, 123, Duration::positive(2 * 60 * 60, 0)))
+    /// );
+    /// ```
+    #[allow(clippy::missing_panics_doc)]
     pub fn parse_fuzzy(&self, source: &str) -> Result<(i64, i64, Duration), ParseError> {
         let trimmed = trim_whitespace(source);
 
@@ -587,6 +639,7 @@ impl<'a> RelativeTimeParser<'a> {
         let mut years = 0i64;
         let mut months = 0i64;
 
+        // the unwraps are safe here because both config values are defined
         let mut parser = &mut ReprParserMultiple::new(
             trimmed,
             self.raw.config.delimiter_multiple.unwrap(),
@@ -676,6 +729,9 @@ impl TimeUnitsLike for TimeKeywords {
 /// Any leading and trailing whitespace is ignored. The parser saturates at the maximum of
 /// [`Duration::MAX`].
 ///
+/// This method is equivalent to [`RelativeTimeParser::parse`]. See also the documentation of
+/// [`RelativeTimeParser::parse`].
+///
 /// # Errors
 ///
 /// Returns a [`ParseError`] if an error during the parsing process occurred
@@ -692,6 +748,90 @@ impl TimeUnitsLike for TimeKeywords {
 /// ```
 pub fn parse(source: &str) -> Result<Duration, ParseError> {
     PARSER.parse(source)
+}
+
+/// Parse the `source` string into a [`Duration`] relative to the optionally given `date`
+///
+/// If the `date` is `None`, then the system time of `now` is assumed. Time units of `year` and
+/// `month` are parsed fuzzy since years and months are not all of equal length. Any leading and
+/// trailing whitespace is ignored. The parser saturates at the maximum of [`Duration::MAX`].
+///
+/// This method is equivalent to [`RelativeTimeParser::parse_with_date`]. See also the documentation
+/// of [`RelativeTimeParser::parse_with_date`].
+///
+/// # Errors
+///
+/// Returns a [`ParseError`] if an error during the parsing process occurred or the calculation
+/// of the calculation of the given `date` plus the duration of the `source` string overflows.
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu_gnu::{parse_with_date, DateTime, Duration};
+///
+/// assert_eq!(
+///     parse_with_date("2hours", None),
+///     Ok(Duration::positive(2 * 60 * 60, 0))
+/// );
+///
+/// let date_time = DateTime::from_gregorian_date_time(1970, 2, 1, 0, 0, 0, 0);
+/// assert_eq!(
+///     parse_with_date("+1month", Some(date_time)),
+///     Ok(Duration::positive(28 * 86400, 0))
+/// );
+/// assert_eq!(
+///     parse_with_date("+1year", Some(date_time)),
+///     Ok(Duration::positive(365 * 86400, 0))
+/// );
+///
+/// // 1972 is a leap year
+/// let date_time = DateTime::from_gregorian_date_time(1972, 2, 1, 0, 0, 0, 0);
+/// assert_eq!(
+///     parse_with_date("+1month", Some(date_time)),
+///     Ok(Duration::positive(29 * 86400, 0))
+/// );
+/// assert_eq!(
+///     parse_with_date("+1year", Some(date_time)),
+///     Ok(Duration::positive(366 * 86400, 0))
+/// );
+/// ```
+pub fn parse_with_date(source: &str, date: Option<DateTime>) -> Result<Duration, ParseError> {
+    PARSER.parse_with_date(source, date)
+}
+
+/// Parse the `source` string extracting `year` and `month` time units from the [`Duration`]
+///
+/// Unlike [`RelativeTimeParser::parse`] and [`RelativeTimeParser::parse_with_date`] this method
+/// won't interpret the parsed `year` and `month` time units but simply returns the values
+/// parsed from the `source` string.
+///
+/// The returned tuple (`years`, `months`, `Duration`) contains in the first component the
+/// amount parsed `years` as `i64`, in the second component the parsed `months` as `i64` and in
+/// the last component the rest of the parsed time units accumulated as [`Duration`].
+///
+/// This method is equivalent to [`RelativeTimeParser::parse_fuzzy`]. See also the documentation of
+/// [`RelativeTimeParser::parse_fuzzy`].
+///
+/// # Errors
+///
+/// Returns a [`ParseError`] if an error during the parsing process occurred.
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu_gnu::{parse_fuzzy, Duration};
+///
+/// assert_eq!(
+///     parse_fuzzy("2hours"),
+///     Ok((0, 0, Duration::positive(2 * 60 * 60, 0)))
+/// );
+/// assert_eq!(
+///     parse_fuzzy("2hours +123month -10years"),
+///     Ok((-10, 123, Duration::positive(2 * 60 * 60, 0)))
+/// );
+/// ```
+pub fn parse_fuzzy(source: &str) -> Result<(i64, i64, Duration), ParseError> {
+    PARSER.parse_fuzzy(source)
 }
 
 // This is a faster alternative to str::trim_matches. We're exploiting that we're using the posix

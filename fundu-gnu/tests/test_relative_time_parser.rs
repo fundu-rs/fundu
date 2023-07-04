@@ -4,10 +4,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu_gnu::{DateTime, Duration, ParseError, RelativeTimeParser};
+use fundu_gnu::{
+    parse, parse_fuzzy, parse_with_date, DateTime, Duration, ParseError, RelativeTimeParser,
+};
 use rstest::rstest;
-use time::macros::datetime;
-use time::{OffsetDateTime, PrimitiveDateTime};
+#[cfg(feature = "time")]
+use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 
 #[rstest]
 #[case::zero("0", Duration::ZERO)]
@@ -37,7 +39,7 @@ use time::{OffsetDateTime, PrimitiveDateTime};
 #[case::positive_years_overflow("583344214028year", Duration::positive(18408565361559340800, 0))]
 fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
-    assert_eq!(fundu_gnu::parse(input), Ok(expected));
+    assert_eq!(parse(input), Ok(expected));
 }
 
 #[rstest]
@@ -59,7 +61,7 @@ fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseE
         RelativeTimeParser::new().parse(input),
         Err(expected.clone())
     );
-    assert_eq!(fundu_gnu::parse(input), Err(expected));
+    assert_eq!(parse(input), Err(expected));
 }
 
 #[rstest]
@@ -84,6 +86,7 @@ fn test_parser_parse_with_valid_time_units(
     }
 }
 
+#[cfg(feature = "time")]
 #[rstest]
 #[case::month(&["month", "months"], OffsetDateTime::from_unix_timestamp(0).unwrap().into(), Duration::positive(2678400, 0))] // Jan. 1970 has 31 days
 #[case::year(&["year", "years"], OffsetDateTime::from_unix_timestamp(0).unwrap().into(), Duration::positive(31536000, 0))] // 1970 has 365 days
@@ -97,9 +100,11 @@ fn test_parser_parse_with_date_when_valid_fuzzy_time_units(
             RelativeTimeParser::new().parse_with_date(unit, Some(date)),
             Ok(expected)
         );
+        assert_eq!(parse_with_date(unit, Some(date)), Ok(expected));
     }
 }
 
+#[cfg(feature = "time")]
 #[rstest]
 #[case::max_date_plus_1ns(
     "+0.000000001sec",
@@ -149,8 +154,10 @@ fn test_parser_parse_with_date_when_fuzzy(
         RelativeTimeParser::new().parse_with_date(input, Some(date.into())),
         Ok(expected)
     );
+    assert_eq!(parse_with_date(input, Some(date.into())), Ok(expected));
 }
 
+#[cfg(feature = "time")]
 #[rstest]
 #[case::leap_year_plus_secs("year +9sec", datetime!(1972-01-01 00:00:00), Duration::positive(31622409, 0))] // 1972 is a leap year
 #[case::leap_year_plus_hours("year +9hour", datetime!(1972-01-01 00:00:00), Duration::positive(31654800, 0))] // 1972 is a leap year
@@ -165,6 +172,7 @@ fn test_parser_parse_with_date_when_fuzzy_unit_and_normal_units(
         RelativeTimeParser::new().parse_with_date(input, Some(date.into())),
         Ok(expected)
     );
+    assert_eq!(parse_with_date(input, Some(date.into())), Ok(expected));
 }
 
 #[rstest]
@@ -208,4 +216,5 @@ fn test_parser_when_overflow(#[case] input: &str, #[case] expected: Duration) {
 #[case::years_and_month_overflow_then_saturate(&format!("{0}year {0}month", "2".repeat(20)), (i64::MAX, i64::MAX, Duration::ZERO))]
 fn test_parser_parse_fuzzy(#[case] input: &str, #[case] expected: (i64, i64, Duration)) {
     assert_eq!(RelativeTimeParser::new().parse_fuzzy(input), Ok(expected));
+    assert_eq!(parse_fuzzy(input), Ok(expected));
 }

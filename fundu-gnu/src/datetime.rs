@@ -903,20 +903,7 @@ mod tests {
         assert_eq!(JulianDay(jd).to_gregorian(), None);
     }
 
-    #[rstest]
-    #[case::zero(JulianDay(0), 0, JulianDay(0))]
-    #[case::max_julian_add_zero(JulianDay(i64::MAX), 0, JulianDay(i64::MAX))]
-    #[case::min_julian_add_zero(JulianDay(i64::MIN), 0, JulianDay(i64::MIN))]
-    #[case::one_below_max_add_one(JulianDay(i64::MAX - 1), 1, JulianDay(i64::MAX))]
-    #[case::one_above_min_add_neg_one(JulianDay(i64::MIN + 1), -1, JulianDay(i64::MIN))]
-    fn test_julian_days_checked_add_days(
-        #[case] jd: JulianDay,
-        #[case] days: i64,
-        #[case] expected: JulianDay,
-    ) {
-        assert_eq!(jd.checked_add_days(days), Some(expected));
-    }
-
+    #[template]
     #[rstest]
     #[case::zero(0, 0, 0)]
     #[case::one(0, 1, 1)]
@@ -924,16 +911,24 @@ mod tests {
     #[case::one_zero(1, 0, 1)]
     #[case::one_one(1, 1, 2)]
     #[case::minus_one_one(-1, -1, -2)]
-    #[case::min(0, i64::MIN, i64::MIN)]
+    #[case::min(i64::MIN, 0, i64::MIN)]
     #[case::max(0, i64::MAX, i64::MAX)]
     #[case::min_plus_max(i64::MIN, i64::MAX, -1)]
-    fn test_julian_days_checked_add(#[case] jd: i64, #[case] add: i64, #[case] expected: i64) {
+    fn test_julian_days_arithmetic_template(
+        #[case] lhs: i64,
+        #[case] rhs: i64,
+        #[case] expected: i64,
+    ) {
+    }
+
+    #[apply(test_julian_days_arithmetic_template)]
+    fn test_julian_days_checked_add(lhs: i64, rhs: i64, expected: i64) {
         assert_eq!(
-            JulianDay(jd).checked_add(JulianDay(add)),
+            JulianDay(lhs).checked_add(JulianDay(rhs)),
             Some(JulianDay(expected))
         );
         assert_eq!(
-            JulianDay(add).checked_add(JulianDay(jd)),
+            JulianDay(rhs).checked_add(JulianDay(lhs)),
             Some(JulianDay(expected))
         );
     }
@@ -943,6 +938,49 @@ mod tests {
     #[case::minus_one(-1, i64::MIN)]
     fn test_julian_days_checked_add_then_none(#[case] jd: i64, #[case] add: i64) {
         assert_eq!(JulianDay(jd).checked_add(JulianDay(add)), None);
+    }
+
+    #[apply(test_julian_days_arithmetic_template)]
+    fn test_julian_days_checked_sub(lhs: i64, rhs: i64, expected: i64) {
+        assert_eq!(
+            JulianDay(lhs).checked_sub(JulianDay(-rhs)),
+            Some(JulianDay(expected))
+        );
+    }
+
+    #[test]
+    fn test_julian_days_checked_sub_then_none() {
+        assert_eq!(JulianDay(i64::MIN).checked_sub(JulianDay(1)), None);
+    }
+
+    #[apply(test_julian_days_arithmetic_template)]
+    fn test_julian_days_checked_add_days(lhs: i64, rhs: i64, expected: i64) {
+        assert_eq!(
+            JulianDay(lhs).checked_add_days(rhs),
+            Some(JulianDay(expected))
+        );
+        assert_eq!(
+            JulianDay(rhs).checked_add_days(lhs),
+            Some(JulianDay(expected))
+        );
+    }
+
+    #[test]
+    fn test_julian_checked_add_days_then_none() {
+        assert_eq!(JulianDay(i64::MAX).checked_add_days(1), None);
+    }
+
+    #[apply(test_julian_days_arithmetic_template)]
+    fn test_julian_days_checked_sub_days(lhs: i64, rhs: i64, expected: i64) {
+        assert_eq!(
+            JulianDay(lhs).checked_sub_days(-rhs),
+            Some(JulianDay(expected))
+        );
+    }
+
+    #[test]
+    fn test_julian_days_checked_sub_days_then_none() {
+        assert_eq!(JulianDay(i64::MIN).checked_sub_days(1), None);
     }
 
     #[rstest]
