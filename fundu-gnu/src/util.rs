@@ -17,13 +17,13 @@ pub const fn floor_div(lhs: i64, rhs: i64) -> i64 {
 
 // cov:excl-start
 #[inline]
-#[cfg(not(test))]
+#[cfg(all(not(test), not(miri)))]
 pub fn now() -> SystemTime {
     SystemTime::now()
 }
 // cov:excl-stop
 
-#[cfg(test)]
+#[cfg(any(miri, test))]
 pub fn now() -> SystemTime {
     SystemTime::UNIX_EPOCH
 }

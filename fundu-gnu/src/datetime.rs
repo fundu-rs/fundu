@@ -877,6 +877,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)] // test takes too long with miri
     fn test_julian_days_from_and_to_gregorian_brute_force_2000() {
         for y in -2000..2000 {
             for m in 1..=12 {
