@@ -365,7 +365,7 @@ impl JulianDay {
 ///     DateTime::from_gregorian_date_time(2000, 12, 31, 21, 59, 59, 0)
 /// );
 /// ```
-///
+/// 
 /// And if the `time` feature is activated:
 #[cfg_attr(feature = "time", doc = "```rust")]
 #[cfg_attr(not(feature = "time"), doc = "```rust,ignore")]
@@ -383,7 +383,7 @@ impl JulianDay {
 ///     DateTime::from_gregorian_date_time(2000, 12, 31, 21, 59, 59, 200_000_000)
 /// );
 /// ```
-///
+/// 
 /// [`time::PrimitiveDateTime`]: https://docs.rs/time/latest/time/struct.PrimitiveDateTime.html
 /// [`time::OffsetDateTime`]: https://docs.rs/time/latest/time/struct.OffsetDateTime.html
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
