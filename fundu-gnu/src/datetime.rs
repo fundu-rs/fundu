@@ -174,13 +174,13 @@ impl JulianDay {
     /// ```rust
     /// use fundu_gnu::JulianDay;
     ///
-    /// assert_eq!(JulianDay(-365).as_gregorian(), Some((-4714, 11, 24)));
-    /// assert_eq!(JulianDay(0).as_gregorian(), Some((-4713, 11, 24)));
-    /// assert_eq!(JulianDay(1721060).as_gregorian(), Some((0, 1, 1)));
-    /// assert_eq!(JulianDay(2440588).as_gregorian(), Some((1970, 1, 1)));
+    /// assert_eq!(JulianDay(-365).to_gregorian(), Some((-4714, 11, 24)));
+    /// assert_eq!(JulianDay(0).to_gregorian(), Some((-4713, 11, 24)));
+    /// assert_eq!(JulianDay(1721060).to_gregorian(), Some((0, 1, 1)));
+    /// assert_eq!(JulianDay(2440588).to_gregorian(), Some((1970, 1, 1)));
     /// ```
     #[allow(clippy::missing_panics_doc)]
-    pub fn as_gregorian(self) -> Option<(i64, u8, u8)> {
+    pub fn to_gregorian(self) -> Option<(i64, u8, u8)> {
         let zero = self.0.checked_sub(JD_BASE)?;
         let c = zero.checked_mul(100)? - 25;
         // Calculate the number of full centuries in the Gregorian Calendar
@@ -411,7 +411,7 @@ impl DateTime {
     /// // 1972 is a leap year
     /// let date_time = DateTime::from_gregorian_date_time(1972, 2, 29, 1, 30, 59, 700_000_000);
     /// assert_eq!(
-    ///     date_time.as_gregorian_date_time(),
+    ///     date_time.to_gregorian_date_time(),
     ///     Some((1972, 2, 29, 1, 30, 59, 700_000_000))
     /// );
     ///
@@ -451,14 +451,14 @@ impl DateTime {
     /// ```rust
     /// use fundu_gnu::DateTime;
     ///
-    /// assert_eq!(DateTime::UNIX_EPOCH.as_gregorian_date(), Some((1970, 1, 1)));
+    /// assert_eq!(DateTime::UNIX_EPOCH.to_gregorian_date(), Some((1970, 1, 1)));
     /// assert_eq!(
-    ///     DateTime::from_gregorian_date_time(1959, 1, 12, 10, 3, 59, 0).as_gregorian_date(),
+    ///     DateTime::from_gregorian_date_time(1959, 1, 12, 10, 3, 59, 0).to_gregorian_date(),
     ///     Some((1959, 1, 12))
     /// );
     /// ```
-    pub fn as_gregorian_date(&self) -> Option<(i64, u8, u8)> {
-        self.days.as_gregorian()
+    pub fn to_gregorian_date(&self) -> Option<(i64, u8, u8)> {
+        self.days.to_gregorian()
     }
 
     /// Return the proleptic gregorian date and time
@@ -469,17 +469,17 @@ impl DateTime {
     /// use fundu_gnu::DateTime;
     ///
     /// assert_eq!(
-    ///     DateTime::UNIX_EPOCH.as_gregorian_date_time(),
+    ///     DateTime::UNIX_EPOCH.to_gregorian_date_time(),
     ///     Some((1970, 1, 1, 0, 0, 0, 0))
     /// );
     /// assert_eq!(
     ///     DateTime::from_gregorian_date_time(1959, 1, 12, 10, 3, 59, 500_000_000)
-    ///         .as_gregorian_date_time(),
+    ///         .to_gregorian_date_time(),
     ///     Some((1959, 1, 12, 10, 3, 59, 500_000_000))
     /// );
     /// ```
-    pub fn as_gregorian_date_time(&self) -> Option<(i64, u8, u8, u8, u8, u8, u32)> {
-        let (year, month, day) = self.days.as_gregorian()?;
+    pub fn to_gregorian_date_time(&self) -> Option<(i64, u8, u8, u8, u8, u8, u32)> {
+        let (year, month, day) = self.days.to_gregorian()?;
         let (h, m, s, n) = self.as_hmsn();
         Some((year, month, day, h, m, s, n))
     }
@@ -671,7 +671,7 @@ impl DateTime {
     /// ```
     #[allow(clippy::missing_panics_doc)]
     pub fn checked_add_gregorian(self, years: i64, months: i64, days: i64) -> Option<Self> {
-        let (year, month, day) = self.days.as_gregorian()?;
+        let (year, month, day) = self.days.to_gregorian()?;
         let (month, years) = years.checked_add(months / 12).and_then(|y| {
             // now.month() is 1-based, we need it 0-based for now
             let month = i8::try_from(months % 12).unwrap() + i8::try_from(month).unwrap() - 1;
@@ -883,7 +883,7 @@ mod tests {
             for m in 1..=12 {
                 for d in 1..=28 {
                     let jd = JulianDay::from_gregorian(y, m, d);
-                    assert_eq!(jd.as_gregorian().unwrap(), (y, m, d));
+                    assert_eq!(jd.to_gregorian().unwrap(), (y, m, d));
                 }
             }
         }
@@ -891,16 +891,16 @@ mod tests {
 
     #[rstest]
     #[case::barely_below_max_possible(i64::MAX / 101, (250_027_078_488_026, 1, 22))]
-    fn test_julian_days_as_gregorian(#[case] jd: i64, #[case] expected: (i64, u8, u8)) {
-        assert_eq!(JulianDay(jd).as_gregorian(), Some(expected));
+    fn test_julian_days_to_gregorian(#[case] jd: i64, #[case] expected: (i64, u8, u8)) {
+        assert_eq!(JulianDay(jd).to_gregorian(), Some(expected));
     }
 
     #[rstest]
     #[case::min(i64::MIN)]
     #[case::max(i64::MAX)]
     #[case::barely_above_max_possible(i64::MAX / 100)]
-    fn test_julian_days_as_gregorian_then_none(#[case] jd: i64) {
-        assert_eq!(JulianDay(jd).as_gregorian(), None);
+    fn test_julian_days_to_gregorian_then_none(#[case] jd: i64) {
+        assert_eq!(JulianDay(jd).to_gregorian(), None);
     }
 
     #[rstest]
@@ -973,16 +973,16 @@ mod tests {
     }
 
     #[test]
-    fn test_date_time_as_gregorian() {
+    fn test_date_time_to_gregorian_date() {
         let date_time = DateTime::UNIX_EPOCH;
-        assert_eq!(date_time.as_gregorian_date(), Some((1970, 1, 1)));
+        assert_eq!(date_time.to_gregorian_date(), Some((1970, 1, 1)));
     }
 
     #[test]
-    fn test_date_time_as_gregorian_date_time() {
+    fn test_date_time_to_gregorian_date_time() {
         let date_time = DateTime::UNIX_EPOCH;
         assert_eq!(
-            date_time.as_gregorian_date_time(),
+            date_time.to_gregorian_date_time(),
             Some((1970, 1, 1, 0, 0, 0, 0))
         );
     }
@@ -1098,7 +1098,7 @@ mod tests {
             new,
             expected,
             "as gregorian: {:?} {:?}",
-            new.as_gregorian_date(),
+            new.to_gregorian_date(),
             new.as_hmsn()
         );
     }
@@ -1114,7 +1114,7 @@ mod tests {
             new,
             expected,
             "as gregorian: {:?} {:?}",
-            new.as_gregorian_date(),
+            new.to_gregorian_date(),
             new.as_hmsn()
         );
     }
