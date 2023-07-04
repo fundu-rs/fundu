@@ -5,7 +5,7 @@
 
 use std::time::SystemTime;
 
-pub const fn floor_div(lhs: i64, rhs: i64) -> i64 {
+pub(crate) const fn floor_div(lhs: i64, rhs: i64) -> i64 {
     let d = lhs / rhs;
     let r = lhs % rhs;
     if (r > 0 && rhs < 0) || (r < 0 && rhs > 0) {
@@ -18,46 +18,34 @@ pub const fn floor_div(lhs: i64, rhs: i64) -> i64 {
 // cov:excl-start
 #[inline]
 #[cfg(all(not(test), not(miri)))]
-pub fn now() -> SystemTime {
+pub(crate) fn now() -> SystemTime {
     SystemTime::now()
 }
 // cov:excl-stop
 
 #[cfg(any(miri, test))]
-pub fn now() -> SystemTime {
+pub(crate) fn now() -> SystemTime {
     SystemTime::UNIX_EPOCH
 }
 
-/// TODO: document
-#[macro_export]
-macro_rules! validate {
-    ($id:ident, $min:expr, $max:expr) => {{
-        #[allow(unused_comparisons)]
-        if $id < $min || $id > $max {
-            panic!(concat!(
-                "Invalid ",
-                stringify!($id),
-                ": Valid range is ",
-                stringify!($min),
-                " <= ",
-                stringify!($id),
-                " <= ",
-                stringify!($max)
-            ));
+// This is a faster alternative to str::trim_matches. We're exploiting that we're using the posix
+// definition of whitespace which only contains ascii characters as whitespace
+pub(crate) fn trim_whitespace(source: &str) -> &str {
+    let mut bytes = source.as_bytes();
+    while let Some((byte, remainder)) = bytes.split_first() {
+        if byte == &b' ' || byte.wrapping_sub(9) < 5 {
+            bytes = remainder;
+        } else {
+            break;
         }
-    }};
-
-    ($id:ident <= $max:expr) => {{
-        #[allow(unused_comparisons)]
-        if $id > $max {
-            panic!(concat!(
-                "Invalid ",
-                stringify!($id),
-                ": Valid maximum ",
-                stringify!($id),
-                " is ",
-                stringify!($max)
-            ));
+    }
+    while let Some((byte, remainder)) = bytes.split_last() {
+        if byte == &b' ' || byte.wrapping_sub(9) < 5 {
+            bytes = remainder;
+        } else {
+            break;
         }
-    }};
+    }
+    // SAFETY: We've trimmed only ascii characters and therefore valid utf-8
+    unsafe { std::str::from_utf8_unchecked(bytes) }
 }

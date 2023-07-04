@@ -212,6 +212,38 @@
 #![allow(clippy::enum_glob_use)]
 #![allow(clippy::module_name_repetitions)]
 
+macro_rules! validate {
+    ($id:ident, $min:expr, $max:expr) => {{
+        #[allow(unused_comparisons)]
+        if $id < $min || $id > $max {
+            panic!(concat!(
+                "Invalid ",
+                stringify!($id),
+                ": Valid range is ",
+                stringify!($min),
+                " <= ",
+                stringify!($id),
+                " <= ",
+                stringify!($max)
+            ));
+        }
+    }};
+
+    ($id:ident <= $max:expr) => {{
+        #[allow(unused_comparisons)]
+        if $id > $max {
+            panic!(concat!(
+                "Invalid ",
+                stringify!($id),
+                ": Valid maximum ",
+                stringify!($id),
+                " is ",
+                stringify!($max)
+            ));
+        }
+    }};
+}
+
 mod datetime;
 mod util;
 
@@ -229,6 +261,7 @@ pub use fundu_core::time::{Duration, SaturatingInto};
 use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
 #[cfg(test)]
 pub use rstest_reuse;
+use util::trim_whitespace;
 
 // whitespace definition of: b' ', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D'
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
@@ -832,28 +865,6 @@ pub fn parse_with_date(source: &str, date: Option<DateTime>) -> Result<Duration,
 /// ```
 pub fn parse_fuzzy(source: &str) -> Result<(i64, i64, Duration), ParseError> {
     PARSER.parse_fuzzy(source)
-}
-
-// This is a faster alternative to str::trim_matches. We're exploiting that we're using the posix
-// definition of whitespace which only contains ascii characters as whitespace
-fn trim_whitespace(source: &str) -> &str {
-    let mut bytes = source.as_bytes();
-    while let Some((byte, remainder)) = bytes.split_first() {
-        if byte == &b' ' || byte.wrapping_sub(9) < 5 {
-            bytes = remainder;
-        } else {
-            break;
-        }
-    }
-    while let Some((byte, remainder)) = bytes.split_last() {
-        if byte == &b' ' || byte.wrapping_sub(9) < 5 {
-            bytes = remainder;
-        } else {
-            break;
-        }
-    }
-    // SAFETY: We've trimmed only ascii characters and therefore valid utf-8
-    unsafe { std::str::from_utf8_unchecked(bytes) }
 }
 
 #[cfg(test)]
