@@ -44,7 +44,24 @@ const SECS_PER_HOUR_U64: u64 = SECS_PER_HOUR_I64 as u64;
 
 const JD_BASE: i64 = 1_721_119;
 
-/// TODO: DOCUMENTATION
+/// Store a proleptic gregorian date as [`JulianDay`]
+///
+/// The Julian Day Number or Julian Day is the number of days since noon UTC on November 24 of the
+/// year -4713 in the Gregorian Calendar. The year 0 equals 1BC. The JD number is a possibly
+/// negative integer representing the number of whole days since the reference instant to noon of
+/// that day. This `JulianDay` implementation does not have a fraction and stores the day as if no
+/// time was specified which is equivalent of a time being always __noon__.
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu_gnu::JulianDay;
+///
+/// assert_eq!(JulianDay(0).to_gregorian(), Some((-4713, 11, 24)));
+/// assert_eq!(JulianDay(-365).to_gregorian(), Some((-4714, 11, 24)));
+/// assert_eq!(JulianDay(1_721_060).to_gregorian(), Some((0, 1, 1)));
+/// assert_eq!(JulianDay(2_440_588).to_gregorian(), Some((1970, 1, 1)));
+/// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct JulianDay(pub i64);
 
