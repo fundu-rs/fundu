@@ -629,10 +629,7 @@ impl<'a> RelativeTimeParser<'a> {
                 date.checked_add_gregorian(years, months, 0)
                     .and_then(|date| date.duration_since(orig))
             })
-            .ok_or_else(|| {
-                // TODO: make this an overflow error
-                ParseError::InvalidInput("Overflow during calculation of duration".to_owned())
-            })
+            .ok_or(ParseError::Overflow)
     }
 
     /// Parse the `source` string extracting `year` and `month` time units from the [`Duration`]
