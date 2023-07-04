@@ -9,6 +9,8 @@ use std::time::{Duration as StdDuration, SystemTime};
 #[cfg(feature = "chrono")]
 use chrono::{Datelike, Timelike};
 use fundu_core::time::Duration;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 #[cfg(feature = "time")]
 use time::{OffsetDateTime, PrimitiveDateTime};
 
@@ -63,6 +65,7 @@ const JD_BASE: i64 = 1_721_119;
 /// assert_eq!(JulianDay(2_440_588).to_gregorian(), Some((1970, 1, 1)));
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct JulianDay(pub i64);
 
 impl JulianDay {
@@ -384,6 +387,7 @@ impl JulianDay {
 /// [`time::PrimitiveDateTime`]: https://docs.rs/time/latest/time/struct.PrimitiveDateTime.html
 /// [`time::OffsetDateTime`]: https://docs.rs/time/latest/time/struct.OffsetDateTime.html
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DateTime {
     days: JulianDay,
     time: u64,
@@ -814,11 +818,45 @@ mod tests {
     use chrono::{Duration as ChronoDuration, FixedOffset, TimeZone};
     use rstest::rstest;
     use rstest_reuse::{apply, template};
+    #[cfg(feature = "serde")]
+    use serde_test::{assert_tokens, Token};
     #[cfg(feature = "time")]
     use time::{macros::datetime, Date as TimeDate, Time as TimeTime, UtcOffset};
 
     use super::*;
 
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_julian_day() {
+        let julian_day = JulianDay(1);
+
+        assert_tokens(
+            &julian_day,
+            &[Token::NewtypeStruct { name: "JulianDay" }, Token::I64(1)],
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_date_time() {
+        let date_time = DateTime::from_gregorian_date_time(0, 1, 2, 3, 4, 5, 6);
+
+        assert_tokens(
+            &date_time,
+            &[
+                Token::Struct {
+                    name: "DateTime",
+                    len: 2,
+                },
+                Token::Str("days"),
+                Token::NewtypeStruct { name: "JulianDay" },
+                Token::I64(1_721_061),
+                Token::Str("time"),
+                Token::U64((3 * 3600 + 4 * 60 + 5) * NANOS_PER_SEC_U64 + 6),
+                Token::StructEnd,
+            ],
+        );
+    }
     #[rstest]
     #[case::jd_minus_one((-4713, 11, 23), -1)]
     #[case::jd_day_zero((-4713, 11, 24), 0)]
