@@ -9,15 +9,15 @@
 <div align="center">
     <a href="https://docs.rs/crate/fundu-gnu/">fundu-gnu Docs</a>
     |
-    <a href="https://github.com/Joining7943/fundu/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://github.com/fundu-rs/fundu/blob/main/CHANGELOG.md">Changelog</a>
 </div>
 <br>
 <div align="center">
-    <a href="https://github.com/Joining7943/fundu/actions">
-        <img src="https://github.com/Joining7943/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state"/>
+    <a href="https://github.com/fundu-rs/fundu/actions">
+        <img src="https://github.com/fundu-rs/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state"/>
     </a>
-    <a href="https://codecov.io/gh/Joining7943/fundu" >
-        <img src="https://codecov.io/gh/Joining7943/fundu/branch/main/graph/badge.svg?token=7GOQ1A6UPH"/>
+    <a href="https://codecov.io/gh/fundu-rs/fundu" >
+        <img src="https://codecov.io/gh/fundu-rs/fundu/branch/main/graph/badge.svg?token=7GOQ1A6UPH"/>
     </a>
     <a href="https://crates.io/crates/fundu-gnu">
         <img src="https://img.shields.io/crates/v/fundu-gnu.svg" alt="Crates.io"/>
@@ -156,7 +156,7 @@ for a description of their format.
 To run the benchmarks on your machine, clone the repository
 
 ```shell
-git clone https://github.com/Joining7943/fundu.git
+git clone https://github.com/fundu-rs/fundu.git
 cd fundu
 ```
 
@@ -195,7 +195,7 @@ additional computations but is still comparably fast.
 # Todo
 
 - Gnu allows numerals like `this second`, `next week` etc. (See issue
-[#23](https://github.com/Joining7943/fundu/issues/23))
+[#23](https://github.com/fundu-rs/fundu/issues/23))
 
 # License
 
