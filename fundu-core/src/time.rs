@@ -2096,8 +2096,16 @@ mod tests {
 
     #[rstest]
     #[case::one(Duration::positive(86400 * 7, 123), 1, Duration::positive(0, 123))]
-    #[case::one_plus_sec(Duration::positive(86400 * 7 + 1, 123), 1, Duration::positive(1, 123))]
-    #[case::one_minus_sec(Duration::positive(86400 * 7 - 1, 123), 0, Duration::positive(86400 * 7 - 1, 123))]
+    #[case::one_plus_sec(
+        Duration::positive(86400 * 7 + 1, 123),
+        1,
+        Duration::positive(1, 123)
+    )]
+    #[case::one_minus_sec(
+        Duration::positive(86400 * 7 - 1, 123),
+        0,
+        Duration::positive(86400 * 7 - 1, 123)
+    )]
     fn test_fundu_duration_extract_weeks(
         #[case] duration: Duration,
         #[case] expected_number: i64,
@@ -2111,8 +2119,16 @@ mod tests {
 
     #[rstest]
     #[case::one(Duration::positive(86400, 123), 1, Duration::positive(0, 123))]
-    #[case::one_plus_sec(Duration::positive(86400 + 1, 123), 1, Duration::positive(1, 123))]
-    #[case::one_minus_sec(Duration::positive(86400 - 1, 123), 0, Duration::positive(86400 - 1, 123))]
+    #[case::one_plus_sec(
+        Duration::positive(86400 + 1, 123),
+        1,
+        Duration::positive(1, 123)
+    )]
+    #[case::one_minus_sec(
+        Duration::positive(86400 - 1, 123),
+        0,
+        Duration::positive(86400 - 1, 123)
+    )]
     fn test_fundu_duration_extract_days(
         #[case] duration: Duration,
         #[case] expected_number: i64,
@@ -2159,7 +2175,11 @@ mod tests {
     #[case::one(Duration::positive(1, 123), 1, Duration::positive(0, 123))]
     #[case::two(Duration::positive(2, 123), 2, Duration::positive(0, 123))]
     #[case::zero_sec(Duration::positive(0, 123), 0, Duration::positive(0, 123))]
-    #[case::max(Duration::MAX, i128::from(u64::MAX), Duration::positive(0, 999_999_999))]
+    #[case::max(
+        Duration::MAX,
+        i128::from(u64::MAX),
+        Duration::positive(0, 999_999_999)
+    )]
     #[case::min(Duration::MIN, i128::from(u64::MAX).neg(), Duration::negative(0, 999_999_999))]
     fn test_fundu_duration_extract_seconds(
         #[case] duration: Duration,
