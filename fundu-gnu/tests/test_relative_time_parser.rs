@@ -62,6 +62,14 @@ fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration
     &format!("{}year", "2".repeat(30)),
     ParseError::Overflow
 )]
+#[case::sign_without_number(
+    "10sec + 10sec",
+    ParseError::InvalidInput("Sign without a number".to_owned())
+)]
+#[case::just_sign(
+    "+",
+    ParseError::Syntax(1, "Unexpected end of input".to_owned())
+)]
 fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(
         RelativeTimeParser::new().parse(input),

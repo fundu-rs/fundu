@@ -311,10 +311,16 @@ struct DurationReprParser<'a>(DurationRepr<'a>);
 
 impl<'a> DurationReprParser<'a> {
     fn parse(&mut self) -> Result<Duration, ParseError> {
+        let is_negative = self.0.is_negative.unwrap_or_default();
+        let time_unit = self.0.unit.unwrap_or(self.0.default_unit);
+
         let (whole, fract) = match (self.0.whole.take(), self.0.fract.take()) {
+            (None, None) if self.0.is_negative.is_some() && self.0.unit.is_none() => {
+                return Err(ParseError::InvalidInput("Sign without a number".to_owned()));
+            }
             (None, None) if self.0.number_is_optional => {
-                let Multiplier(coefficient, _) = self.0.unit.multiplier() * self.0.multiplier;
-                let duration_is_negative = self.0.is_negative ^ coefficient.is_negative();
+                let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
+                let duration_is_negative = is_negative ^ coefficient.is_negative();
                 return Ok(Self::calculate_duration(
                     duration_is_negative,
                     1,
@@ -323,14 +329,14 @@ impl<'a> DurationReprParser<'a> {
                 ));
             }
             (None, None) => unreachable!(), // cov:excl-line
-            (None, Some(fract)) if self.0.unit == TimeUnit::Second => {
+            (None, Some(fract)) if time_unit == TimeUnit::Second => {
                 (Whole(fract.0, fract.0), fract)
             }
             (Some(whole), None) => {
                 let fract_start_and_end = whole.1;
                 (whole, Fract(fract_start_and_end, fract_start_and_end))
             }
-            (Some(whole), Some(fract)) if self.0.unit == TimeUnit::Second => (whole, fract),
+            (Some(whole), Some(fract)) if time_unit == TimeUnit::Second => (whole, fract),
             (Some(_) | None, Some(_)) => {
                 return Err(ParseError::InvalidInput(
                     "Fraction only allowed together with seconds as time unit".to_owned(),
@@ -339,8 +345,8 @@ impl<'a> DurationReprParser<'a> {
         };
 
         // Panic on overflow during the multiplication of the multipliers or adding the exponents
-        let Multiplier(coefficient, _) = self.0.unit.multiplier() * self.0.multiplier;
-        let duration_is_negative = self.0.is_negative ^ coefficient.is_negative();
+        let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
+        let duration_is_negative = is_negative ^ coefficient.is_negative();
 
         let digits = self.0.input;
         let result = Whole::parse(&digits[whole.0..whole.1], None, None)
@@ -369,8 +375,8 @@ impl<'a> DurationReprParser<'a> {
 
     fn parse_fuzzy(&mut self) -> Result<ParseFuzzyOutput, ParseError> {
         let fuzzy_unit = match self.0.unit {
-            Month => FuzzyUnit::Month,
-            Year => FuzzyUnit::Year,
+            Some(Month) => FuzzyUnit::Month,
+            Some(Year) => FuzzyUnit::Year,
             _ => return self.parse().map(ParseFuzzyOutput::Duration),
         };
 
@@ -380,12 +386,13 @@ impl<'a> DurationReprParser<'a> {
             ));
         }
 
+        let is_negative = self.0.is_negative.unwrap_or_default();
         let whole = match self.0.whole.take() {
             Some(whole) => whole,
             None if self.0.number_is_optional => {
                 return Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
                     unit: fuzzy_unit,
-                    value: if self.0.is_negative { -1 } else { 1 },
+                    value: if is_negative { -1 } else { 1 },
                 }));
             }
             None => unreachable!(), // cov:excl-line
@@ -394,8 +401,12 @@ impl<'a> DurationReprParser<'a> {
         let result = Whole::parse(&self.0.input[whole.0..whole.1], None, None);
         // interpret the result and a years or month overflow as maximum (minimum) `Duration`
         let value = match result {
-            Ok(value) => value,
-            Err(ParseError::Overflow) if self.0.is_negative => {
+            Ok(value) if is_negative => match i64::try_from(value) {
+                Ok(value) => -value,
+                Err(_) => i64::MIN,
+            },
+            Ok(value) => i64::try_from(value).unwrap_or(i64::MAX),
+            Err(ParseError::Overflow) if is_negative => {
                 return Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
                     unit: fuzzy_unit,
                     value: i64::MIN,
@@ -411,10 +422,9 @@ impl<'a> DurationReprParser<'a> {
             Err(_) => unreachable!(), // cov:excl-line
         };
 
-        let value = i64::try_from(value).unwrap_or(i64::MAX);
         Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
             unit: fuzzy_unit,
-            value: if self.0.is_negative { -value } else { value },
+            value,
         }))
     }
 
