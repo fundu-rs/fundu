@@ -516,8 +516,13 @@ fn test_parser_when_setting_parse_multiple_then_error(
     assert_eq!(parser.parse(input), Err(expected))
 }
 
-#[test]
-fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter() {
+#[rstest]
+#[case::numbers_without_time_units("1 ns 1 s", Ok(Duration::positive(1, 1)))]
+#[case::sign_without_number("1s + 1s", Err(ParseError::InvalidInput("Sign without a number".to_owned())))]
+fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
     let delimiter = |byte: u8| byte == b' ';
     let parser = DurationParser::builder()
         .all_time_units()
@@ -525,7 +530,7 @@ fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter() {
         .number_is_optional()
         .allow_delimiter(delimiter)
         .build();
-    assert_eq!(parser.parse("1 ns 1 s"), Ok(Duration::positive(1, 1)))
+    assert_eq!(parser.parse(input), expected)
 }
 
 #[test]

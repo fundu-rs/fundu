@@ -421,9 +421,10 @@ impl Fract {
 
 #[derive(Debug, Default)]
 pub struct DurationRepr<'a> {
-    pub unit: TimeUnit,
+    pub default_unit: TimeUnit,
+    pub unit: Option<TimeUnit>,
     pub number_is_optional: bool,
-    pub is_negative: bool,
+    pub is_negative: Option<bool>,
     pub is_infinite: bool,
     pub whole: Option<Whole>,
     pub fract: Option<Fract>,
@@ -436,11 +437,17 @@ impl<'a> DurationRepr<'a> {
     #[allow(clippy::too_many_lines)]
     #[allow(clippy::unnecessary_wraps)] // TODO: Fix this
     pub fn parse(&mut self) -> Result<Duration, ParseError> {
+        let is_negative = self.is_negative.unwrap_or_default();
+
         if self.is_infinite {
-            return Ok(Duration::from_std(self.is_negative, StdDuration::MAX));
+            return Ok(Duration::from_std(is_negative, StdDuration::MAX));
         }
 
         let (digits, whole, fract) = match (self.whole.take(), self.fract.take()) {
+            (None, None) if self.is_negative.is_some() && self.unit.is_none() => {
+                return Err(ParseError::InvalidInput("Sign without a number".to_owned()));
+            }
+            // TODO: Use a fast path
             (None, None) if self.number_is_optional => {
                 let digits = Some(vec![0x31]);
                 (digits, Whole(0, 1), Fract(1, 1))
@@ -456,8 +463,9 @@ impl<'a> DurationRepr<'a> {
 
         let digits = digits.as_ref().map_or(self.input, |d| d.as_slice());
 
+        let time_unit = self.unit.unwrap_or(self.default_unit);
         // Panic on overflow during the multiplication of the multipliers or adding the exponents
-        let Multiplier(coefficient, exponent) = self.unit.multiplier() * self.multiplier;
+        let Multiplier(coefficient, exponent) = time_unit.multiplier() * self.multiplier;
         let exponent = i32::from(exponent) + i32::from(self.exponent);
 
         // The maximum absolute value of the exponent is `2 * abs(i16::MIN)`, so it is safe to cast
@@ -515,7 +523,7 @@ impl<'a> DurationRepr<'a> {
             }
         };
 
-        let duration_is_negative = self.is_negative ^ coefficient.is_negative();
+        let duration_is_negative = is_negative ^ coefficient.is_negative();
 
         // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
         // maximum `Duration`.
@@ -824,7 +832,7 @@ pub trait ReprParserTemplate<'a> {
         }
 
         let mut duration_repr = DurationRepr {
-            unit: config.default_unit,
+            default_unit: config.default_unit,
             input: self.bytes().input,
             number_is_optional: config.number_is_optional,
             ..Default::default()
@@ -848,7 +856,7 @@ pub trait ReprParserTemplate<'a> {
             Some(_) if keywords.is_some() => {
                 if let Some((unit, multi)) = self.parse_keyword(keywords)? {
                     duration_repr.number_is_optional = true;
-                    duration_repr.unit = unit;
+                    duration_repr.unit = Some(unit);
                     duration_repr.multiplier = multi;
                     return Ok(self.make_output(duration_repr));
                 } else if config.number_is_optional {
@@ -905,18 +913,18 @@ pub trait ReprParserTemplate<'a> {
     }
 
     /// Parse and consume the sign if present. Return true if sign is negative.
-    fn parse_sign_is_negative(&mut self) -> Result<bool, ParseError> {
+    fn parse_sign_is_negative(&mut self) -> Result<Option<bool>, ParseError> {
         let bytes = self.bytes();
         match bytes.current_byte {
             Some(byte) if *byte == b'+' => {
                 bytes.advance();
-                Ok(false)
+                Ok(Some(false))
             }
             Some(byte) if *byte == b'-' => {
                 bytes.advance();
-                Ok(true)
+                Ok(Some(true))
             }
-            Some(_) => Ok(false),
+            Some(_) => Ok(None),
             None => Err(ParseError::Syntax(
                 bytes.current_pos,
                 "Unexpected end of input".to_owned(),
@@ -925,9 +933,7 @@ pub trait ReprParserTemplate<'a> {
     }
 
     fn parse_number_sign(&mut self, duration_repr: &mut DurationRepr) -> Result<(), ParseError> {
-        if self.parse_sign_is_negative()? {
-            duration_repr.is_negative = true;
-        }
+        duration_repr.is_negative = self.parse_sign_is_negative()?;
         Ok(())
     }
 
@@ -973,7 +979,7 @@ pub trait ReprParserTemplate<'a> {
     }
 
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
-        let is_negative = self.parse_sign_is_negative()?;
+        let is_negative = self.parse_sign_is_negative()?.unwrap_or_default();
         let bytes = self.bytes();
 
         let mut exponent = 0i16;
@@ -1227,7 +1233,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         match self.bytes().current_byte.copied() {
             Some(_) if !time_units.is_empty() => {
                 if let Some((unit, multi)) = self.parse_time_unit(config, time_units)? {
-                    duration_repr.unit = unit;
+                    duration_repr.unit = Some(unit);
                     duration_repr.multiplier = multi;
                 }
                 Ok(true)
@@ -1503,7 +1509,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         match self.bytes().current_byte {
             Some(_) if !time_units.is_empty() => {
                 if let Some((unit, multi)) = self.parse_time_unit(config, time_units)? {
-                    duration_repr.unit = unit;
+                    duration_repr.unit = Some(unit);
                     duration_repr.multiplier = multi;
                 }
             }
