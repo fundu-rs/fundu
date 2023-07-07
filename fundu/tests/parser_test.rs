@@ -775,6 +775,21 @@ fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expec
 }
 
 #[rstest]
+#[case::positive_zero("0s")]
+#[case::negative_zero("-0s")]
+#[case::one("1s")]
+#[case::some("1234567.89s")]
+#[case::max(&format!("{}s", u64::MAX))]
+#[case::min(&format!("-{}s", u64::MAX))]
+fn test_custom_parser_when_multipier_is_zero(#[case] input: &str) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(0, 0))))
+        .allow_negative()
+        .build();
+    assert_eq!(parser.parse(input), Ok(Duration::ZERO));
+}
+
+#[rstest]
 #[case::yesterday("yesterday", Duration::negative(60 * 60 * 24, 0))]
 #[case::negative_yesterday("-yesterday", Duration::positive(60 * 60 * 24, 0))]
 #[case::positive_yesterday("+yesterday", Duration::negative(60 * 60 * 24, 0))]
@@ -873,6 +888,31 @@ fn test_custom_parser_with_keywords_when_parse_multiple_and_number_is_optional(
         .number_is_optional()
         .build();
     assert_eq!(parser.parse(input), Ok(expected));
+}
+
+#[rstest]
+#[case::zero(Multiplier(0, 0), Duration::ZERO)]
+#[case::max_exponent(Multiplier(1, i16::MAX), Duration::MAX)]
+#[case::min_exponent(Multiplier(1, i16::MIN), Duration::ZERO)]
+#[case::high_exponent(Multiplier(1, 19), Duration::positive(10_000_000_000_000_000_000, 0))]
+#[case::low_exponent(Multiplier(1, -19), Duration::ZERO)]
+#[case::barely_lower_than_nano(Multiplier(1, -10), Duration::ZERO)]
+#[case::high_exponent_then_saturate_max(Multiplier(1, 20), Duration::MAX)]
+#[case::high_exponent_then_saturate_min(Multiplier(-1, 20), Duration::MIN)]
+#[case::low_exponent_then_zero(Multiplier(1, -18), Duration::ZERO)]
+#[case::some_positive_multiplier(Multiplier(1234567, 8), Duration::positive(123_456_700_000_000, 0))]
+#[case::some_negative_multiplier(Multiplier(-1234567, 8), Duration::negative(123_456_700_000_000, 0))]
+fn test_custom_parser_multiplier_when_number_is_optional_and_time_unit_without_number(
+    #[case] multiplier: Multiplier,
+    #[case] expected: Duration,
+) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_unit(CustomTimeUnit::new(Second, &["my"], Some(multiplier)))
+        .number_is_optional()
+        .allow_negative()
+        .build();
+
+    assert_eq!(parser.parse("my"), Ok(expected));
 }
 
 #[test]
