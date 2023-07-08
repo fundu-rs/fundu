@@ -31,6 +31,8 @@ use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 #[case::multiple_with_all_whitespace("1 sec\x09\x0A\x0B\x0C\x0D 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_ago("1 sec ago 1 sec", Duration::ZERO)]
 #[case::multiple_when_other_is_zero("1 sec 0 sec", Duration::positive(1, 0))]
+#[case::multiple_when_plus_sign_as_delimiter("1 sec+1 sec", Duration::positive(2, 0))]
+#[case::multiple_when_minus_sign_as_delimiter("3 sec-1 sec", Duration::positive(2, 0))]
 #[case::fraction_when_no_time_unit("1.1", Duration::positive(1, 100_000_000))]
 #[case::fraction_when_second_time_unit("1.1sec", Duration::positive(1, 100_000_000))]
 #[case::fraction_without_whole_part(".1sec", Duration::positive(0, 100_000_000))]
@@ -223,8 +225,12 @@ fn test_parser_when_overflow(#[case] input: &str, #[case] expected: Duration) {
 }
 
 #[rstest]
+#[case::when_positive_then_saturate(&format!("{}days", "2".repeat(20)), (0, 0, Duration::MAX))]
+#[case::when_negative_then_saturate(&format!("-{}days", "2".repeat(20)), (0, 0, Duration::MIN))]
 #[case::positive_years_overflow_then_saturate(&format!("{}year", "2".repeat(20)), (i64::MAX, 0, Duration::ZERO))]
-#[case::negative_years_overflow_then_saturate(&format!("-{}year", "2".repeat(20)), (i64::MIN, 0, Duration::ZERO))]
+#[case::positive_years_overflow_then_saturate(&format!("-{}year", "2".repeat(20)), (i64::MIN, 0, Duration::ZERO))]
+#[case::negative_years_u64max_then_saturate(&format!("-{}year", u64::MAX), (i64::MIN, 0, Duration::ZERO))]
+#[case::positive_years_u64max_then_saturate(&format!("{}year", u64::MAX), (i64::MAX, 0, Duration::ZERO))]
 #[case::positive_months_overflow_then_saturate(&format!("{}month", "2".repeat(20)), (0, i64::MAX, Duration::ZERO))]
 #[case::negative_months_overflow_then_saturate(&format!("-{}month", "2".repeat(20)), (0, i64::MIN, Duration::ZERO))]
 #[case::years_and_month_overflow_then_saturate(&format!("{0}year {0}month", "2".repeat(20)), (i64::MAX, i64::MAX, Duration::ZERO))]
