@@ -1,3 +1,5 @@
+<!-- spell-checker: ignore millis -->
+
 <!--
  Copyright (c) 2023 Joining7943 <joining@posteo.de>
  
@@ -23,6 +25,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## Added
+
+* fundu's `Duration` has now additional methods:
+as_weeks, as_days, as_hours, as_minutes, as_seconds, as_millis, as_micros, as_nanos, subsec_millis, subsec_micros, subsec_nanos, extract_weeks, extract_days, extract_hours, extract_minutes, extract_seconds
+
+## Changed
+
+* When `parse_multiple` is set, a sign character can now also indicate a new duration (#24)
+* Increase performance of parsing time keywords and time units without a number when
+`number_is_optional` is set
+* Development dependencies are updated:
+    * pprof v0.11.1 -> v0.12.0
+    * criterion v0.4.0 -> v0.5.1
+    * rstest v0.17.0 -> v0.18.1
+    * rstest_reuse v0.5.0 -> v0.6.0
+
+## Fixed
+
+* When `parse_multiple` together with `number_is_optional` was set, then a single sign character was
+interpreted as a duration of 1 second (#32)
 
 ## [1.1.0] - 2023-06-26
 
