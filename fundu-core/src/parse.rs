@@ -253,7 +253,7 @@ pub trait Parse8Digits {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, PartialEq, Eq, Default, Copy, Clone)]
 pub struct Whole(pub usize, pub usize);
 
 impl Parse8Digits for Whole {}
@@ -338,7 +338,7 @@ impl Whole {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, PartialEq, Eq, Default, Copy, Clone)]
 pub struct Fract(pub usize, pub usize);
 
 impl Parse8Digits for Fract {}
@@ -443,7 +443,7 @@ impl<'a> DurationRepr<'a> {
             ));
         }
 
-        let (whole, fract) = match (self.whole.take(), self.fract.take()) {
+        let (whole, fract) = match (self.whole, self.fract) {
             (None, None) if self.is_negative.is_some() && self.unit.is_none() => {
                 return Err(ParseError::InvalidInput("Sign without a number".to_owned()));
             }
