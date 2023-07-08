@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 
 * A sign character can now also indicate a new duration (#24)
+* A leading sign character can now be delimited by whitespace from the number or time keyword (#28)
 
 ## Fixed
 

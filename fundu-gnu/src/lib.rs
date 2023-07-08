@@ -274,6 +274,7 @@ const CONFIG: Config = ConfigBuilder::new()
     .allow_negative()
     .number_is_optional()
     .parse_multiple(DELIMITER, None)
+    .allow_sign_delimiter(DELIMITER)
     .build();
 
 const TIME_UNITS: TimeUnits = TimeUnits {};
@@ -315,9 +316,6 @@ impl<'a> DurationReprParser<'a> {
         let time_unit = self.0.unit.unwrap_or(self.0.default_unit);
 
         let (whole, fract) = match (self.0.whole.take(), self.0.fract.take()) {
-            (None, None) if self.0.is_negative.is_some() && self.0.unit.is_none() => {
-                return Err(ParseError::InvalidInput("Sign without a number".to_owned()));
-            }
             (None, None) if self.0.number_is_optional => {
                 let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
                 let duration_is_negative = is_negative ^ coefficient.is_negative();
