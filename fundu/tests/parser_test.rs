@@ -541,6 +541,41 @@ fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter(
     assert_eq!(parser.parse(input), expected)
 }
 
+#[rstest]
+#[case::just_sign(
+    "+",
+    Err(ParseError::Syntax(1, "Unexpected end of input. Sign without a number".to_owned()))
+)]
+#[case::just_sign_end_with_delimiter(
+    "+   ",
+    Err(ParseError::Syntax(1, "Input may not end with a delimiter".to_owned()))
+)]
+#[case::sign_without_delimiter("+1", Ok(Duration::positive(1, 0)))]
+#[case::sign_with_delimiter("+    1", Ok(Duration::positive(1, 0)))]
+#[case::multiple_sign_with_delimiter("+2 - 1", Ok(Duration::positive(1, 0)))]
+#[case::multiple_sign_end_with_sign(
+    "+2 - 1 +",
+    Err(ParseError::Syntax(8, "Unexpected end of input. Sign without a number".to_owned()))
+)]
+#[case::multiple_sign_end_with_delimiter(
+    "+2 - 1 + ",
+    Err(ParseError::Syntax(8, "Input may not end with a delimiter".to_owned()))
+)]
+fn test_parser_when_parse_multiple_with_sign_delimiter(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
+    let delimiter = |byte: u8| byte == b' ';
+    let parser = DurationParser::builder()
+        .all_time_units()
+        .parse_multiple(delimiter, Some(&["and"]))
+        .allow_delimiter(delimiter)
+        .allow_sign_delimiter(delimiter)
+        .allow_negative()
+        .build();
+    assert_eq!(parser.parse(input), expected)
+}
+
 #[test]
 fn test_parser_when_parse_multiple_number_is_optional_not_allow_delimiter() {
     let delimiter = |byte: u8| byte == b' ';

@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * fundu's `Duration` has now additional methods:
 as_weeks, as_days, as_hours, as_minutes, as_seconds, as_millis, as_micros, as_nanos, subsec_millis, subsec_micros, subsec_nanos, extract_weeks, extract_days, extract_hours, extract_minutes, extract_seconds
+* Optionally allow a delimiter between the sign and a number, time keyword etc (#28)
 
 ## Changed
 
