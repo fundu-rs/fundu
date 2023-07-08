@@ -928,12 +928,15 @@ pub trait ReprParserTemplate<'a> {
                     }),
                 ));
             }
+            // This is currently unreachable code since empty input and a standalone sign are
+            // already handled as errors before. However, keep this code as safety net.
+            // cov:excl-start
             None => {
                 return Err(ParseError::Syntax(
                     self.bytes().current_pos,
                     "Unexpected end of input".to_owned(),
                 ));
-            }
+            } // cov:excl-stop
         }
 
         if !self.parse_number_fraction(&mut duration_repr, config.disable_fraction)? {
