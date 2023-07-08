@@ -1,14 +1,15 @@
-// spell-checker: ignore secondss
+// spell-checker: ignore secondss datetime
 // Copyright (c) 2023 Joining7943 <joining@posteo.de>
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu_gnu::{Duration, ParseError, RelativeTimeParser};
+use fundu_gnu::{
+    parse, parse_fuzzy, parse_with_date, DateTime, Duration, ParseError, RelativeTimeParser,
+};
 use rstest::rstest;
-
-const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4; // 365 days + day/4
-const MONTH: u64 = YEAR / 12;
+#[cfg(feature = "time")]
+use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 
 #[rstest]
 #[case::zero("0", Duration::ZERO)]
@@ -29,26 +30,54 @@ const MONTH: u64 = YEAR / 12;
 #[case::multiple("1 sec 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_all_whitespace("1 sec\x09\x0A\x0B\x0C\x0D 1 sec", Duration::positive(2, 0))]
 #[case::multiple_with_ago("1 sec ago 1 sec", Duration::ZERO)]
+#[case::multiple_when_other_is_zero("1 sec 0 sec", Duration::positive(1, 0))]
+#[case::multiple_when_plus_sign_as_delimiter("1 sec+1 sec", Duration::positive(2, 0))]
+#[case::multiple_when_minus_sign_as_delimiter("3 sec-1 sec", Duration::positive(2, 0))]
+#[case::fraction_when_no_time_unit("1.1", Duration::positive(1, 100_000_000))]
+#[case::fraction_when_second_time_unit("1.1sec", Duration::positive(1, 100_000_000))]
+#[case::fraction_without_whole_part(".1sec", Duration::positive(0, 100_000_000))]
+#[case::fraction_with_whole_zero("0.1sec", Duration::positive(0, 100_000_000))]
+#[case::fraction_gets_capped("0.0123456789sec", Duration::positive(0, 12_345_678))]
+#[case::positive_years_overflow("583344214028year", Duration::positive(18408565361559340800, 0))]
 fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
-    assert_eq!(fundu_gnu::parse(input), Ok(expected));
+    assert_eq!(parse(input), Ok(expected));
 }
 
 #[rstest]
 #[case::empty("", ParseError::Empty)]
 #[case::only_whitespace("    ", ParseError::Empty)]
-#[case::fraction("1.1", ParseError::Syntax(1, "No fraction allowed".to_string()))]
 #[case::exponent("1e2", ParseError::Syntax(1, "No exponent allowed".to_string()))]
 #[case::infinity_short("inf", ParseError::TimeUnit(0, "Invalid time unit: 'inf'".to_string()))]
 #[case::infinity_long("infinity", ParseError::TimeUnit(0, "Invalid time unit: 'infinity'".to_string()))]
 #[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::keyword_with_ago("today ago", ParseError::TimeUnit(6, "Invalid time unit: 'ago'".to_string()))]
+#[case::fraction_when_not_second_time_unit_year(
+    "1.1year",
+    ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
+)]
+#[case::fraction_when_not_second_time_unit_minute(
+    "1.1minute",
+     ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
+)]
+#[case::positive_years_overflow(
+    &format!("{}year", "2".repeat(30)),
+    ParseError::Overflow
+)]
+#[case::sign_without_number(
+    "10sec + 10sec",
+    ParseError::InvalidInput("Sign without a number".to_owned())
+)]
+#[case::just_sign(
+    "+",
+    ParseError::Syntax(1, "Unexpected end of input".to_owned())
+)]
 fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(
         RelativeTimeParser::new().parse(input),
         Err(expected.clone())
     );
-    assert_eq!(fundu_gnu::parse(input), Err(expected));
+    assert_eq!(parse(input), Err(expected));
 }
 
 #[rstest]
@@ -64,8 +93,6 @@ fn test_parser_parse_with_invalid_time_units(#[case] input: &str, #[case] expect
 #[case::hour(&["hour", "hours"], Duration::positive(60 * 60, 0))]
 #[case::day(&["day", "days"], Duration::positive(60 * 60 * 24, 0))]
 #[case::week(&["week", "weeks"], Duration::positive(60 * 60 * 24 * 7, 0))]
-#[case::month(&["month", "months"], Duration::positive(MONTH, 0))]
-#[case::year(&["year", "years"], Duration::positive(YEAR, 0))]
 fn test_parser_parse_with_valid_time_units(
     #[case] time_units: &[&str],
     #[case] expected: Duration,
@@ -73,6 +100,95 @@ fn test_parser_parse_with_valid_time_units(
     for unit in time_units {
         assert_eq!(RelativeTimeParser::new().parse(unit), Ok(expected));
     }
+}
+
+#[cfg(feature = "time")]
+#[rstest]
+#[case::month(&["month", "months"], OffsetDateTime::from_unix_timestamp(0).unwrap().into(), Duration::positive(2678400, 0))] // Jan. 1970 has 31 days
+#[case::year(&["year", "years"], OffsetDateTime::from_unix_timestamp(0).unwrap().into(), Duration::positive(31536000, 0))] // 1970 has 365 days
+fn test_parser_parse_with_date_when_valid_fuzzy_time_units(
+    #[case] time_units: &[&str],
+    #[case] date: DateTime,
+    #[case] expected: Duration,
+) {
+    for unit in time_units {
+        assert_eq!(
+            RelativeTimeParser::new().parse_with_date(unit, Some(date)),
+            Ok(expected)
+        );
+        assert_eq!(parse_with_date(unit, Some(date)), Ok(expected));
+    }
+}
+
+#[cfg(feature = "time")]
+#[rstest]
+#[case::max_date_plus_1ns(
+    "+0.000000001sec",
+    datetime!(+999999-12-31 23:59:59.999999999),
+    Duration::positive(0, 1)
+)]
+#[case::minus_normal_year("-year", datetime!(1970-12-31 23:59:59.999999999), Duration::negative(31536000, 0))]
+#[case::leap_year("year", datetime!(1972-01-01 00:00:00), Duration::positive(31622400, 0))] // 1972 is a leap year
+#[case::leap_month("month", datetime!(1972-01-29 00:00:00), Duration::positive(2678400, 0))]
+#[case::april_last_plus_month("month", datetime!(1970-04-30 00:00:00), Duration::positive(2592000, 0))]
+#[case::min_date_plus_month("month", datetime!(-999999-01-01 00:00:00), Duration::positive(2678400, 0))]
+#[case::minus_leap_year("-year", datetime!(1972-12-31 23:59:59.999999999), Duration::negative(31622400, 0))]
+#[case::max_date_minus_year("-year", datetime!(+999999-12-31 23:59:59.999999999), Duration::negative(31536000, 0))]
+#[case::last_january_minus_month("-month", datetime!(1970-01-31 00:00:00), Duration::negative(2678400, 0))]
+#[case::first_january_minus_month("-month", datetime!(1970-01-01 00:00:00), Duration::negative(2678400, 0))]
+#[case::first_january_minus_year("-year", datetime!(1970-01-01 00:00:00), Duration::negative(31536000, 0))]
+#[case::first_january_minus_12month("-12month", datetime!(1970-01-01 00:00:00), Duration::negative(31536000, 0))]
+#[case::first_january_minus_2year("-2year", datetime!(1970-01-01 00:00:00), Duration::negative(63158400, 0))]
+#[case::first_january_minus_24month("-24month", datetime!(1970-01-01 00:00:00), Duration::negative(63158400, 0))]
+#[case::duration_makes_date_valid("4days +month", datetime!(1970-01-28 00:00:00), Duration::positive(2764800, 0))]
+#[case::duration_does_not_make_date_invalid(
+    "1month 1day",
+    datetime!(1970-01-28 00:00:00),
+    Duration::positive(2764800, 0)
+)]
+#[case::no_leap_year_january_plus_month(
+    "month",
+    datetime!(1970-01-29 00:00:00),
+    Duration::positive(2678400, 0)
+)]
+#[case::last_january_plus_month(
+    "month",
+    datetime!(1970-01-31 00:00:00),
+    Duration::positive(2678400, 0)
+)]
+#[case::max_date_plus_leap_year(
+    "+1year",
+    datetime!(+999999-12-31 23:59:59.999999999),
+    Duration::positive(31622400, 0)
+)]
+fn test_parser_parse_with_date_when_fuzzy(
+    #[case] input: &str,
+    #[case] date: PrimitiveDateTime,
+    #[case] expected: Duration,
+) {
+    assert_eq!(
+        RelativeTimeParser::new().parse_with_date(input, Some(date.into())),
+        Ok(expected)
+    );
+    assert_eq!(parse_with_date(input, Some(date.into())), Ok(expected));
+}
+
+#[cfg(feature = "time")]
+#[rstest]
+#[case::leap_year_plus_secs("year +9sec", datetime!(1972-01-01 00:00:00), Duration::positive(31622409, 0))] // 1972 is a leap year
+#[case::leap_year_plus_hours("year +9hour", datetime!(1972-01-01 00:00:00), Duration::positive(31654800, 0))] // 1972 is a leap year
+#[case::leap_year_plus_hours_worth_days("year +100hour", datetime!(1972-01-01 00:00:00), Duration::positive(31982400, 0))] // 1972 is a leap year
+#[case::leap_year_plus_hours_worth_days_plus_nanos("year +100hour +0.000000001", datetime!(1972-01-01 00:00:00), Duration::positive(31982400, 1))] // 1972 is a leap year
+fn test_parser_parse_with_date_when_fuzzy_unit_and_normal_units(
+    #[case] input: &str,
+    #[case] date: PrimitiveDateTime,
+    #[case] expected: Duration,
+) {
+    assert_eq!(
+        RelativeTimeParser::new().parse_with_date(input, Some(date.into())),
+        Ok(expected)
+    );
+    assert_eq!(parse_with_date(input, Some(date.into())), Ok(expected));
 }
 
 #[rstest]
@@ -95,4 +211,30 @@ fn test_parser_trims_whitespace(#[case] input: &str) {
         RelativeTimeParser::new().parse(input),
         Ok(Duration::positive(1, 0))
     );
+}
+
+#[rstest]
+#[case::number_one_too_high(&format!("{}", u64::MAX as u128 + 1), Duration::MAX)]
+#[case::number_one_too_low(&format!("-{}", u64::MAX as u128 + 1), Duration::MIN)]
+#[case::number_far_too_high(&format!("{}", u128::MAX), Duration::MAX)]
+#[case::number_far_too_low(&format!("-{}", u128::MAX), Duration::MIN)]
+#[case::time_unit_causes_positive_overflow(&format!("{}min", u64::MAX - 1), Duration::MAX)]
+#[case::time_unit_causes_negative_overflow(&format!("-{}min", u64::MAX - 1), Duration::MIN)]
+fn test_parser_when_overflow(#[case] input: &str, #[case] expected: Duration) {
+    assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
+}
+
+#[rstest]
+#[case::when_positive_then_saturate(&format!("{}days", "2".repeat(20)), (0, 0, Duration::MAX))]
+#[case::when_negative_then_saturate(&format!("-{}days", "2".repeat(20)), (0, 0, Duration::MIN))]
+#[case::positive_years_overflow_then_saturate(&format!("{}year", "2".repeat(20)), (i64::MAX, 0, Duration::ZERO))]
+#[case::positive_years_overflow_then_saturate(&format!("-{}year", "2".repeat(20)), (i64::MIN, 0, Duration::ZERO))]
+#[case::negative_years_u64max_then_saturate(&format!("-{}year", u64::MAX), (i64::MIN, 0, Duration::ZERO))]
+#[case::positive_years_u64max_then_saturate(&format!("{}year", u64::MAX), (i64::MAX, 0, Duration::ZERO))]
+#[case::positive_months_overflow_then_saturate(&format!("{}month", "2".repeat(20)), (0, i64::MAX, Duration::ZERO))]
+#[case::negative_months_overflow_then_saturate(&format!("-{}month", "2".repeat(20)), (0, i64::MIN, Duration::ZERO))]
+#[case::years_and_month_overflow_then_saturate(&format!("{0}year {0}month", "2".repeat(20)), (i64::MAX, i64::MAX, Duration::ZERO))]
+fn test_parser_parse_fuzzy(#[case] input: &str, #[case] expected: (i64, i64, Duration)) {
+    assert_eq!(RelativeTimeParser::new().parse_fuzzy(input), Ok(expected));
+    assert_eq!(parse_fuzzy(input), Ok(expected));
 }

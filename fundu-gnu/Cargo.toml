@@ -8,26 +8,32 @@ readme = "README.md"
 license = "MIT"
 keywords = ["fundu", "gnu", "parse", "duration", "time"]
 categories = ["parsing", "date-and-time"]
-homepage = "https://github.com/Joining7943/fundu"
-repository = "https://github.com/Joining7943/fundu"
+homepage = "https://github.com/fundu-rs/fundu"
+repository = "https://github.com/fundu-rs/fundu"
 rust-version = "1.64.0"
 
 [features]
 default = []
-chrono = ["fundu-core/chrono"]
-serde = ["fundu-core/serde"]
-time = ["fundu-core/time"]
+chrono = ["fundu-core/chrono", "dep:chrono"]
+serde = ["fundu-core/serde", "dep:serde"]
+time = ["fundu-core/time", "dep:time"]
 with-iai = []
 with-flamegraph = []
 
 [dependencies]
 fundu-core = { path = "../fundu-core", version = "=0.1.0" }
+chrono = { workspace = true, optional = true  }
+serde = { workspace = true, optional = true, features = ["derive"] }
+time = { workspace = true, optional = true, features = ["large-dates"] }
 
 [dev-dependencies]
+chrono = { workspace = true }
+clap = { workspace = true, features = ["cargo"]}
 criterion = { workspace = true }
 rstest = { workspace = true }
-clap = { workspace = true, features = ["cargo"]}
-chrono = { workspace = true }
+rstest_reuse = { workspace = true }
+serde_test = { workspace = true }
+time = { workspace = true, features = ["macros", "large-dates"]}
 
 [target.'cfg(unix)'.dev-dependencies]
 iai-callgrind = { workspace = true }

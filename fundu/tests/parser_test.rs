@@ -451,8 +451,11 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 #[case::one_one("1 1", Duration::positive(2, 0))]
 #[case::one_one_conjunction("1 and 1", Duration::positive(2, 0))]
 #[case::one_one("1 1", Duration::positive(2, 0))]
+#[case::one_one_with_sign_as_delimiter("1+1", Duration::positive(2, 0))]
 #[case::two_with_time_units("1ns 1ns", Duration::positive(0, 2))]
+#[case::two_with_time_units_with_sign("1ns+1ns", Duration::positive(0, 2))]
 #[case::two_with_time_units_conjunction("1ns and 1ns", Duration::positive(0, 2))]
+#[case::two_with_time_units_conjunction_and_sign("1ns and+1ns", Duration::positive(0, 2))]
 #[case::two_with_time_units_without_delimiter("1ns1ns", Duration::positive(0, 2))]
 #[case::two_with_fraction_exponent_time_units(
     "1.123e9ns 1.987e9ns",
@@ -464,6 +467,10 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 )]
 #[case::two_when_saturing(&format!("{0}s {0}s", u64::MAX), Duration::MAX)]
 #[case::multiple_mixed("1ns 1.001Ms1e1ms 9 .9 3m6h", Duration::positive(21789, 910_001_002))]
+#[case::multiple_mixed_with_sign_as_delimiter(
+    "1ns+1.001Ms-1e1+9-.9+3m6h",
+    Duration::positive(21778, 100_001_002)
+)]
 #[case::multiple_mixed_with_conjunction(
     "1ns and 1.001Ms and1e1ms and 9 .9 and 3m6h",
     Duration::positive(21789, 910_001_002)
@@ -480,6 +487,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
     let parser = DurationParser::builder()
         .all_time_units()
         .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Ok(expected))
 }
@@ -494,7 +502,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 #[case::valid_then_invalid("1 a", ParseError::Syntax(2, "Invalid input: 'a'".to_string()))]
 #[case::end_with_space("1 1 ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
 #[case::end_with_conjunction("1 and", ParseError::Syntax(2, "Input may not end with a conjunction but found: 'and'".to_string()))]
-#[case::end_with_wrong_conjunction("1 anda", ParseError::Syntax(5, "A conjunction must be separated by a delimiter or digit but found: 'a'".to_string()))]
+#[case::end_with_wrong_conjunction("1 anda", ParseError::Syntax(5, "A conjunction must be separated by a delimiter, sign or digit but found: 'a'".to_string()))]
 #[case::end_with_conjunction_and_delimiter("1 and ", ParseError::Syntax(5, "Input may not end with a delimiter".to_string()))]
 #[case::valid_time_unit_end_with_delimiter("1s ", ParseError::Syntax(2, "Input may not end with a delimiter".to_string()))]
 #[case::two_end_with_conjunction("1 1 and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
@@ -516,8 +524,13 @@ fn test_parser_when_setting_parse_multiple_then_error(
     assert_eq!(parser.parse(input), Err(expected))
 }
 
-#[test]
-fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter() {
+#[rstest]
+#[case::numbers_without_time_units("1 ns 1 s", Ok(Duration::positive(1, 1)))]
+#[case::sign_without_number("1s + 1s", Err(ParseError::InvalidInput("Sign without a number".to_owned())))]
+fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter(
+    #[case] input: &str,
+    #[case] expected: Result<Duration, ParseError>,
+) {
     let delimiter = |byte: u8| byte == b' ';
     let parser = DurationParser::builder()
         .all_time_units()
@@ -525,7 +538,7 @@ fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter() {
         .number_is_optional()
         .allow_delimiter(delimiter)
         .build();
-    assert_eq!(parser.parse("1 ns 1 s"), Ok(Duration::positive(1, 1)))
+    assert_eq!(parser.parse(input), expected)
 }
 
 #[test]
@@ -770,6 +783,21 @@ fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expec
 }
 
 #[rstest]
+#[case::positive_zero("0s")]
+#[case::negative_zero("-0s")]
+#[case::one("1s")]
+#[case::some("1234567.89s")]
+#[case::max(&format!("{}s", u64::MAX))]
+#[case::min(&format!("-{}s", u64::MAX))]
+fn test_custom_parser_when_multipier_is_zero(#[case] input: &str) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(0, 0))))
+        .allow_negative()
+        .build();
+    assert_eq!(parser.parse(input), Ok(Duration::ZERO));
+}
+
+#[rstest]
 #[case::yesterday("yesterday", Duration::negative(60 * 60 * 24, 0))]
 #[case::negative_yesterday("-yesterday", Duration::positive(60 * 60 * 24, 0))]
 #[case::positive_yesterday("+yesterday", Duration::negative(60 * 60 * 24, 0))]
@@ -868,6 +896,37 @@ fn test_custom_parser_with_keywords_when_parse_multiple_and_number_is_optional(
         .number_is_optional()
         .build();
     assert_eq!(parser.parse(input), Ok(expected));
+}
+
+#[rstest]
+#[case::zero(Multiplier(0, 0), Duration::ZERO)]
+#[case::max_exponent(Multiplier(1, i16::MAX), Duration::MAX)]
+#[case::min_exponent(Multiplier(1, i16::MIN), Duration::ZERO)]
+#[case::high_exponent(Multiplier(1, 19), Duration::positive(10_000_000_000_000_000_000, 0))]
+#[case::low_exponent(Multiplier(1, -19), Duration::ZERO)]
+#[case::barely_lower_than_nano(Multiplier(1, -10), Duration::ZERO)]
+#[case::high_exponent_then_saturate_max(Multiplier(1, 20), Duration::MAX)]
+#[case::high_exponent_then_saturate_min(Multiplier(-1, 20), Duration::MIN)]
+#[case::low_exponent_then_zero(Multiplier(1, -18), Duration::ZERO)]
+#[case::some_positive_multiplier(
+    Multiplier(1234567, 8),
+    Duration::positive(123_456_700_000_000, 0)
+)]
+#[case::some_negative_multiplier(
+    Multiplier(-1234567, 8),
+    Duration::negative(123_456_700_000_000, 0)
+)]
+fn test_custom_parser_multiplier_when_number_is_optional_and_time_unit_without_number(
+    #[case] multiplier: Multiplier,
+    #[case] expected: Duration,
+) {
+    let parser = CustomDurationParserBuilder::new()
+        .time_unit(CustomTimeUnit::new(Second, &["my"], Some(multiplier)))
+        .number_is_optional()
+        .allow_negative()
+        .build();
+
+    assert_eq!(parser.parse("my"), Ok(expected));
 }
 
 #[test]

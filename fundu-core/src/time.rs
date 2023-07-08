@@ -39,6 +39,18 @@ pub const DEFAULT_ID_YEAR: &str = "y";
 
 pub(crate) const DEFAULT_TIME_UNIT: TimeUnit = Second;
 
+const SECS_PER_MINUTE: u64 = 60;
+const SECS_PER_HOUR: u64 = 3600;
+const SECS_PER_DAY: u64 = 86400;
+const SECS_PER_WEEK: u64 = 86400 * 7;
+
+const NANOS_PER_MILLI: i32 = 1_000_000;
+const NANOS_PER_MICRO: i32 = 1_000;
+
+const MILLIS_PER_SEC: i128 = 1_000;
+const MICROS_PER_SEC: i128 = 1_000_000;
+const NANOS_PER_SEC: i128 = 1_000_000_000;
+
 /// The time units used to define possible time units in the input string
 ///
 /// The parser calculates the final [`Duration`] based on the parsed number and time unit. Each
@@ -530,6 +542,8 @@ pub trait SaturatingInto<T>: Sized {
 /// let duration: StdDuration = Duration::MAX.saturating_into();
 /// assert_eq!(duration, StdDuration::MAX);
 /// ```
+///
+/// [`time::Duration`]: https://docs.rs/time/latest/time/struct.Duration.html
 #[derive(Debug, Eq, Clone, Copy, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Duration {
@@ -644,6 +658,326 @@ impl Duration {
         Self {
             is_negative: true,
             inner: std::time::Duration::new(secs, nanos),
+        }
+    }
+
+    // factor must be greater than 1
+    const fn as_whole(&self, factor: u64) -> i64 {
+        debug_assert!(factor > 1);
+
+        #[allow(clippy::cast_possible_wrap)]
+        let result = (self.inner.as_secs() / factor) as i64;
+        if self.is_negative { -result } else { result }
+    }
+
+    /// Return the number of *whole* weeks in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(86400 * 7, 0).as_weeks(), 1);
+    /// assert_eq!(Duration::negative(86400 * 7, 0).as_weeks(), -1);
+    /// assert_eq!(Duration::positive(1, 0).as_weeks(), 0);
+    /// assert_eq!(Duration::positive(1_500_000, 0).as_weeks(), 2);
+    /// ```
+    #[inline]
+    pub const fn as_weeks(&self) -> i64 {
+        self.as_whole(SECS_PER_WEEK)
+    }
+
+    /// Return the number of *whole* days in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(86400, 0).as_days(), 1);
+    /// assert_eq!(Duration::negative(86400, 0).as_days(), -1);
+    /// assert_eq!(Duration::positive(1, 0).as_days(), 0);
+    /// assert_eq!(Duration::positive(1_500_000, 0).as_days(), 17);
+    /// ```
+    #[inline]
+    pub const fn as_days(&self) -> i64 {
+        self.as_whole(SECS_PER_DAY)
+    }
+
+    /// Return the number of *whole* hours in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(3600, 0).as_hours(), 1);
+    /// assert_eq!(Duration::negative(3600, 0).as_hours(), -1);
+    /// assert_eq!(Duration::positive(1, 0).as_hours(), 0);
+    /// assert_eq!(Duration::positive(1_500_000, 0).as_hours(), 416);
+    /// ```
+    #[inline]
+    pub const fn as_hours(&self) -> i64 {
+        self.as_whole(SECS_PER_HOUR)
+    }
+
+    /// Return the number of *whole* minutes in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(60, 0).as_minutes(), 1);
+    /// assert_eq!(Duration::negative(60, 0).as_minutes(), -1);
+    /// assert_eq!(Duration::positive(1, 0).as_minutes(), 0);
+    /// assert_eq!(Duration::positive(1_500_000, 0).as_minutes(), 25_000);
+    /// ```
+    #[inline]
+    pub const fn as_minutes(&self) -> i64 {
+        self.as_whole(SECS_PER_MINUTE)
+    }
+
+    /// Return the number of *whole* seconds in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(1, 0).as_seconds(), 1);
+    /// assert_eq!(Duration::negative(1, 0).as_seconds(), -1);
+    /// assert_eq!(Duration::positive(0, 1_000_000).as_seconds(), 0);
+    /// assert_eq!(Duration::positive(1_500_000, 0).as_seconds(), 1_500_000);
+    /// ```
+    #[inline]
+    pub const fn as_seconds(&self) -> i128 {
+        let seconds = self.inner.as_secs() as i128;
+        if self.is_negative { -seconds } else { seconds }
+    }
+
+    /// Return the total number of *whole* milliseconds in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(1, 0).as_millis(), 1_000);
+    /// assert_eq!(Duration::negative(1, 0).as_millis(), -1_000);
+    /// assert_eq!(Duration::positive(0, 1_000_000).as_millis(), 1);
+    /// assert_eq!(Duration::positive(12, 3_000_000).as_millis(), 12_003);
+    /// ```
+    #[inline]
+    pub const fn as_millis(&self) -> i128 {
+        self.as_seconds() * MILLIS_PER_SEC + self.subsec_millis() as i128
+    }
+
+    /// Return the total number of *whole* microseconds in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(1, 0).as_micros(), 1_000_000);
+    /// assert_eq!(Duration::negative(1, 0).as_micros(), -1_000_000);
+    /// assert_eq!(Duration::positive(0, 1_000).as_micros(), 1);
+    /// assert_eq!(Duration::positive(12, 3_000).as_micros(), 12_000_003);
+    /// ```
+    #[inline]
+    pub const fn as_micros(&self) -> i128 {
+        self.as_seconds() * MICROS_PER_SEC + self.subsec_micros() as i128
+    }
+
+    /// Return the total number of nanoseconds in the `Duration`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(1, 0).as_nanos(), 1_000_000_000);
+    /// assert_eq!(Duration::negative(1, 0).as_nanos(), -1_000_000_000);
+    /// assert_eq!(Duration::positive(0, 1).as_nanos(), 1);
+    /// assert_eq!(Duration::positive(12, 3).as_nanos(), 12_000_000_003);
+    /// ```
+    #[inline]
+    pub const fn as_nanos(&self) -> i128 {
+        self.as_seconds() * NANOS_PER_SEC + self.subsec_nanos() as i128
+    }
+
+    /// Return the fractional part of the `Duration` in *whole* milliseconds
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(0, 123_456_789).subsec_millis(), 123);
+    /// assert_eq!(Duration::negative(0, 123_456_789).subsec_millis(), -123);
+    /// assert_eq!(Duration::positive(1, 0).subsec_millis(), 0);
+    /// assert_eq!(Duration::positive(0, 1).subsec_millis(), 0);
+    /// ```
+    #[inline]
+    pub const fn subsec_millis(&self) -> i32 {
+        self.subsec_nanos() / NANOS_PER_MILLI
+    }
+
+    /// Return the fractional part of the `Duration` in *whole* microseconds
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(0, 123_456_789).subsec_micros(), 123_456);
+    /// assert_eq!(Duration::negative(0, 123_456_789).subsec_micros(), -123_456);
+    /// assert_eq!(Duration::positive(1, 0).subsec_micros(), 0);
+    /// assert_eq!(Duration::positive(0, 1).subsec_micros(), 0);
+    #[inline]
+    pub const fn subsec_micros(&self) -> i32 {
+        self.subsec_nanos() / NANOS_PER_MICRO
+    }
+
+    /// Return the fractional part of the `Duration` in nanoseconds
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// assert_eq!(Duration::positive(0, 123_456_789).subsec_nanos(), 123_456_789);
+    /// assert_eq!(Duration::negative(0, 123_456_789).subsec_nanos(), -123_456_789);
+    /// assert_eq!(Duration::positive(1, 0).subsec_nanos(), 0);
+    /// assert_eq!(Duration::positive(0, 1).subsec_nanos(), 1);
+    #[inline]
+    pub const fn subsec_nanos(&self) -> i32 {
+        #[allow(clippy::cast_possible_wrap)]
+        let nanos = self.inner.subsec_nanos() as i32;
+        if self.is_negative { -nanos } else { nanos }
+    }
+
+    fn extract_i64(&mut self, factor: u64) -> i64 {
+        debug_assert!(factor > 1);
+
+        let secs = self.inner.as_secs();
+        let extracted = i64::try_from(secs / factor).unwrap();
+        if extracted > 0 {
+            self.inner = std::time::Duration::new(secs % factor, self.inner.subsec_nanos());
+            if self.is_negative {
+                extracted.neg()
+            } else {
+                extracted
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Return the number of *whole* weeks in this `Duration` and reduce it by that amount
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// let mut duration = Duration::positive(86400 * 7, 0);
+    /// assert_eq!(duration.extract_weeks(), 1);
+    /// assert_eq!(duration, Duration::ZERO);
+    ///
+    /// let mut duration = Duration::positive(123, 456);
+    /// assert_eq!(duration.extract_weeks(), 0);
+    /// assert_eq!(duration, Duration::positive(123, 456));
+    /// ```
+    #[inline]
+    pub fn extract_weeks(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_WEEK)
+    }
+
+    /// Return the number of *whole* days in this `Duration` and reduce it by that amount
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// let mut duration = Duration::positive(86400, 0);
+    /// assert_eq!(duration.extract_days(), 1);
+    /// assert_eq!(duration, Duration::ZERO);
+    ///
+    /// let mut duration = Duration::positive(123, 456);
+    /// assert_eq!(duration.extract_days(), 0);
+    /// assert_eq!(duration, Duration::positive(123, 456));
+    /// ```
+    #[inline]
+    pub fn extract_days(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_DAY)
+    }
+
+    /// Return the number of *whole* hours in this `Duration` and reduce it by that amount
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// let mut duration = Duration::positive(3600, 0);
+    /// assert_eq!(duration.extract_hours(), 1);
+    /// assert_eq!(duration, Duration::ZERO);
+    ///
+    /// let mut duration = Duration::positive(123, 456);
+    /// assert_eq!(duration.extract_hours(), 0);
+    /// assert_eq!(duration, Duration::positive(123, 456));
+    /// ```
+    #[inline]
+    pub fn extract_hours(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_HOUR)
+    }
+
+    /// Return the number of *whole* minutes in this `Duration` and reduce it by that amount
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// let mut duration = Duration::positive(60, 0);
+    /// assert_eq!(duration.extract_minutes(), 1);
+    /// assert_eq!(duration, Duration::ZERO);
+    ///
+    /// let mut duration = Duration::positive(12, 456);
+    /// assert_eq!(duration.extract_minutes(), 0);
+    /// assert_eq!(duration, Duration::positive(12, 456));
+    /// ```
+    #[inline]
+    pub fn extract_minutes(&mut self) -> i64 {
+        self.extract_i64(SECS_PER_MINUTE)
+    }
+
+    /// Return the number of seconds in this `Duration` and reduce it by that amount
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::time::Duration;
+    ///
+    /// let mut duration = Duration::positive(1, 0);
+    /// assert_eq!(duration.extract_seconds(), 1);
+    /// assert_eq!(duration, Duration::ZERO);
+    ///
+    /// let mut duration = Duration::positive(12, 456);
+    /// assert_eq!(duration.extract_seconds(), 12);
+    /// assert_eq!(duration, Duration::positive(0, 456));
+    /// ```
+    #[inline]
+    pub fn extract_seconds(&mut self) -> i128 {
+        let extracted = self.as_seconds();
+        if extracted == 0 {
+            0
+        } else {
+            self.inner = std::time::Duration::new(0, self.inner.subsec_nanos());
+            extracted
         }
     }
 
@@ -1574,6 +1908,293 @@ mod tests {
                 Duration::MAX
             };
         assert_eq!(lhs.saturating_sub(rhs.neg()), expected);
+    }
+
+    #[rstest]
+    #[case::zero(Duration::ZERO, 0)]
+    #[case::positive_one(Duration::positive(1, 0), 1)]
+    #[case::positive_one_nano(Duration::positive(0, 1), 0)]
+    #[case::positive_one_sec_and_nano(Duration::positive(1, 1), 1)]
+    #[case::negative_one(Duration::negative(1, 0), -1)]
+    #[case::negative_one_nano(Duration::negative(0, 1), 0)]
+    #[case::negative_one_sec_and_nano(Duration::negative(1, 1), -1)]
+    #[case::some_positive_value(Duration::positive(123_456_789, 987_654_321), 123_456_789)]
+    #[case::some_negative_value(Duration::negative(123_456_789, 987_654_321), -123_456_789)]
+    #[case::min(Duration::MIN, i128::from(u64::MAX).neg())]
+    #[case::max(Duration::MAX, i128::from(u64::MAX))]
+    fn test_fundu_duration_as_seconds(#[case] duration: Duration, #[case] expected: i128) {
+        assert_eq!(duration.as_seconds(), expected);
+    }
+
+    #[rstest]
+    #[case::zero(Duration::ZERO)]
+    #[case::one(Duration::positive(1, 0))]
+    #[case::one_nano(Duration::positive(0, 1))]
+    #[case::one_sec_and_nano(Duration::positive(1, 1))]
+    #[case::one_minute(Duration::positive(60, 0))]
+    #[case::one_minute_plus_one_sec(Duration::positive(61, 0))]
+    #[case::one_minute_minus_one_sec(Duration::positive(59, 0))]
+    #[case::two_minutes(Duration::positive(120, 0))]
+    #[case::some_value(Duration::positive(123_456_789, 987_654_321))]
+    #[case::min(Duration::MIN)]
+    #[case::max(Duration::MAX)]
+    fn test_fundu_duration_as_whole(
+        #[case] duration: Duration,
+        #[values(2, 3, 4, 60, u64::MAX / 2, u64::MAX)] factor: u64,
+    ) {
+        let mut expected = i64::try_from(duration.inner.as_secs() / factor).unwrap();
+        if duration.is_negative() {
+            expected = expected.neg();
+        }
+        assert_eq!(duration.as_whole(factor), expected);
+        assert_eq!(duration.neg().as_whole(factor), expected.neg());
+    }
+
+    #[rstest]
+    #[case::one_week(86400 * 7, 1)]
+    #[case::one_week_plus_sec(86400 * 7 + 1, 1)]
+    #[case::one_week_minus_sec(86400 * 7 - 1, 0)]
+    fn test_fundu_duration_as_weeks(#[case] seconds: u64, #[case] expected: i64) {
+        let duration = Duration::positive(seconds, 0);
+
+        assert_eq!(duration.as_weeks(), expected);
+        assert_eq!(duration.neg().as_weeks(), expected.neg());
+    }
+
+    #[rstest]
+    #[case::one_day(86400, 1)]
+    #[case::one_day_plus_sec(86400 + 1, 1)]
+    #[case::one_day_minus_sec(86400 - 1, 0)]
+    fn test_fundu_duration_as_days(#[case] seconds: u64, #[case] expected: i64) {
+        let duration = Duration::positive(seconds, 0);
+
+        assert_eq!(duration.as_days(), expected);
+        assert_eq!(duration.neg().as_days(), expected.neg());
+    }
+
+    #[rstest]
+    #[case::one_hour(3600, 1)]
+    #[case::one_hour_plus_sec(3600 + 1, 1)]
+    #[case::one_hour_minus_sec(3600 - 1, 0)]
+    fn test_fundu_duration_as_hours(#[case] seconds: u64, #[case] expected: i64) {
+        let duration = Duration::positive(seconds, 0);
+
+        assert_eq!(duration.as_hours(), expected);
+        assert_eq!(duration.neg().as_hours(), expected.neg());
+    }
+
+    #[rstest]
+    #[case::one_minute(60, 1)]
+    #[case::one_minute_plus_sec(60 + 1, 1)]
+    #[case::one_minute_minus_sec(60 - 1, 0)]
+    fn test_fundu_duration_as_minutes(#[case] seconds: u64, #[case] expected: i64) {
+        let duration = Duration::positive(seconds, 0);
+
+        assert_eq!(duration.as_minutes(), expected);
+        assert_eq!(duration.neg().as_minutes(), expected.neg());
+    }
+
+    #[template]
+    #[rstest]
+    #[case::zero(Duration::ZERO, 0)]
+    #[case::one_second(Duration::positive(1, 0), 1_000_000_000)]
+    #[case::one_second_and_one_nano(Duration::positive(1, 1), 1_000_000_001)]
+    #[case::one_second_and_one_nano(Duration::positive(1, 1), 1_000_000_001)]
+    #[case::two_second(Duration::positive(2, 0), 2_000_000_000)]
+    #[case::two_second_and_one_nano(Duration::positive(2, 1), 2_000_000_001)]
+    #[case::one_sec_and_one_micro(Duration::positive(2, 1_000), 2_000_001_000)]
+    #[case::one_sec_and_one_milli(Duration::positive(2, 1_000_000), 2_001_000_000)]
+    #[case::some_value(Duration::positive(123_456_789, 987_654_321), 123_456_789_987_654_321)]
+    #[case::max(Duration::MAX, i128::from(u64::MAX) * 1_000_000_000 + 999_999_999)]
+    #[case::min(Duration::MIN, i128::from(u64::MAX).neg() * 1_000_000_000 - 999_999_999)]
+    fn test_fundu_duration_as_sub_sec_template(#[case] duration: Duration, #[case] expected: i128) {
+    }
+
+    #[apply(test_fundu_duration_as_sub_sec_template)]
+    fn test_fundu_duration_as_nanos(duration: Duration, expected: i128) {
+        assert_eq!(duration.as_nanos(), expected);
+        assert_eq!(duration.neg().as_nanos(), expected.neg());
+    }
+
+    #[apply(test_fundu_duration_as_sub_sec_template)]
+    fn test_fundu_duration_as_micros(duration: Duration, expected: i128) {
+        assert_eq!(duration.as_micros(), expected / 1_000);
+        assert_eq!(duration.neg().as_micros(), expected.neg() / 1_000);
+    }
+
+    #[apply(test_fundu_duration_as_sub_sec_template)]
+    fn test_fundu_duration_as_millis(duration: Duration, expected: i128) {
+        assert_eq!(duration.as_millis(), expected / 1_000_000);
+        assert_eq!(duration.neg().as_millis(), expected.neg() / 1_000_000);
+    }
+
+    #[template]
+    #[rstest]
+    #[case::zero(Duration::ZERO, 0i32)]
+    #[case::one_sec(Duration::positive(1, 0), 0i32)]
+    #[case::one_sec_and_one_nano(Duration::positive(1, 1), 1i32)]
+    #[case::two_nano(Duration::positive(0, 2), 2i32)]
+    #[case::one_micro(Duration::positive(0, 1_000), 1_000i32)]
+    #[case::one_milli(Duration::positive(0, 1_000_000), 1_000_000i32)]
+    #[case::some_value(Duration::positive(0, 123_456_789), 123_456_789i32)]
+    #[case::max(Duration::MAX, 999_999_999i32)]
+    #[case::min(Duration::MIN, -999_999_999i32)]
+    fn test_fundu_duration_subsec_template(#[case] duration: Duration, #[case] expected: i32) {}
+
+    #[apply(test_fundu_duration_subsec_template)]
+    fn test_fundu_duration_subsec_nanos(duration: Duration, expected: i32) {
+        assert_eq!(duration.subsec_nanos(), expected);
+        assert_eq!(duration.neg().subsec_nanos(), expected.neg());
+    }
+
+    #[apply(test_fundu_duration_subsec_template)]
+    fn test_fundu_duration_subsec_micros(duration: Duration, expected: i32) {
+        let expected = expected / 1000i32;
+        assert_eq!(duration.subsec_micros(), expected);
+        assert_eq!(duration.neg().subsec_micros(), expected.neg());
+    }
+
+    #[apply(test_fundu_duration_subsec_template)]
+    fn test_fundu_duration_subsec_millis(duration: Duration, expected: i32) {
+        let expected = expected / 1_000_000i32;
+        assert_eq!(duration.subsec_millis(), expected);
+        assert_eq!(duration.neg().subsec_millis(), expected.neg());
+    }
+
+    #[rstest]
+    #[case::zero(Duration::ZERO)]
+    #[case::one(Duration::positive(1, 0))]
+    #[case::one_plus_one_nano(Duration::positive(1, 1))]
+    #[case::two(Duration::positive(2, 0))]
+    #[case::two_plus_one_nano(Duration::positive(2, 1))]
+    #[case::sixty(Duration::positive(60, 0))]
+    #[case::sixty_plus_one(Duration::positive(61, 0))]
+    #[case::sixty_minus_one(Duration::positive(59, 0))]
+    #[case::some_value(Duration::positive(123_456_789, 987_654_321))]
+    #[case::max(Duration::MAX)]
+    #[case::min(Duration::MIN)]
+    fn test_fundu_duration_extract_i64(
+        #[case] mut duration: Duration,
+        #[values(2, 3, 4, 5, 60, u64::MAX / 2, u64::MAX)] factor: u64,
+    ) {
+        let mut expected_number = i64::try_from(duration.inner.as_secs() / factor).unwrap();
+        if duration.is_negative() {
+            expected_number = expected_number.neg();
+        }
+        let expected_duration = Duration::from_std(
+            duration.is_negative(),
+            StdDuration::new(
+                duration.inner.as_secs() % factor,
+                duration.inner.subsec_nanos(),
+            ),
+        );
+
+        let actual_number = duration.extract_i64(factor);
+        assert_eq!(actual_number, expected_number);
+        assert_eq!(duration, expected_duration);
+    }
+
+    #[rstest]
+    #[case::one(Duration::positive(86400 * 7, 123), 1, Duration::positive(0, 123))]
+    #[case::one_plus_sec(
+        Duration::positive(86400 * 7 + 1, 123),
+        1,
+        Duration::positive(1, 123)
+    )]
+    #[case::one_minus_sec(
+        Duration::positive(86400 * 7 - 1, 123),
+        0,
+        Duration::positive(86400 * 7 - 1, 123)
+    )]
+    fn test_fundu_duration_extract_weeks(
+        #[case] duration: Duration,
+        #[case] expected_number: i64,
+        #[case] expected_duration: Duration,
+    ) {
+        let mut duration = duration;
+        let number = duration.extract_weeks();
+        assert_eq!(number, expected_number);
+        assert_eq!(duration, expected_duration);
+    }
+
+    #[rstest]
+    #[case::one(Duration::positive(86400, 123), 1, Duration::positive(0, 123))]
+    #[case::one_plus_sec(
+        Duration::positive(86400 + 1, 123),
+        1,
+        Duration::positive(1, 123)
+    )]
+    #[case::one_minus_sec(
+        Duration::positive(86400 - 1, 123),
+        0,
+        Duration::positive(86400 - 1, 123)
+    )]
+    fn test_fundu_duration_extract_days(
+        #[case] duration: Duration,
+        #[case] expected_number: i64,
+        #[case] expected_duration: Duration,
+    ) {
+        let mut duration = duration;
+        let number = duration.extract_days();
+        assert_eq!(number, expected_number);
+        assert_eq!(duration, expected_duration);
+    }
+
+    #[rstest]
+    #[case::one(Duration::positive(3600, 123), 1, Duration::positive(0, 123))]
+    #[case::one_plus_sec(Duration::positive(3600 + 1, 123), 1, Duration::positive(1, 123))]
+    #[case::one_minus_sec(Duration::positive(3600 - 1, 123), 0, Duration::positive(3599, 123))]
+    fn test_fundu_duration_extract_hours(
+        #[case] duration: Duration,
+        #[case] expected_number: i64,
+        #[case] expected_duration: Duration,
+    ) {
+        let mut duration = duration;
+        let number = duration.extract_hours();
+        assert_eq!(number, expected_number);
+        assert_eq!(duration, expected_duration);
+    }
+
+    #[rstest]
+    #[case::one(Duration::positive(60, 123), 1, Duration::positive(0, 123))]
+    #[case::one_plus_sec(Duration::positive(60 + 1, 123), 1, Duration::positive(1, 123))]
+    #[case::one_minus_sec(Duration::positive(60 - 1, 123), 0, Duration::positive(59, 123))]
+    fn test_fundu_duration_extract_minutes(
+        #[case] duration: Duration,
+        #[case] expected_number: i64,
+        #[case] expected_duration: Duration,
+    ) {
+        let mut duration = duration;
+        let number = duration.extract_minutes();
+        assert_eq!(number, expected_number);
+        assert_eq!(duration, expected_duration);
+    }
+
+    #[rstest]
+    #[case::zero(Duration::ZERO, 0, Duration::ZERO)]
+    #[case::one(Duration::positive(1, 123), 1, Duration::positive(0, 123))]
+    #[case::two(Duration::positive(2, 123), 2, Duration::positive(0, 123))]
+    #[case::zero_sec(Duration::positive(0, 123), 0, Duration::positive(0, 123))]
+    #[case::max(
+        Duration::MAX,
+        i128::from(u64::MAX),
+        Duration::positive(0, 999_999_999)
+    )]
+    #[case::min(Duration::MIN, i128::from(u64::MAX).neg(), Duration::negative(0, 999_999_999))]
+    fn test_fundu_duration_extract_seconds(
+        #[case] duration: Duration,
+        #[case] expected_number: i128,
+        #[case] expected_duration: Duration,
+    ) {
+        let mut duration_copy = duration;
+        let number = duration_copy.extract_seconds();
+        assert_eq!(number, expected_number);
+        assert_eq!(duration_copy, expected_duration);
+
+        let mut duration = duration.neg();
+        let number = duration.extract_seconds();
+        assert_eq!(number, expected_number.neg());
+        assert_eq!(duration, expected_duration.neg());
     }
 
     #[rstest]
