@@ -467,7 +467,10 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 )]
 #[case::two_when_saturing(&format!("{0}s {0}s", u64::MAX), Duration::MAX)]
 #[case::multiple_mixed("1ns 1.001Ms1e1ms 9 .9 3m6h", Duration::positive(21789, 910_001_002))]
-#[case::multiple_mixed_with_sign_as_delimiter("1ns+1.001Ms-1e1+9-.9+3m6h", Duration::positive(21778, 100_001_002))]
+#[case::multiple_mixed_with_sign_as_delimiter(
+    "1ns+1.001Ms-1e1+9-.9+3m6h",
+    Duration::positive(21778, 100_001_002)
+)]
 #[case::multiple_mixed_with_conjunction(
     "1ns and 1.001Ms and1e1ms and 9 .9 and 3m6h",
     Duration::positive(21789, 910_001_002)
@@ -905,8 +908,14 @@ fn test_custom_parser_with_keywords_when_parse_multiple_and_number_is_optional(
 #[case::high_exponent_then_saturate_max(Multiplier(1, 20), Duration::MAX)]
 #[case::high_exponent_then_saturate_min(Multiplier(-1, 20), Duration::MIN)]
 #[case::low_exponent_then_zero(Multiplier(1, -18), Duration::ZERO)]
-#[case::some_positive_multiplier(Multiplier(1234567, 8), Duration::positive(123_456_700_000_000, 0))]
-#[case::some_negative_multiplier(Multiplier(-1234567, 8), Duration::negative(123_456_700_000_000, 0))]
+#[case::some_positive_multiplier(
+    Multiplier(1234567, 8),
+    Duration::positive(123_456_700_000_000, 0)
+)]
+#[case::some_negative_multiplier(
+    Multiplier(-1234567, 8),
+    Duration::negative(123_456_700_000_000, 0)
+)]
 fn test_custom_parser_multiplier_when_number_is_optional_and_time_unit_without_number(
     #[case] multiplier: Multiplier,
     #[case] expected: Duration,
