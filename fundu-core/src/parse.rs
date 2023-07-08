@@ -1319,6 +1319,11 @@ impl<'a> ReprParserMultiple<'a> {
         }
     }
 
+    #[inline]
+    pub fn is_next_duration(byte: u8) -> bool {
+        byte.is_ascii_digit() || byte == b'+' || byte == b'-'
+    }
+
     pub fn try_consume_connection(&mut self) -> Result<(), ParseError> {
         let delimiter = self.delimiter;
         debug_assert!(delimiter(*self.bytes.current_byte.unwrap()));
@@ -1334,13 +1339,13 @@ impl<'a> ReprParserMultiple<'a> {
                     Some(byte) if delimiter(*byte) => {
                         self.bytes.try_consume_delimiter(delimiter)?;
                     }
-                    Some(byte) if byte.is_ascii_digit() => {}
+                    Some(byte) if Self::is_next_duration(*byte) => {}
                     Some(byte) => {
                         return Err(ParseError::Syntax(
                             self.bytes.current_pos,
                             format!(
-                                "A conjunction must be separated by a delimiter or digit but \
-                                 found: '{}'",
+                                "A conjunction must be separated by a delimiter, sign or digit \
+                                 but found: '{}'",
                                 *byte as char
                             ),
                         ));
@@ -1449,7 +1454,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         let delimiter = self.delimiter;
         let start = self.bytes.current_pos;
         self.bytes
-            .advance_to(|byte: u8| delimiter(byte) || byte.is_ascii_digit());
+            .advance_to(|byte: u8| delimiter(byte) || Self::is_next_duration(byte));
 
         let keyword = self.bytes.get_current_str(start).map_err(|error| {
             ParseError::Syntax(
@@ -1489,12 +1494,12 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         match config.allow_ago {
             Some(ago_delimiter) => {
                 self.bytes.advance_to(|byte: u8| {
-                    ago_delimiter(byte) || (self.delimiter)(byte) || byte.is_ascii_digit()
+                    ago_delimiter(byte) || (self.delimiter)(byte) || Self::is_next_duration(byte)
                 });
             }
             None => {
                 self.bytes
-                    .advance_to(|byte: u8| (self.delimiter)(byte) || byte.is_ascii_digit());
+                    .advance_to(|byte: u8| (self.delimiter)(byte) || Self::is_next_duration(byte));
             }
         }
         let string = self.bytes.get_current_str(start).map_err(|error| {

@@ -451,8 +451,11 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 #[case::one_one("1 1", Duration::positive(2, 0))]
 #[case::one_one_conjunction("1 and 1", Duration::positive(2, 0))]
 #[case::one_one("1 1", Duration::positive(2, 0))]
+#[case::one_one_with_sign_as_delimiter("1+1", Duration::positive(2, 0))]
 #[case::two_with_time_units("1ns 1ns", Duration::positive(0, 2))]
+#[case::two_with_time_units_with_sign("1ns+1ns", Duration::positive(0, 2))]
 #[case::two_with_time_units_conjunction("1ns and 1ns", Duration::positive(0, 2))]
+#[case::two_with_time_units_conjunction_and_sign("1ns and+1ns", Duration::positive(0, 2))]
 #[case::two_with_time_units_without_delimiter("1ns1ns", Duration::positive(0, 2))]
 #[case::two_with_fraction_exponent_time_units(
     "1.123e9ns 1.987e9ns",
@@ -464,6 +467,7 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 )]
 #[case::two_when_saturing(&format!("{0}s {0}s", u64::MAX), Duration::MAX)]
 #[case::multiple_mixed("1ns 1.001Ms1e1ms 9 .9 3m6h", Duration::positive(21789, 910_001_002))]
+#[case::multiple_mixed_with_sign_as_delimiter("1ns+1.001Ms-1e1+9-.9+3m6h", Duration::positive(21778, 100_001_002))]
 #[case::multiple_mixed_with_conjunction(
     "1ns and 1.001Ms and1e1ms and 9 .9 and 3m6h",
     Duration::positive(21789, 910_001_002)
@@ -480,6 +484,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
     let parser = DurationParser::builder()
         .all_time_units()
         .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Ok(expected))
 }
@@ -494,7 +499,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 #[case::valid_then_invalid("1 a", ParseError::Syntax(2, "Invalid input: 'a'".to_string()))]
 #[case::end_with_space("1 1 ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
 #[case::end_with_conjunction("1 and", ParseError::Syntax(2, "Input may not end with a conjunction but found: 'and'".to_string()))]
-#[case::end_with_wrong_conjunction("1 anda", ParseError::Syntax(5, "A conjunction must be separated by a delimiter or digit but found: 'a'".to_string()))]
+#[case::end_with_wrong_conjunction("1 anda", ParseError::Syntax(5, "A conjunction must be separated by a delimiter, sign or digit but found: 'a'".to_string()))]
 #[case::end_with_conjunction_and_delimiter("1 and ", ParseError::Syntax(5, "Input may not end with a delimiter".to_string()))]
 #[case::valid_time_unit_end_with_delimiter("1s ", ParseError::Syntax(2, "Input may not end with a delimiter".to_string()))]
 #[case::two_end_with_conjunction("1 1 and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
