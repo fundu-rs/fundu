@@ -41,12 +41,12 @@ name = "benchmarks"
 harness = false
 
 [[bench]]
-name = "iai_bench_parsing"
+name = "fundu_systemd_iai_parsing"
 harness = false
 required-features = ["with-iai"]
 
 [[bench]]
-name = "iai_bench_parsing_time_units"
+name = "fundu_systemd_iai_parsing_time_units"
 harness = false
 required-features = ["with-iai"]
 
