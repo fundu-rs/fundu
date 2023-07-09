@@ -77,19 +77,19 @@ impl KeywordsChoice {
 fn generate_regex(config: &FuzzingConfig) -> Regex {
     let sign = if config.allow_negative || config.allow_ago {
         if config.allow_sign_delimiter {
-            "([+-][ \t\n\x0c\r\x0b]*)?"
+            r"([+-][ \t\n\x0c\r\x0b]*)?"
         } else {
-            "[+-]?"
+            r"[+-]?"
         }
     } else {
         if config.allow_sign_delimiter {
-            "([+][ \t\n\x0c\r\x0b]*)?"
+            r"([+][ \t\n\x0c\r\x0b]*)?"
         } else {
-            "[+]?"
+            r"[+]?"
         }
     };
     let delimiter = if config.allow_delimiter {
-        "[ \t\n\x0c\r\x0b]+"
+        r"[ \t\n\x0c\r\x0b]+"
     } else {
         ""
     };
@@ -114,7 +114,7 @@ fn generate_regex(config: &FuzzingConfig) -> Regex {
         format!("{base}{exponent}")
     };
     let ago = if config.allow_ago {
-        "([ \t\n\x0c\r\x0b]+[aA][gG][oO])?"
+        r"([ \t\n\x0c\r\x0b]+[aA][gG][oO])?"
     } else {
         ""
     };
