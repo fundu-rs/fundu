@@ -1,6 +1,6 @@
 [package]
 name = "fundu-gnu"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Fast and precise gnu relative time parser of rust strings to a Duration"
