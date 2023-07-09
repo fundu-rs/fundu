@@ -4,6 +4,7 @@ perf.data.old
 report
 *.profraw
 .vscode/launch.json
+.VSCodeCounter/
 
 # Swap
 [._]*.s[a-v][a-z]
