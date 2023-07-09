@@ -59,37 +59,22 @@ harness = false
 required-features = ["standard"]
 
 [[bench]]
-name = "iai_bench_parsing_time_units"
+name = "fundu_iai_parsing_time_units"
 harness = false
 required-features = ["standard", "with-iai"]
 
 [[bench]]
-name = "iai_bench_parsing"
+name = "fundu_iai_parsing"
 harness = false
 required-features = ["standard", "with-iai"]
 
 [[bench]]
-name = "iai_bench_parsing_negative"
+name = "fundu_iai_standard"
 harness = false
 required-features = ["standard", "with-iai"]
 
 [[bench]]
-name = "iai_bench_parsing_infinity"
-harness = false
-required-features = ["standard", "with-iai"]
-
-[[bench]]
-name = "iai_bench_reference"
-harness = false
-required-features = ["with-iai"]
-
-[[bench]]
-name = "iai_bench_standard"
-harness = false
-required-features = ["standard", "with-iai"]
-
-[[bench]]
-name = "iai_bench_custom"
+name = "fundu_iai_custom"
 harness = false
 required-features = ["custom", "with-iai"]
 

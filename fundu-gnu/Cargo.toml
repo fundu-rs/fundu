@@ -55,7 +55,7 @@ bench = false
 required-features = ["with-flamegraph"]
 
 [[bench]]
-name = "iai_bench_parsing"
+name = "fundu_gnu_iai_parsing"
 harness = false
 required-features = ["with-iai"]
 

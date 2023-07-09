@@ -40,7 +40,6 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
 
   base:
@@ -320,21 +319,8 @@ jobs:
           name: iai-callgrind-benchmarks
           check_artifacts: true
           if_no_artifact_found: warn
-      - name: Run iai-callgrind standard feature benchmarks
-        run: |
-          cargo bench --features standard,with-iai \
-            --bench iai_bench_standard \
-            --bench iai_bench_parsing \
-            --bench iai_bench_parsing_time_units \
-            --bench iai_bench_reference | tee bench.out
-      - name: Run iai-callgrind custom feature benchmarks
-        run: |
-          cargo bench --features custom,with-iai --no-default-features \
-            --bench iai_bench_custom | tee -a bench.out
-      - name: Run iai-callgrind time chrono feature benchmarks
-        run: |
-          cargo bench --features time,chrono,with-iai \
-            --bench iai_bench_parsing_negative | tee -a bench.out
+      - name: Run iai-callgrind benchmarks
+        run: cargo bench --features ${{ env.FEATURES }},with-iai -- iai_ | tee bench.out
       - name: Strip colors from output file bench.out
         run: |
           # remove colors (from https://unix.stackexchange.com/a/111936 by user55518)
