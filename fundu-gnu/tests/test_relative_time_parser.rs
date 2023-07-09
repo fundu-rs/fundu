@@ -18,6 +18,8 @@ use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 #[case::number_with_plus_sign("+1", Duration::positive(1, 0))]
 #[case::time_unit_without_number("sec", Duration::positive(1, 0))]
 #[case::time_unit_with_plus_sign("+sec", Duration::positive(1, 0))]
+#[case::time_unit_with_plus_sign_and_delim("+   sec", Duration::positive(1, 0))]
+#[case::sign_with_all_whitespace("-\x09\x0A\x0B\x0C\x0D sec", Duration::negative(1, 0))]
 #[case::number_with_whitespace_between_time_unit("1 sec", Duration::positive(1, 0))]
 #[case::number_with_all_whitespace_between_time_unit(
     "1\x09\x0A\x0B\x0C\x0D sec",
@@ -33,6 +35,7 @@ use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 #[case::multiple_when_other_is_zero("1 sec 0 sec", Duration::positive(1, 0))]
 #[case::multiple_when_plus_sign_as_delimiter("1 sec+1 sec", Duration::positive(2, 0))]
 #[case::multiple_when_minus_sign_as_delimiter("3 sec-1 sec", Duration::positive(2, 0))]
+#[case::arithmetic_like_expressions("3 sec - 1 sec", Duration::positive(2, 0))]
 #[case::fraction_when_no_time_unit("1.1", Duration::positive(1, 100_000_000))]
 #[case::fraction_when_second_time_unit("1.1sec", Duration::positive(1, 100_000_000))]
 #[case::fraction_without_whole_part(".1sec", Duration::positive(0, 100_000_000))]
@@ -64,13 +67,17 @@ fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration
     &format!("{}year", "2".repeat(30)),
     ParseError::Overflow
 )]
-#[case::sign_without_number(
-    "10sec + 10sec",
-    ParseError::InvalidInput("Sign without a number".to_owned())
-)]
 #[case::just_sign(
     "+",
-    ParseError::Syntax(1, "Unexpected end of input".to_owned())
+    ParseError::Syntax(1, "Unexpected end of input. Sign without a number".to_owned())
+)]
+#[case::end_with_sign(
+    "1sec +",
+    ParseError::Syntax(6, "Unexpected end of input. Sign without a number".to_owned())
+)]
+#[case::end_with_sign_delimiter(
+    "1sec +   ",
+    ParseError::Syntax(6, "Unexpected end of input. Sign without a number".to_owned())
 )]
 fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(

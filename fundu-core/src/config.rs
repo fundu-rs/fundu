@@ -190,6 +190,14 @@ pub struct Config<'a> {
     /// which would result in a `Duration::negative(1, 0)`. `"1 ago"` and `"1ago"` would result in
     /// a [`crate::error::ParseError`]. Note the delimiter is mandatory to occur at least once.
     pub allow_ago: Option<Delimiter>,
+
+    /// Allow a [`Delimiter`] between the sign and a number, time keyword ... (Default: `None`)
+    ///
+    /// A delimiter may occur multiple times.
+    ///
+    /// For example, setting the delimiter to `Some(|byte| matches!(byte, b' ' | b'\n'))` would
+    /// parse strings like `"+1ms"`, `"- 1ms"`, `"+   yesterday"`, `"+\n4e2000years"` ...
+    pub sign_delimiter: Option<Delimiter>,
 }
 
 impl<'a> Default for Config<'a> {
@@ -237,6 +245,7 @@ impl<'a> Config<'a> {
             conjunctions: None,
             allow_negative: false,
             allow_ago: None,
+            sign_delimiter: None,
         }
     }
 
@@ -531,6 +540,30 @@ impl<'a> ConfigBuilder<'a> {
         self.config.allow_ago = Some(delimiter);
         self
     }
+
+    /// Allow a [`Delimiter`] between the sign and a number, time keyword ... (Default: `None`)
+    ///
+    /// See also the documentation of [`Config::sign_delimiter`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::config::{Config, ConfigBuilder};
+    ///
+    /// const CONFIG: Config = ConfigBuilder::new()
+    ///     .allow_sign_delimiter(|byte| matches!(byte, b' ' | b'\n'))
+    ///     .build();
+    ///
+    /// assert!(CONFIG.sign_delimiter.is_some());
+    ///
+    /// let delimiter = CONFIG.sign_delimiter.unwrap();
+    /// assert!(delimiter(b'\n'));
+    /// assert!(delimiter(b' '));
+    /// ```
+    pub const fn allow_sign_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.sign_delimiter = Some(delimiter);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -667,6 +700,18 @@ mod tests {
 
         let mut expected = Config::new();
         expected.allow_ago = Some(test_delimiter);
+
+        assert_eq!(config, expected);
+    }
+
+    #[rstest]
+    fn test_config_builder_allow_sign_delimiter(test_delimiter: Delimiter) {
+        let config = ConfigBuilder::new()
+            .allow_sign_delimiter(test_delimiter)
+            .build();
+
+        let mut expected = Config::new();
+        expected.sign_delimiter = Some(test_delimiter);
 
         assert_eq!(config, expected);
     }

@@ -253,7 +253,7 @@ pub trait Parse8Digits {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, PartialEq, Eq, Default, Copy, Clone)]
 pub struct Whole(pub usize, pub usize);
 
 impl Parse8Digits for Whole {}
@@ -338,7 +338,7 @@ impl Whole {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Default)]
+#[derive(Debug, PartialEq, Eq, Default, Copy, Clone)]
 pub struct Fract(pub usize, pub usize);
 
 impl Parse8Digits for Fract {}
@@ -443,7 +443,7 @@ impl<'a> DurationRepr<'a> {
             ));
         }
 
-        let (whole, fract) = match (self.whole.take(), self.fract.take()) {
+        let (whole, fract) = match (self.whole, self.fract) {
             (None, None) if self.is_negative.is_some() && self.unit.is_none() => {
                 return Err(ParseError::InvalidInput("Sign without a number".to_owned()));
             }
@@ -883,7 +883,7 @@ pub trait ReprParserTemplate<'a> {
             ..Default::default()
         };
 
-        self.parse_number_sign(&mut duration_repr)?;
+        self.parse_number_sign(&mut duration_repr, config.sign_delimiter)?;
 
         // parse infinity, keywords or the whole number part of the input
         match self.bytes().current_byte.copied() {
@@ -928,12 +928,15 @@ pub trait ReprParserTemplate<'a> {
                     }),
                 ));
             }
+            // This is currently unreachable code since empty input and a standalone sign are
+            // already handled as errors before. However, keep this code as safety net.
+            // cov:excl-start
             None => {
                 return Err(ParseError::Syntax(
                     self.bytes().current_pos,
                     "Unexpected end of input".to_owned(),
                 ));
-            }
+            } // cov:excl-stop
         }
 
         if !self.parse_number_fraction(&mut duration_repr, config.disable_fraction)? {
@@ -977,8 +980,28 @@ pub trait ReprParserTemplate<'a> {
         }
     }
 
-    fn parse_number_sign(&mut self, duration_repr: &mut DurationRepr) -> Result<(), ParseError> {
-        duration_repr.is_negative = self.parse_sign_is_negative()?;
+    fn parse_number_sign(
+        &mut self,
+        duration_repr: &mut DurationRepr,
+        delimiter: Option<Delimiter>,
+    ) -> Result<(), ParseError> {
+        if let Some(is_negative) = self.parse_sign_is_negative()? {
+            duration_repr.is_negative = Some(is_negative);
+
+            let bytes = self.bytes();
+            match (bytes.current_byte, delimiter) {
+                (Some(byte), Some(delimiter)) if delimiter(*byte) => {
+                    return bytes.try_consume_delimiter(delimiter);
+                }
+                (None, Some(_) | None) => {
+                    return Err(ParseError::Syntax(
+                        bytes.current_pos,
+                        "Unexpected end of input. Sign without a number".to_owned(),
+                    ));
+                }
+                (Some(_), Some(_) | None) => {}
+            }
+        }
         Ok(())
     }
 

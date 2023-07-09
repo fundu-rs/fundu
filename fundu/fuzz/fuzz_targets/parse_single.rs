@@ -25,6 +25,7 @@ struct FuzzingConfig<'a> {
     number_is_optional: bool,
     allow_ago: bool,
     keyword: KeywordsChoice,
+    allow_sign_delimiter: bool,
 }
 
 #[derive(Arbitrary, Debug, PartialEq, Eq)]
@@ -75,12 +76,20 @@ impl KeywordsChoice {
 
 fn generate_regex(config: &FuzzingConfig) -> Regex {
     let sign = if config.allow_negative || config.allow_ago {
-        r"[+-]?"
+        if config.allow_sign_delimiter {
+            r"([+-][ \t\n\x0c\r\x0b]*)?"
+        } else {
+            r"[+-]?"
+        }
     } else {
-        r"[+]?"
+        if config.allow_sign_delimiter {
+            r"([+][ \t\n\x0c\r\x0b]*)?"
+        } else {
+            r"[+]?"
+        }
     };
     let delimiter = if config.allow_delimiter {
-        "[ \t\n\x0c\r\x0b]+"
+        r"[ \t\n\x0c\r\x0b]+"
     } else {
         ""
     };
@@ -105,7 +114,7 @@ fn generate_regex(config: &FuzzingConfig) -> Regex {
         format!("{base}{exponent}")
     };
     let ago = if config.allow_ago {
-        "([ \t\n\x0c\r\x0b]+[aA][gG][oO])?"
+        r"([ \t\n\x0c\r\x0b]+[aA][gG][oO])?"
     } else {
         ""
     };
@@ -130,6 +139,11 @@ fuzz_target!(|config: FuzzingConfig| {
         .disable_exponent(config.disable_exponent)
         .number_is_optional(config.number_is_optional)
         .allow_ago(if config.allow_ago {
+            Some(DELIMITER)
+        } else {
+            None
+        })
+        .allow_sign_delimiter(if config.allow_sign_delimiter {
             Some(DELIMITER)
         } else {
             None
@@ -185,6 +199,9 @@ fuzz_target!(|config: FuzzingConfig| {
                 // false positive may happen when number_is_optional == true
                 fundu::ParseError::Syntax(_, _)
                     if input == "+" || input == "-" || input.starts_with(DELIMITER_CHARS) => {}
+                // false positive may happen when allow_sign_delimiter is set
+                fundu::ParseError::Syntax(_, _)
+                    if config.allow_sign_delimiter && input.ends_with(DELIMITER_CHARS) => {}
                 _ => {
                     dbg!(re);
                     panic!("Expected a duration but got an error: {}", error)

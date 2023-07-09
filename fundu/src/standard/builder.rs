@@ -285,6 +285,30 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    /// Allow one or more delimiters between the leading sign and the number.
+    ///
+    /// See also [`DurationParser::allow_sign_delimiter`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParserBuilder};
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .default_time_units()
+    ///     .allow_sign_delimiter(|byte| byte.is_ascii_whitespace())
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("+123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("+\t\n 123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("+ 123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("+     123ns"), Ok(Duration::positive(0, 123)));
+    /// ```
+    pub const fn allow_sign_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.sign_delimiter = Some(delimiter);
+        self
+    }
+
     /// If set, parsing negative durations is possible
     ///
     /// See also [`DurationParser::allow_negative`]
@@ -537,6 +561,12 @@ mod tests {
     fn test_duration_parser_builder_when_allow_delimiter() {
         let builder = DurationParserBuilder::new().allow_delimiter(|b| b == b' ');
         assert!(builder.config.allow_delimiter.unwrap()(b' '));
+    }
+
+    #[test]
+    fn test_duration_parser_builder_when_allow_sign_delimiter() {
+        let builder = DurationParserBuilder::new().allow_sign_delimiter(|b| b == b' ');
+        assert!(builder.config.sign_delimiter.unwrap()(b' '));
     }
 
     #[test]

@@ -400,6 +400,30 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// Allow one or more delimiters between the leading sign and the number.
+    ///
+    /// See also [`crate::DurationParser::allow_sign_delimiter`].
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration};
+    ///
+    /// let mut parser =
+    ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
+    /// parser.allow_sign_delimiter(Some(|byte| byte.is_ascii_whitespace()));
+    ///
+    /// assert_eq!(parser.parse("+123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("+\t\n 123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("+ 123ns"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("+     123ns"), Ok(Duration::positive(0, 123)));
+    /// ```
+    pub fn allow_sign_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
+        self.inner.config.sign_delimiter = delimiter;
+        self
+    }
+
     /// If true, parsing negative durations is possible
     ///
     /// This setting must be enabled if a [`CustomTimeUnit`] has a negative [`Multiplier`], a
@@ -824,6 +848,13 @@ mod tests {
         let mut parser = CustomDurationParser::new();
         parser.allow_delimiter(Some(|b| b == b' '));
         assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_setting_allow_sign_delimiter() {
+        let mut parser = CustomDurationParser::new();
+        parser.allow_sign_delimiter(Some(|b| b == b' '));
+        assert!(parser.inner.config.sign_delimiter.unwrap()(b' '));
     }
 
     #[test]

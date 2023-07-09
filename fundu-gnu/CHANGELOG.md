@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2023-07-09
+
 ## Added
 
 * Parsing of fuzzy `year` and `month` time units (#29)
@@ -33,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 
 * A sign character can now also indicate a new duration (#24)
+* A leading sign character can now be delimited by whitespace from the number or time keyword (#28)
+* Bump fundu-core dependency from `v0.1.0` to `v0.2.0`
 
 ## Fixed
 
