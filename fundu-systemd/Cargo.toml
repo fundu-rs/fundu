@@ -21,7 +21,7 @@ with-flamegraph = ["fundu/with-flamegraph"]
 with-iai = ["fundu/with-iai"]
 
 [dependencies]
-fundu = { path = "../fundu", version = "=1.1.0", default-features = false, features = ["base"] }
+fundu = { path = "../fundu", version = "=1.2.0", default-features = false, features = ["base"] }
 
 [dev-dependencies]
 criterion = { workspace = true }
