@@ -21,9 +21,9 @@ const MAX_USEC_DURATION_NANO: u32 = (u64::MAX % 1_000_000) as u32 * 1000;
 #[case::negative("-1", ParseError::NegativeNumber)]
 #[case::only_point(".", ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string()))]
 #[case::two_points_leading("..1", ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string()))]
-#[case::two_points_trailing("1..", ParseError::TimeUnit(2, "Invalid time unit: '.'".to_string()))]
+#[case::two_points_trailing("1..", ParseError::Syntax(2, "Either the whole number part or the fraction must be present".to_string()))]
 #[case::exponent("234e10", ParseError::Syntax(3, "No exponent allowed".to_string()))]
-#[case::invalid_time_unit("3.invalid", ParseError::TimeUnit(2, "Invalid time unit: 'invalid'".to_string()))]
+#[case::invalid_time_unit("3.invalid", ParseError::InvalidInput("3.invalid".to_string()))]
 fn test_parse_parse_when_invalid(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(TimeSpanParser::new().parse(input), Err(expected.clone()));
     assert_eq!(parse(input, None, None), Err(expected.clone()));
@@ -35,10 +35,10 @@ fn test_parse_parse_when_invalid(#[case] input: &str, #[case] expected: ParseErr
 }
 
 #[rstest]
-#[case::short_inf("inf", ParseError::TimeUnit(0, "Invalid time unit: 'inf'".to_string()))]
-#[case::capitalized("Infinity", ParseError::TimeUnit(0, "Invalid time unit: 'Infinity'".to_string()))]
-#[case::one_letter_less("infinit", ParseError::TimeUnit(0, "Invalid time unit: 'infinit'".to_string()))]
-#[case::one_letter_too_much("infinitys", ParseError::TimeUnit(0, "Invalid time unit: 'infinitys'".to_string()))]
+#[case::short_inf("inf", ParseError::InvalidInput("inf".to_string()))]
+#[case::capitalized("Infinity", ParseError::InvalidInput("Infinity".to_string()))]
+#[case::one_letter_less("infinit", ParseError::InvalidInput("infinit".to_string()))]
+#[case::one_letter_too_much("infinitys", ParseError::InvalidInput("infinitys".to_string()))]
 fn test_parser_parse_infinity_when_invalid_then_error(
     #[case] input: &str,
     #[case] expected: ParseError,
@@ -96,8 +96,8 @@ fn test_parser_parse_with_valid_time_units(
 }
 
 #[rstest]
-#[case::nano("nsec", ParseError::TimeUnit(0, "Invalid time unit: 'nsec'".to_string()))]
-#[case::nano("ns", ParseError::TimeUnit(0, "Invalid time unit: 'ns'".to_string()))]
+#[case::nano_nsec("nsec", ParseError::InvalidInput("nsec".to_string()))]
+#[case::nano_ns("ns", ParseError::InvalidInput("ns".to_string()))]
 fn test_parser_parse_when_invalid_time_units(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(TimeSpanParser::new().parse(input), Err(expected.clone()));
     assert_eq!(parse(input, None, None), Err(expected));

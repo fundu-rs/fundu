@@ -149,10 +149,7 @@
 //! // This is an error with `parse` because the nano seconds are excluded
 //! assert_eq!(
 //!     parse("123 nsec", None, None),
-//!     Err(ParseError::TimeUnit(
-//!         4,
-//!         "Invalid time unit: 'nsec'".to_string()
-//!     ))
+//!     Err(ParseError::InvalidInput("123 nsec".to_string()))
 //! );
 //!
 //! // Use `parse_nanos` if the nano second time units should be included
