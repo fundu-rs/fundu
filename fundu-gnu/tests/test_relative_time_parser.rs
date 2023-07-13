@@ -4,10 +4,16 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::time::Duration as StdDuration;
+
+use fundu_core::time::TimeUnit::*;
+use fundu_core::time::{Multiplier, TimeUnit};
 use fundu_gnu::{
     parse, parse_fuzzy, parse_with_date, DateTime, Duration, ParseError, RelativeTimeParser,
 };
 use rstest::rstest;
+pub use rstest_reuse;
+use rstest_reuse::{apply, template};
 #[cfg(feature = "time")]
 use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 
@@ -51,10 +57,10 @@ fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration
 #[case::empty("", ParseError::Empty)]
 #[case::only_whitespace("    ", ParseError::Empty)]
 #[case::exponent("1e2", ParseError::Syntax(1, "No exponent allowed".to_string()))]
-#[case::infinity_short("inf", ParseError::TimeUnit(0, "Invalid time unit: 'inf'".to_string()))]
-#[case::infinity_long("infinity", ParseError::TimeUnit(0, "Invalid time unit: 'infinity'".to_string()))]
-#[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
-#[case::keyword_with_ago("today ago", ParseError::TimeUnit(6, "Invalid time unit: 'ago'".to_string()))]
+#[case::infinity_short("inf", ParseError::InvalidInput("inf".to_string()))]
+#[case::infinity_long("infinity", ParseError::InvalidInput("infinity".to_string()))]
+#[case::ago_without_time_unit("1 ago", ParseError::InvalidInput("1 ago".to_string()))]
+#[case::keyword_with_ago("today ago", ParseError::InvalidInput("today ago".to_string()))]
 #[case::fraction_when_not_second_time_unit_year(
     "1.1year",
     ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
@@ -88,24 +94,35 @@ fn test_parser_parse_invalid_input(#[case] input: &str, #[case] expected: ParseE
 }
 
 #[rstest]
-#[case::too_short("s", ParseError::TimeUnit(0, "Invalid time unit: 's'".to_string()))]
-#[case::too_many("secondss", ParseError::TimeUnit(0, "Invalid time unit: 'secondss'".to_string()))]
+#[case::too_short("s", ParseError::InvalidInput("s".to_string()))]
+#[case::too_many("secondss", ParseError::InvalidInput("secondss".to_string()))]
 fn test_parser_parse_with_invalid_time_units(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(RelativeTimeParser::new().parse(input), Err(expected));
 }
 
+#[template]
 #[rstest]
 #[case::second(&["sec", "secs", "second", "seconds"], Duration::positive(1, 0))]
 #[case::minute(&["min", "mins", "minute", "minutes"], Duration::positive(60, 0))]
 #[case::hour(&["hour", "hours"], Duration::positive(60 * 60, 0))]
 #[case::day(&["day", "days"], Duration::positive(60 * 60 * 24, 0))]
 #[case::week(&["week", "weeks"], Duration::positive(60 * 60 * 24 * 7, 0))]
-fn test_parser_parse_with_valid_time_units(
-    #[case] time_units: &[&str],
-    #[case] expected: Duration,
-) {
+fn valid_time_units_template(#[case] time_units: &[&str], #[case] expected: Duration) {}
+
+#[apply(valid_time_units_template)]
+fn test_parser_parse_with_valid_time_units_blank(time_units: &[&str], expected: Duration) {
     for unit in time_units {
         assert_eq!(RelativeTimeParser::new().parse(unit), Ok(expected));
+    }
+}
+
+#[apply(valid_time_units_template)]
+fn test_parser_parse_with_valid_time_units_with_number(time_units: &[&str], expected: Duration) {
+    for unit in time_units {
+        assert_eq!(
+            RelativeTimeParser::new().parse(&format!("1{unit}")),
+            Ok(expected)
+        );
     }
 }
 
@@ -244,4 +261,40 @@ fn test_parser_when_overflow(#[case] input: &str, #[case] expected: Duration) {
 fn test_parser_parse_fuzzy(#[case] input: &str, #[case] expected: (i64, i64, Duration)) {
     assert_eq!(RelativeTimeParser::new().parse_fuzzy(input), Ok(expected));
     assert_eq!(parse_fuzzy(input), Ok(expected));
+}
+
+#[rstest]
+fn test_parser_numerals(
+    #[values(
+        ("last", -1),
+        ("next", 1),
+        ("first", 1),
+        ("third", 3),
+        ("fourth", 4),
+        ("fifth", 5),
+        ("sixth", 6),
+        ("seventh", 7),
+        ("eighth", 8),
+        ("ninth", 9),
+        ("tenth", 10),
+        ("eleventh", 11),
+        ("twelfth", 12)
+    )]
+    input: (&str, i64),
+    #[values(("sec", Second), ("min", Minute), ("hour", Hour), ("day", Day))] time_unit: (
+        &str,
+        TimeUnit,
+    ),
+) {
+    let (source, coefficient) = input;
+    let (id, unit) = time_unit;
+    let Multiplier(c, _) = unit.multiplier();
+    let seconds = c * coefficient;
+    assert_eq!(
+        RelativeTimeParser::new().parse(&format!("{source} {id}")),
+        Ok(Duration::from_std(
+            seconds.is_negative(),
+            StdDuration::new(seconds.unsigned_abs(), 0)
+        ))
+    );
 }

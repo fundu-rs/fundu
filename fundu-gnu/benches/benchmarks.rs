@@ -59,9 +59,14 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
     let parser = RelativeTimeParser::new();
     let mut group = criterion.benchmark_group("relative time parser parsing speed time units");
     for input in inputs {
+        group.bench_with_input(
+            BenchmarkId::new("time unit without number".to_string(), input),
+            &input,
+            |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
+        );
         let input = &format!("1{}", input);
         group.bench_with_input(
-            BenchmarkId::new("time units without number".to_string(), input),
+            BenchmarkId::new("time unit with number".to_string(), input),
             &input,
             |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
