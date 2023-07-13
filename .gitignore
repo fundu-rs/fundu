@@ -5,6 +5,7 @@ report
 *.profraw
 .vscode/launch.json
 .VSCodeCounter/
+.config/nextest.toml
 
 # Swap
 [._]*.s[a-v][a-z]
