@@ -530,10 +530,7 @@ impl<'a> CustomDurationParser<'a> {
     /// // Error because `yesterday` is a [`TimeKeyword`]
     /// assert_eq!(
     ///     parser.parse("yesterday ago"),
-    ///     Err(ParseError::Syntax(
-    ///         0,
-    ///         "Invalid input: 'yesterday ago'".to_string()
-    ///     ))
+    ///     Err(ParseError::InvalidInput("yesterday ago".to_string()))
     /// );
     /// ```
     pub fn allow_ago(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
@@ -610,15 +607,15 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// assert_eq!(
     ///     parser.parse("inf"),
-    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    ///     Err(ParseError::InvalidInput("inf".to_owned()))
     /// );
     /// assert_eq!(
     ///     parser.parse("infinity"),
-    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    ///     Err(ParseError::InvalidInput("infinity".to_owned()))
     /// );
     /// assert_eq!(
     ///     parser.parse("+inf"),
-    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    ///     Err(ParseError::InvalidInput("inf".to_owned()))
     /// );
     /// ```
     pub fn disable_infinity(&mut self, value: bool) -> &mut Self {

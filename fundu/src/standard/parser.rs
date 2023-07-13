@@ -399,15 +399,15 @@ impl<'a> DurationParser<'a> {
     ///
     /// assert_eq!(
     ///     parser.parse("inf"),
-    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    ///     Err(ParseError::InvalidInput("inf".to_owned()))
     /// );
     /// assert_eq!(
     ///     parser.parse("infinity"),
-    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    ///     Err(ParseError::InvalidInput("infinity".to_owned()))
     /// );
     /// assert_eq!(
     ///     parser.parse("+inf"),
-    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    ///     Err(ParseError::InvalidInput("inf".to_owned()))
     /// );
     /// ```
     pub fn disable_infinity(&mut self, value: bool) -> &mut Self {
@@ -572,10 +572,7 @@ impl<'a> Default for DurationParser<'a> {
 ///
 /// assert_eq!(
 ///     parse_duration("Not a number"),
-///     Err(ParseError::Syntax(
-///         0,
-///         "Invalid input: 'Not a number'".to_string()
-///     ))
+///     Err(ParseError::InvalidInput("Not a number".to_owned()))
 /// );
 /// ```
 #[allow(clippy::missing_panics_doc)]

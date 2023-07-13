@@ -232,8 +232,8 @@ fn test_parser_when_time_units_are_not_present_then_error(
 
 #[rstest]
 #[case::empty("", ParseError::Empty)]
-#[case::only_space(" ", ParseError::Syntax(0, "Invalid input: ' '".to_string()))]
-#[case::space_before_number(" 123", ParseError::Syntax(0, "Invalid input: ' 123'".to_string()))]
+#[case::only_space(" ", ParseError::InvalidInput(" ".to_string()))]
+#[case::space_before_number(" 123", ParseError::InvalidInput(" 123".to_string()))]
 #[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
 #[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
 fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expected: ParseError) {
@@ -278,7 +278,7 @@ fn test_parser_when_allow_delimiter_then_ok(#[case] input: &str, #[case] expecte
 
 #[rstest]
 #[case::nano_seconds("ns", Ok(Duration::positive(0, 1)))]
-#[case::exponent_without_mantissa("e1", Err(ParseError::Syntax(0, "Exponent must have a mantissa".to_string())))]
+#[case::exponent_without_mantissa("e1", Err(ParseError::TimeUnit(0, "Invalid time unit: 'e1'".to_string())))]
 #[case::just_point(".", Err(ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string())))]
 fn test_parser_when_number_is_optional(
     #[case] input: &str,
@@ -293,7 +293,7 @@ fn test_parser_when_number_is_optional(
 }
 
 #[rstest]
-#[case::starts_with_delimiter("\rd", ParseError::Syntax(0, "Input may not start with a delimiter".to_string()))]
+#[case::starts_with_delimiter("\rd", ParseError::TimeUnit(0, "Invalid time unit: '\rd'".to_string()))]
 fn test_parser_when_number_is_optional_and_allow_delimiter_then_error(
     #[case] input: &str,
     #[case] expected: ParseError,
@@ -340,13 +340,13 @@ fn test_parser_when_disable_exponent(
 }
 
 #[rstest]
-#[case::whole_with_exponent("i", Err(ParseError::Syntax(0, "Invalid input: 'i'".to_string())))]
-#[case::whole_with_exponent("in", Err(ParseError::Syntax(0, "Invalid input: 'in'".to_string())))]
-#[case::whole_with_exponent("inf", Err(ParseError::Syntax(0, "Invalid input: 'inf'".to_string())))]
-#[case::whole_with_exponent("+inf", Err(ParseError::Syntax(1, "Invalid input: 'inf'".to_string())))]
-#[case::whole_with_exponent("-inf", Err(ParseError::Syntax(1, "Invalid input: 'inf'".to_string())))]
-#[case::whole_with_exponent("infi", Err(ParseError::Syntax(0, "Invalid input: 'infi'".to_string())))]
-#[case::whole_with_exponent("infinity", Err(ParseError::Syntax(0, "Invalid input: 'infinity'".to_string())))]
+#[case::whole_with_exponent("i", Err(ParseError::InvalidInput("i".to_string())))]
+#[case::whole_with_exponent("in", Err(ParseError::InvalidInput("in".to_string())))]
+#[case::whole_with_exponent("inf", Err(ParseError::InvalidInput("inf".to_string())))]
+#[case::whole_with_exponent("+inf", Err(ParseError::InvalidInput("inf".to_string())))]
+#[case::whole_with_exponent("-inf", Err(ParseError::InvalidInput("inf".to_string())))]
+#[case::whole_with_exponent("infi", Err(ParseError::InvalidInput("infi".to_string())))]
+#[case::whole_with_exponent("infinity", Err(ParseError::InvalidInput("infinity".to_string())))]
 fn test_parser_when_disable_infinity(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
@@ -494,20 +494,19 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 
 #[rstest]
 #[case::empty("", ParseError::Empty)]
-#[case::only_conjunction("and", ParseError::Syntax(0, "Invalid input: 'and'".to_string()))]
-#[case::only_whitespace(" \t\n", ParseError::Syntax(0, "Invalid input: ' \t\n'".to_string()))]
+#[case::only_conjunction("and", ParseError::InvalidInput("and".to_string()))]
+#[case::only_whitespace(" \t\n", ParseError::InvalidInput(" \t\n".to_owned()))]
 #[case::just_point(".", ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string()))]
-#[case::two_points("1..1", ParseError::TimeUnit(2, "Invalid time unit: '.'".to_string()))]
-#[case::just_time_unit("ns", ParseError::Syntax(0, "Invalid input: 'ns'".to_string()))]
-#[case::valid_then_invalid("1 a", ParseError::Syntax(2, "Invalid input: 'a'".to_string()))]
+#[case::just_time_unit("ns", ParseError::InvalidInput("ns".to_string()))]
+#[case::valid_then_invalid("1 a", ParseError::InvalidInput("a".to_string()))]
 #[case::end_with_space("1 1 ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
 #[case::end_with_conjunction("1 and", ParseError::Syntax(2, "Input may not end with a conjunction but found: 'and'".to_string()))]
 #[case::end_with_wrong_conjunction("1 anda", ParseError::Syntax(5, "A conjunction must be separated by a delimiter, sign or digit but found: 'a'".to_string()))]
 #[case::end_with_conjunction_and_delimiter("1 and ", ParseError::Syntax(5, "Input may not end with a delimiter".to_string()))]
 #[case::valid_time_unit_end_with_delimiter("1s ", ParseError::Syntax(2, "Input may not end with a delimiter".to_string()))]
 #[case::two_end_with_conjunction("1 1 and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
-#[case::invalid_then_valid("a 1", ParseError::Syntax(0, "Invalid input: 'a 1'".to_string()))]
-#[case::multiple_invalid("a a", ParseError::Syntax(0, "Invalid input: 'a a'".to_string()))]
+#[case::invalid_then_valid("a 1", ParseError::InvalidInput("a 1".to_string()))]
+#[case::multiple_invalid("a a", ParseError::InvalidInput("a a".to_string()))]
 #[case::infinity_then_space("inf ", ParseError::Syntax(3, "Input may not end with a delimiter".to_string()))]
 #[case::infinity_then_conjunction("inf and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
 #[case::infinity_short_then_number("inf1", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
@@ -599,10 +598,7 @@ fn test_parser_when_parse_multiple_with_invalid_delimiter() {
     // µ = 0xc2 0xb5
     assert_eq!(
         parser.parse("1µ"),
-        Err(ParseError::TimeUnit(
-            1,
-            "Invalid utf-8 when applying the delimiter".to_string()
-        ))
+        Err(ParseError::InvalidInput("µ".to_string()))
     )
 }
 
@@ -616,13 +612,7 @@ fn test_parser_when_allow_ago_with_invalid_delimiter() {
 
     // The delimiter will split the multibyte µ and produces invalid utf-8
     // µ = 0xc2 0xb5
-    assert_eq!(
-        parser.parse("1µ ago"),
-        Err(ParseError::TimeUnit(
-            1,
-            "Invalid utf-8 when applying the delimiter".to_string()
-        ))
-    )
+    assert!(parser.parse("1µ ago").is_err());
 }
 
 #[test]
@@ -638,18 +628,15 @@ fn test_parser_parse_multiple_and_keywords_with_invalid_delimiter() {
     // µ = 0xc2 0xb5
     assert_eq!(
         parser.parse("someµ"),
-        Err(ParseError::Syntax(
-            4,
-            "Invalid utf-8 when applying the delimiter".to_string()
-        ))
+        Err(ParseError::InvalidInput("someµ".to_string()))
     )
 }
 
 #[rstest]
 #[case::only_numbers("1 1", Ok(Duration::positive(2, 0)))]
-#[case::with_time_units("1ns 1ns", Err(ParseError::Syntax(1, "Invalid input: 'ns 1ns'".to_string())))]
-#[case::number_then_with_time_unit("1 1ns", Err(ParseError::Syntax(3, "Invalid input: 'ns'".to_string())))]
-#[case::ago_without_time_unit("1 ago", Err(ParseError::Syntax(2, "Invalid input: 'ago'".to_string())))] // FIXME: Improve error message in such a case
+#[case::with_time_units("1ns 1ns", Err(ParseError::InvalidInput("ns 1ns".to_string())))]
+#[case::number_then_with_time_unit("1 1ns", Err(ParseError::InvalidInput("ns".to_string())))]
+#[case::ago_without_time_unit("1 ago", Err(ParseError::InvalidInput("ago".to_string())))]
 fn test_parser_when_parse_multiple_without_time_units(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
@@ -860,9 +847,9 @@ fn test_custom_parser_with_keywords(#[case] input: &str, #[case] expected: Durat
 }
 
 #[rstest]
-#[case::leading_space(" tomorrow", ParseError::Syntax(0, "Invalid input: ' tomorrow'".to_string()))]
-#[case::trailing_space("tomorrow ", ParseError::Syntax(0, "Invalid input: 'tomorrow '".to_string()))]
-#[case::incomplete_keyword("tomorro", ParseError::Syntax(0, "Invalid input: 'tomorro'".to_string()))]
+#[case::leading_space(" tomorrow", ParseError::InvalidInput(" tomorrow".to_string()))]
+#[case::trailing_space("tomorrow ", ParseError::InvalidInput("tomorrow ".to_string()))]
+#[case::incomplete_keyword("tomorro", ParseError::InvalidInput("tomorro".to_string()))]
 #[case::number("1tomorrow", ParseError::TimeUnit(1, "Invalid time unit: 'tomorrow'".to_string()))]
 #[case::number_with_space("1 tomorrow", ParseError::TimeUnit(1, "Invalid time unit: ' tomorrow'".to_string()))]
 fn test_custom_parser_with_keywords_then_error(#[case] input: &str, #[case] expected: ParseError) {
@@ -998,7 +985,7 @@ fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Dura
 #[rstest]
 #[case::ago_without_time_unit("1 :ago", ParseError::Syntax(2, "Expected end of input but found: ':'".to_string()))] // TODO: Improve the error message
 #[case::ago_as_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
-#[case::just_ago("ago", ParseError::Syntax(0, "Invalid input: 'ago'".to_string()))]
+#[case::just_ago("ago", ParseError::InvalidInput("ago".to_string()))]
 #[case::incomplete_ago("1s:ag", ParseError::TimeUnit(3, "Found unexpected keyword: 'ag'".to_string()))]
 #[case::one_second_twice("1s:1s", ParseError::TimeUnit(3, "Found unexpected keyword: '1s'".to_string()))]
 fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {

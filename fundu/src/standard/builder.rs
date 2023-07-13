@@ -394,15 +394,15 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// assert_eq!(
     ///     parser.parse("inf"),
-    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'inf'")))
+    ///     Err(ParseError::InvalidInput("inf".to_owned()))
     /// );
     /// assert_eq!(
     ///     parser.parse("infinity"),
-    ///     Err(ParseError::Syntax(0, format!("Invalid input: 'infinity'")))
+    ///     Err(ParseError::InvalidInput("infinity".to_owned()))
     /// );
     /// assert_eq!(
     ///     parser.parse("+inf"),
-    ///     Err(ParseError::Syntax(1, format!("Invalid input: 'inf'")))
+    ///     Err(ParseError::InvalidInput("inf".to_owned()))
     /// );
     /// ```
     pub const fn disable_infinity(mut self) -> Self {
