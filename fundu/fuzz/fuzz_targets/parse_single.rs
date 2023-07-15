@@ -81,12 +81,10 @@ fn generate_regex(config: &FuzzingConfig) -> Regex {
         } else {
             r"[+-]?"
         }
+    } else if config.allow_sign_delimiter {
+        r"([+][ \t\n\x0c\r\x0b]*)?"
     } else {
-        if config.allow_sign_delimiter {
-            r"([+][ \t\n\x0c\r\x0b]*)?"
-        } else {
-            r"[+]?"
-        }
+        r"[+]?"
     };
     let delimiter = if config.allow_delimiter {
         r"[ \t\n\x0c\r\x0b]+"
@@ -202,6 +200,14 @@ fuzz_target!(|config: FuzzingConfig| {
                 // false positive may happen when allow_sign_delimiter is set
                 fundu::ParseError::Syntax(_, _)
                     if config.allow_sign_delimiter && input.ends_with(DELIMITER_CHARS) => {}
+                fundu::ParseError::InvalidInput(_) | fundu::ParseError::TimeUnit(_, _)
+                    if !config.allow_sign_delimiter
+                        && input.starts_with(['+', '-'])
+                        && input
+                            .get(1..)
+                            .map_or(false, |rem| rem.starts_with(DELIMITER_CHARS)) => {}
+                fundu::ParseError::InvalidInput(_) | fundu::ParseError::TimeUnit(_, _)
+                    if input.starts_with(DELIMITER_CHARS) => {}
                 _ => {
                     dbg!(re);
                     panic!("Expected a duration but got an error: {}", error)
