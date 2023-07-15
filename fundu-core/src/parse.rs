@@ -1168,8 +1168,12 @@ pub trait ReprParserTemplate<'a> {
                                 .to_owned(),
                         ));
                     }
-                    Some(_) => None,
-                    None => return Ok(false),
+                    Some(_) => Some(Fract(self.bytes().current_pos, self.bytes().current_pos)),
+                    None => {
+                        duration_repr.fract =
+                            Some(Fract(self.bytes().current_pos, self.bytes().current_pos));
+                        return Ok(false);
+                    }
                 };
                 duration_repr.fract = fract;
                 Ok(true)
