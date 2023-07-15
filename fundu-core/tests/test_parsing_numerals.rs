@@ -5,11 +5,22 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu_core::config::{ConfigBuilder, Delimiter, Numeral};
+use fundu_core::config::{ConfigBuilder, Delimiter, NumbersLike};
 use fundu_core::error::ParseError;
 use fundu_core::parse::Parser;
 use fundu_core::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 use rstest::{fixture, rstest};
+
+struct TwoNumerals {}
+impl NumbersLike for TwoNumerals {
+    fn get(&self, input: &str) -> Option<Multiplier> {
+        match input {
+            "next" => Some(Multiplier::default()),
+            "three" => Some(Multiplier(3, 0)),
+            _ => None,
+        }
+    }
+}
 
 struct TwoTimeUnits {}
 impl TimeUnitsLike for TwoTimeUnits {
@@ -69,11 +80,8 @@ fn tomorrow_keyword() -> Box<dyn TimeUnitsLike> {
 }
 
 #[fixture]
-fn two_numerals() -> Vec<Numeral<'static>> {
-    vec![
-        Numeral::new(&["next"], Multiplier::default()),
-        Numeral::new(&["three"], Multiplier(3, 0)),
-    ]
+fn two_numerals() -> Box<dyn NumbersLike> {
+    Box::new(TwoNumerals {})
 }
 
 #[fixture]
@@ -93,18 +101,19 @@ fn test_parse_with_numerals(
     #[case] expected: Duration,
     two_time_units: Box<dyn TimeUnitsLike>,
     tomorrow_keyword: Box<dyn TimeUnitsLike>,
-    two_numerals: Vec<Numeral<'static>>,
+    two_numerals: Box<dyn NumbersLike>,
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_numerals(&two_numerals, space_delimiter)
+        .allow_delimiter(space_delimiter)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
         parser.parse(
             input,
             two_time_units.as_ref(),
-            Some(tomorrow_keyword.as_ref())
+            Some(tomorrow_keyword.as_ref()),
+            Some(two_numerals.as_ref())
         ),
         Ok(expected)
     );
@@ -120,11 +129,12 @@ fn test_parse_with_numerals_when_sign_is_present(
     #[case] expected: Duration,
     two_time_units: Box<dyn TimeUnitsLike>,
     tomorrow_keyword: Box<dyn TimeUnitsLike>,
-    two_numerals: Vec<Numeral<'static>>,
+    two_numerals: Box<dyn NumbersLike>,
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_numerals(&two_numerals, space_delimiter)
+        .allow_delimiter(space_delimiter)
+        .allow_ago(space_delimiter)
         .allow_sign_delimiter(space_delimiter)
         .allow_negative()
         .build();
@@ -133,7 +143,8 @@ fn test_parse_with_numerals_when_sign_is_present(
         parser.parse(
             input,
             two_time_units.as_ref(),
-            Some(tomorrow_keyword.as_ref())
+            Some(tomorrow_keyword.as_ref()),
+            Some(two_numerals.as_ref())
         ),
         Ok(expected)
     );
@@ -147,19 +158,16 @@ fn test_parse_with_numerals_when_number_is_optional(
     #[case] expected: Duration,
     two_time_units: Box<dyn TimeUnitsLike>,
     tomorrow_keyword: Box<dyn TimeUnitsLike>,
-    two_numerals: Vec<Numeral<'static>>,
-    space_delimiter: Delimiter,
+    two_numerals: Box<dyn NumbersLike>,
 ) {
-    let config = ConfigBuilder::new()
-        .allow_numerals(&two_numerals, space_delimiter)
-        .number_is_optional()
-        .build();
+    let config = ConfigBuilder::new().number_is_optional().build();
     let parser = Parser::with_config(config);
     assert_eq!(
         parser.parse(
             input,
             two_time_units.as_ref(),
-            Some(tomorrow_keyword.as_ref())
+            Some(tomorrow_keyword.as_ref()),
+            Some(two_numerals.as_ref())
         ),
         Ok(expected)
     );
@@ -178,18 +186,19 @@ fn test_parse_with_numerals_when_invalid(
     #[case] expected: ParseError,
     two_time_units: Box<dyn TimeUnitsLike>,
     tomorrow_keyword: Box<dyn TimeUnitsLike>,
-    two_numerals: Vec<Numeral<'static>>,
+    two_numerals: Box<dyn NumbersLike>,
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_numerals(&two_numerals, space_delimiter)
+        .allow_delimiter(space_delimiter)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
         parser.parse(
             input,
             two_time_units.as_ref(),
-            Some(tomorrow_keyword.as_ref())
+            Some(tomorrow_keyword.as_ref()),
+            Some(two_numerals.as_ref())
         ),
         Err(expected)
     );
@@ -204,11 +213,11 @@ fn test_parse_with_numerals_when_invalid_parse_multiple(
     #[case] expected: ParseError,
     two_time_units: Box<dyn TimeUnitsLike>,
     tomorrow_keyword: Box<dyn TimeUnitsLike>,
-    two_numerals: Vec<Numeral<'static>>,
+    two_numerals: Box<dyn NumbersLike>,
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_numerals(&two_numerals, space_delimiter)
+        .allow_delimiter(space_delimiter)
         .parse_multiple(space_delimiter, None)
         .build();
     let parser = Parser::with_config(config);
@@ -216,7 +225,8 @@ fn test_parse_with_numerals_when_invalid_parse_multiple(
         parser.parse(
             input,
             two_time_units.as_ref(),
-            Some(tomorrow_keyword.as_ref())
+            Some(tomorrow_keyword.as_ref()),
+            Some(two_numerals.as_ref())
         ),
         Err(expected)
     );
@@ -236,16 +246,21 @@ fn test_parse_with_numerals_when_empty_time_units_no_keywords_and_parse_multiple
     #[case] input: &str,
     #[case] expected: ParseError,
     empty_time_units: Box<dyn TimeUnitsLike>,
-    two_numerals: Vec<Numeral<'static>>,
+    two_numerals: Box<dyn NumbersLike>,
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_numerals(&two_numerals, space_delimiter)
+        .allow_delimiter(space_delimiter)
         .parse_multiple(space_delimiter, None)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
-        parser.parse(input, empty_time_units.as_ref(), None),
+        parser.parse(
+            input,
+            empty_time_units.as_ref(),
+            None,
+            Some(two_numerals.as_ref())
+        ),
         Err(expected)
     );
 }

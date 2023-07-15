@@ -278,7 +278,7 @@ fn test_parser_when_allow_delimiter_then_ok(#[case] input: &str, #[case] expecte
 
 #[rstest]
 #[case::nano_seconds("ns", Ok(Duration::positive(0, 1)))]
-#[case::exponent_without_mantissa("e1", Err(ParseError::TimeUnit(0, "Invalid time unit: 'e1'".to_string())))]
+#[case::exponent_without_mantissa("e1", Err(ParseError::InvalidInput("e1".to_string())))]
 #[case::just_point(".", Err(ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string())))]
 fn test_parser_when_number_is_optional(
     #[case] input: &str,
@@ -293,7 +293,7 @@ fn test_parser_when_number_is_optional(
 }
 
 #[rstest]
-#[case::starts_with_delimiter("\rd", ParseError::TimeUnit(0, "Invalid time unit: '\rd'".to_string()))]
+#[case::starts_with_delimiter("\rd", ParseError::InvalidInput("\rd".to_string()))]
 fn test_parser_when_number_is_optional_and_allow_delimiter_then_error(
     #[case] input: &str,
     #[case] expected: ParseError,

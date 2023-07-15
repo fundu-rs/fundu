@@ -340,6 +340,8 @@ impl<'a> CustomDurationParser<'a> {
             } else {
                 Some(&self.keywords)
             },
+            // TODO: ADD NUMERALS TO SELF
+            None,
         )
     }
 

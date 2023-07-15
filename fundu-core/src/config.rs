@@ -54,6 +54,10 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 /// ```
 pub type Delimiter = fn(u8) -> bool;
 
+pub trait NumbersLike {
+    fn get(&self, input: &str) -> Option<Multiplier>;
+}
+
 /// The structure containing all options for the [`crate::parse::Parser`]
 ///
 /// This struct is highly likely to change often, so it is not possible to create the `Config` with
@@ -198,20 +202,6 @@ pub struct Config<'a> {
     /// For example, setting the delimiter to `Some(|byte| matches!(byte, b' ' | b'\n'))` would
     /// parse strings like `"+1ms"`, `"- 1ms"`, `"+   yesterday"`, `"+\n4e2000years"` ...
     pub sign_delimiter: Option<Delimiter>,
-
-    pub numerals: Option<&'a [Numeral<'a>]>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Numeral<'a> {
-    pub identifiers: &'a [&'a str],
-    pub value: Multiplier,
-}
-
-impl<'a> Numeral<'a> {
-    pub const fn new(identifiers: &'a [&'a str], value: Multiplier) -> Self {
-        Self { identifiers, value }
-    }
 }
 
 impl<'a> Default for Config<'a> {
@@ -260,7 +250,6 @@ impl<'a> Config<'a> {
             allow_negative: false,
             allow_ago: None,
             sign_delimiter: None,
-            numerals: None,
         }
     }
 
@@ -577,16 +566,6 @@ impl<'a> ConfigBuilder<'a> {
     /// ```
     pub const fn allow_sign_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.sign_delimiter = Some(delimiter);
-        self
-    }
-
-    pub const fn allow_numerals(
-        mut self,
-        numerals: &'a [Numeral<'a>],
-        delimiter: Delimiter,
-    ) -> Self {
-        self.config.numerals = Some(numerals);
-        self.config.allow_delimiter = Some(delimiter);
         self
     }
 }

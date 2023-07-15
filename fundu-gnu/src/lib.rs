@@ -248,7 +248,7 @@ mod datetime;
 mod util;
 
 pub use datetime::{DateTime, JulianDay};
-use fundu_core::config::{Config, ConfigBuilder, Delimiter, Numeral};
+use fundu_core::config::{Config, ConfigBuilder, Delimiter, NumbersLike};
 pub use fundu_core::error::{ParseError, TryFromDurationError};
 use fundu_core::parse::{
     DurationRepr, Fract, Parser, ReprParserMultiple, ReprParserTemplate, Whole,
@@ -263,23 +263,8 @@ use util::trim_whitespace;
 // whitespace definition of: b' ', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D'
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
 
-const NUMERALS: &[Numeral<'static>; 13] = &[
-    Numeral::new(&["last"], Multiplier(-1, 0)),
-    Numeral::new(&["this"], Multiplier(0, 0)),
-    Numeral::new(&["next", "first"], Multiplier(1, 0)),
-    Numeral::new(&["third"], Multiplier(3, 0)),
-    Numeral::new(&["fourth"], Multiplier(4, 0)),
-    Numeral::new(&["fifth"], Multiplier(5, 0)),
-    Numeral::new(&["sixth"], Multiplier(6, 0)),
-    Numeral::new(&["seventh"], Multiplier(7, 0)),
-    Numeral::new(&["eighth"], Multiplier(8, 0)),
-    Numeral::new(&["ninth"], Multiplier(9, 0)),
-    Numeral::new(&["tenth"], Multiplier(10, 0)),
-    Numeral::new(&["eleventh"], Multiplier(11, 0)),
-    Numeral::new(&["twelfth"], Multiplier(12, 0)),
-];
-
 const CONFIG: Config = ConfigBuilder::new()
+    .allow_delimiter(DELIMITER)
     .allow_ago(DELIMITER)
     .disable_exponent()
     .disable_infinity()
@@ -287,11 +272,11 @@ const CONFIG: Config = ConfigBuilder::new()
     .number_is_optional()
     .parse_multiple(DELIMITER, None)
     .allow_sign_delimiter(DELIMITER)
-    .allow_numerals(NUMERALS, DELIMITER)
     .build();
 
 const TIME_UNITS: TimeUnits = TimeUnits {};
 const TIME_KEYWORDS: TimeKeywords = TimeKeywords {};
+const NUMERALS: Numerals = Numerals {};
 
 const SECOND: (TimeUnit, Multiplier) = (Second, Multiplier(1, 0));
 const MINUTE: (TimeUnit, Multiplier) = (Minute, Multiplier(1, 0));
@@ -702,8 +687,12 @@ impl<'a> RelativeTimeParser<'a> {
         );
 
         loop {
-            let (duration_repr, maybe_parser) =
-                parser.parse(&self.raw.config, &TIME_UNITS, Some(&TIME_KEYWORDS))?;
+            let (duration_repr, maybe_parser) = parser.parse(
+                &self.raw.config,
+                &TIME_UNITS,
+                Some(&TIME_KEYWORDS),
+                Some(&NUMERALS),
+            )?;
 
             match DurationReprParser(duration_repr).parse_fuzzy()? {
                 ParseFuzzyOutput::Duration(parsed_duration) => {
@@ -774,6 +763,30 @@ impl TimeUnitsLike for TimeKeywords {
             "yesterday" => Some((TimeUnit::Day, Multiplier(-1, 0))),
             "tomorrow" => Some((TimeUnit::Day, Multiplier(1, 0))),
             "now" | "today" => Some((TimeUnit::Day, Multiplier(0, 0))),
+            _ => None,
+        }
+    }
+}
+
+struct Numerals {}
+
+impl NumbersLike for Numerals {
+    #[inline]
+    fn get(&self, input: &str) -> Option<Multiplier> {
+        match input {
+            "last" => Some(Multiplier(-1, 0)),
+            "this" => Some(Multiplier(0, 0)),
+            "next" | "first" => Some(Multiplier(1, 0)),
+            "third" => Some(Multiplier(3, 0)),
+            "fourth" => Some(Multiplier(4, 0)),
+            "fifth" => Some(Multiplier(5, 0)),
+            "sixth" => Some(Multiplier(6, 0)),
+            "seventh" => Some(Multiplier(7, 0)),
+            "eighth" => Some(Multiplier(8, 0)),
+            "ninth" => Some(Multiplier(9, 0)),
+            "tenth" => Some(Multiplier(10, 0)),
+            "eleventh" => Some(Multiplier(11, 0)),
+            "twelfth" => Some(Multiplier(12, 0)),
             _ => None,
         }
     }

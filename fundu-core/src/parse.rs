@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::str::Utf8Error;
 use std::time::Duration as StdDuration;
 
-use crate::config::{Config, Delimiter, DEFAULT_CONFIG};
+use crate::config::{Config, Delimiter, NumbersLike, DEFAULT_CONFIG};
 use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 use crate::util::POW10;
@@ -110,13 +110,14 @@ impl<'a> Parser<'a> {
         conjunctions: &[&str],
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
+        numerals: Option<&dyn NumbersLike>,
     ) -> Result<Duration, ParseError> {
         let mut duration = Duration::ZERO;
 
         let mut parser = &mut ReprParserMultiple::new(source, delimiter, conjunctions);
         loop {
             let (mut duration_repr, maybe_parser) =
-                parser.parse(&self.config, time_units, keywords)?;
+                parser.parse(&self.config, time_units, keywords, numerals)?;
             let parsed_duration = duration_repr.parse()?;
             duration = if !self.config.allow_negative && parsed_duration.is_negative() {
                 return Err(ParseError::NegativeNumber);
@@ -140,9 +141,10 @@ impl<'a> Parser<'a> {
         source: &str,
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
+        numerals: Option<&dyn NumbersLike>,
     ) -> Result<Duration, ParseError> {
         ReprParserSingle::new(source)
-            .parse(&self.config, time_units, keywords)
+            .parse(&self.config, time_units, keywords, numerals)
             .and_then(|mut duration_repr| {
                 duration_repr.parse().and_then(|duration| {
                     if !self.config.allow_negative && duration.is_negative() {
@@ -219,9 +221,10 @@ impl<'a> Parser<'a> {
         source: &str,
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
+        numerals: Option<&dyn NumbersLike>,
     ) -> Result<Duration, ParseError> {
         self.config.delimiter_multiple.map_or_else(
-            || self.parse_single(source, time_units, keywords),
+            || self.parse_single(source, time_units, keywords, numerals),
             |delimiter| {
                 self.parse_multiple(
                     source,
@@ -229,6 +232,7 @@ impl<'a> Parser<'a> {
                     self.config.conjunctions.unwrap_or_default(),
                     time_units,
                     keywords,
+                    numerals,
                 )
             },
         )
@@ -949,9 +953,10 @@ pub trait ReprParserTemplate<'a> {
     #[inline]
     fn parse_numeral(
         &'_ mut self,
+        numerals: Option<&'a dyn NumbersLike>,
         config: &'a Config,
     ) -> Result<Option<(&'a str, Multiplier)>, ParseError> {
-        if let Some(numerals) = config.numerals {
+        if let Some(numerals) = numerals {
             let delimiter = config.allow_delimiter.expect(
                 "Configuration error: If numerals are defined then allow_delimiter must be set, \
                  too.",
@@ -962,12 +967,9 @@ pub trait ReprParserTemplate<'a> {
             if buffer.is_empty() {
                 return Ok(None);
             }
-            return match numerals.iter().find_map(|numeral| {
-                numeral
-                    .identifiers
-                    .iter()
-                    .find_map(|id| (id.as_bytes() == buffer).then_some((*id, numeral.value)))
-            }) {
+            // SAFETY: TODO
+            let string = unsafe { std::str::from_utf8_unchecked(buffer) };
+            return match numerals.get(string) {
                 None => {
                     bytes.reset(start);
                     Ok(None)
@@ -975,7 +977,7 @@ pub trait ReprParserTemplate<'a> {
                 some_option => match bytes.current_byte {
                     Some(byte) if delimiter(*byte) => {
                         bytes.try_consume_delimiter(delimiter)?;
-                        Ok(some_option)
+                        Ok(some_option.map(|m| (string, m)))
                     }
                     None | Some(_) => {
                         bytes.reset(start);
@@ -992,6 +994,7 @@ pub trait ReprParserTemplate<'a> {
         config: &'a Config,
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
+        numerals: Option<&'a dyn NumbersLike>,
     ) -> Result<Self::Output, ParseError> {
         if self.bytes().current_byte.is_none() {
             return Err(ParseError::Empty);
@@ -1038,7 +1041,7 @@ pub trait ReprParserTemplate<'a> {
                         Err(error) => return Err(error),
                     }
                 }
-                if let Some((id, numeral)) = self.parse_numeral(config)? {
+                if let Some((id, numeral)) = self.parse_numeral(numerals, config)? {
                     match self.parse_time_unit(config, time_units)? {
                         Some((time_unit, multiplier)) => {
                             duration_repr.numeral = Some(numeral);
@@ -1539,7 +1542,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         (duration_repr, self.bytes().current_byte.map(|_| self))
     }
 
-    // TODO: REMOVE FINALIZING CODE
+    // TODO: REMOVE FINALIZING CODE??
     #[inline]
     fn parse_infinity_remainder(
         &'a mut self,
@@ -1848,7 +1851,9 @@ mod tests {
         let config = Config::new();
         let input = &"1".repeat(i16::MAX as usize + 100);
         let mut parser = ReprParserSingle::new(input);
-        let duration_repr = parser.parse(&config, &TimeUnitsFixture, None).unwrap();
+        let duration_repr = parser
+            .parse(&config, &TimeUnitsFixture, None, None)
+            .unwrap();
         assert_eq!(duration_repr.whole, Some(Whole(0, i16::MAX as usize + 100)));
         assert_eq!(duration_repr.fract, None);
     }
@@ -1860,7 +1865,9 @@ mod tests {
         let config = Config::new();
 
         let mut parser = ReprParserSingle::new(&input);
-        let duration_repr = parser.parse(&config, &TimeUnitsFixture, None).unwrap();
+        let duration_repr = parser
+            .parse(&config, &TimeUnitsFixture, None, None)
+            .unwrap();
         assert_eq!(duration_repr.whole, None);
         assert_eq!(duration_repr.fract, Some(Fract(1, i16::MAX as usize + 101)));
 
@@ -1868,7 +1875,9 @@ mod tests {
         let delimiter = |byte| byte == b' ';
         config.delimiter_multiple = Some(delimiter);
         let mut parser = ReprParserMultiple::new(&input, delimiter, &[]);
-        let (duration_repr, maybe_parser) = parser.parse(&config, &TimeUnitsFixture, None).unwrap();
+        let (duration_repr, maybe_parser) = parser
+            .parse(&config, &TimeUnitsFixture, None, None)
+            .unwrap();
         assert!(maybe_parser.is_none());
         assert_eq!(duration_repr.whole, None);
         assert_eq!(duration_repr.fract, Some(Fract(1, i16::MAX as usize + 101)));

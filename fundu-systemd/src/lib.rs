@@ -450,7 +450,7 @@ impl<'a> TimeSpanParser<'a> {
             Some(duration) => Ok(duration),
             None => self
                 .raw
-                .parse(trimmed, &TIME_UNITS, None)
+                .parse(trimmed, &TIME_UNITS, None, None)
                 .map(|duration| duration.min(max)),
         }
     }
@@ -546,7 +546,7 @@ impl<'a> TimeSpanParser<'a> {
             Some(duration) => Ok(duration),
             None => self
                 .raw
-                .parse(trimmed, &TIME_UNITS_WITH_NANOS, None)
+                .parse(trimmed, &TIME_UNITS_WITH_NANOS, None, None)
                 .map(|duration| duration.min(max)),
         }
     }
