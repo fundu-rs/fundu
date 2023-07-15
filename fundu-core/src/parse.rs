@@ -21,6 +21,9 @@ pub const ATTOS_PER_NANO: u64 = 1_000_000_000;
 pub const ATTOS_PER_NANO_U128: u128 = ATTOS_PER_NANO as u128;
 pub const NANOS_PER_SEC: u64 = 1_000_000_000;
 pub const NANOS_PER_SEC_U128: u128 = NANOS_PER_SEC as u128;
+pub const ATTOS_MAX: u64 = 999_999_999_999_999_999;
+pub const SECONDS_MAX: u64 = u64::MAX;
+pub const SECONDS_AND_ATTOS_MAX: (u64, u64) = (SECONDS_MAX, ATTOS_MAX);
 
 /// The core duration parser to parse strings into a [`crate::time::Duration`]
 ///
@@ -451,39 +454,30 @@ impl<'a> DurationRepr<'a> {
             ));
         }
 
-        let (whole, fract) = match (self.whole, self.fract) {
-            (None, None) if self.is_negative.is_some() && self.unit.is_none() => {
-                return Err(ParseError::InvalidInput("Sign without a number".to_owned()));
-            }
-            (None, None) if self.numeral.is_some() => {
+        if self.whole.is_none() && self.fract.is_none() {
+            return if self.is_negative.is_some() && self.unit.is_none() {
+                Err(ParseError::InvalidInput("Sign without a number".to_owned()))
+            } else if self.numeral.is_some() {
                 let time_unit = self.unit.expect("Numeral without time unit");
                 let numeral = self.numeral.unwrap();
                 let Multiplier(coefficient, exponent) =
                     numeral * time_unit.multiplier() * self.multiplier;
 
-                return Ok(self.parse_duration_with_fixed_number(coefficient, exponent));
-            }
+                Ok(self.parse_duration_with_fixed_number(coefficient, exponent))
             // We're here when parsing keywords or time units without a number if the configuration
             // option `number_is_optional` is set.
-            (None, None) if self.unit.is_some() => {
+            } else if self.unit.is_some() {
                 let time_unit = self.unit.unwrap_or(self.default_unit);
                 let Multiplier(coefficient, exponent) = time_unit.multiplier() * self.multiplier;
 
-                return Ok(self.parse_duration_with_fixed_number(coefficient, exponent));
-            }
+                Ok(self.parse_duration_with_fixed_number(coefficient, exponent))
             // We're here if we haven't parsed anything usable
-            (None, None) => {
-                return std::str::from_utf8(self.input)
+            } else {
+                std::str::from_utf8(self.input)
                     .map_err(|error| ParseError::InvalidInput(error.to_string()))
-                    .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())));
-            }
-            (None, Some(fract)) => (Whole(fract.0, fract.0), fract),
-            (Some(whole), None) => {
-                let fract_start_and_end = whole.1;
-                (whole, Fract(fract_start_and_end, fract_start_and_end))
-            }
-            (Some(whole), Some(fract)) => (whole, fract),
-        };
+                    .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())))
+            };
+        }
 
         let time_unit = self.unit.unwrap_or(self.default_unit);
         // Panic on overflow during the multiplication of the multipliers or adding the exponents
@@ -496,76 +490,75 @@ impl<'a> DurationRepr<'a> {
         // The maximum absolute value of the exponent is `2 * abs(i16::MIN)`, so it is safe to cast
         // to usize
         let exponent_abs: usize = exponent.unsigned_abs().try_into().unwrap();
+        let duration_is_negative = self.is_negative.unwrap_or_default() ^ coefficient.is_negative();
 
         // We're operating on slices to minimize runtime costs. Applying the exponent before parsing
         // to integers is necessary, since the exponent can move digits into the to be considered
         // final integer domain.
         let digits = self.input;
-        let (seconds, attos) = match exponent.cmp(&0i32) {
-            Less if whole.len() > exponent_abs => {
-                let seconds = Whole::parse(&digits[whole.0..whole.1 - exponent_abs], None, None);
-                let attos = seconds.is_ok().then(|| {
-                    Fract::parse(
-                        &digits[fract.0..fract.1],
-                        Some(&digits[whole.1 - exponent_abs..whole.1]),
-                        None,
-                    )
-                });
-                (Some(seconds), attos)
+        let (seconds, attos) = match (exponent.cmp(&0i32), &self.whole, &self.fract) {
+            (Less, Some(whole), fract) if whole.len() > exponent_abs => {
+                match Whole::parse(&digits[whole.0..whole.1 - exponent_abs], None, None) {
+                    Ok(seconds) => {
+                        let attos = Fract::parse(
+                            fract.map_or_else(|| [].as_ref(), |fract| &digits[fract.0..fract.1]),
+                            Some(&digits[whole.1 - exponent_abs..whole.1]),
+                            None,
+                        );
+                        (seconds, attos)
+                    }
+                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
+                    Err(_) => return Ok(Duration::MAX),
+                }
             }
-            Less => {
-                let attos = Some(Fract::parse(
-                    &digits[fract.0..fract.1],
-                    Some(&digits[whole.0..whole.1]),
-                    Some(exponent_abs - whole.len()),
-                ));
-                (None, attos)
+            (Less, whole, fract) => {
+                let attos = Fract::parse(
+                    fract.map_or_else(|| [].as_ref(), |fract| &digits[fract.0..fract.1]),
+                    whole.and_then(|whole| (!whole.is_empty()).then(|| &digits[whole.0..whole.1])),
+                    Some(exponent_abs - whole.map_or(0, |w| w.len())),
+                );
+                (0, attos)
             }
-            Equal => {
-                let seconds = Whole::parse(&digits[whole.0..whole.1], None, None);
-                let attos = seconds
-                    .is_ok()
-                    .then(|| Fract::parse(&digits[fract.0..fract.1], None, None));
-                (Some(seconds), attos)
+            (Equal, whole, fract) => {
+                match whole.map_or(Ok(0), |whole| {
+                    Whole::parse(&digits[whole.0..whole.1], None, None)
+                }) {
+                    Ok(seconds) => {
+                        let attos = fract.map_or(0, |fract| {
+                            Fract::parse(&digits[fract.0..fract.1], None, None)
+                        });
+                        (seconds, attos)
+                    }
+                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
+                    Err(_) => return Ok(Duration::MAX),
+                }
             }
-            Greater if fract.len() > exponent_abs => {
-                let seconds = Whole::parse(
-                    &digits[whole.0..whole.1],
+            (Greater, whole, Some(fract)) if fract.len() > exponent_abs => {
+                match Whole::parse(
+                    whole.map_or_else(|| [].as_ref(), |whole| &digits[whole.0..whole.1]),
                     Some(&digits[fract.0..fract.0 + exponent_abs]),
                     None,
-                );
-                let attos = seconds
-                    .is_ok()
-                    .then(|| Fract::parse(&digits[fract.0 + exponent_abs..fract.1], None, None));
-                (Some(seconds), attos)
-            }
-            Greater => {
-                let seconds = Whole::parse(
-                    &digits[whole.0..whole.1],
-                    Some(&digits[fract.0..fract.1]),
-                    Some(exponent_abs - fract.len()),
-                );
-                (Some(seconds), None)
-            }
-        };
-
-        let duration_is_negative = self.is_negative.unwrap_or_default() ^ coefficient.is_negative();
-
-        // Finally, parse the seconds and atto seconds and interpret a seconds overflow as
-        // maximum `Duration`.
-        let (seconds, attos) = match seconds {
-            Some(result) => match result {
-                Ok(seconds) => (seconds, attos.unwrap_or_default()),
-                Err(ParseError::Overflow) if duration_is_negative => {
-                    return Ok(Duration::MIN);
+                ) {
+                    Ok(seconds) => {
+                        let attos =
+                            Fract::parse(&digits[fract.0 + exponent_abs..fract.1], None, None);
+                        (seconds, attos)
+                    }
+                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
+                    Err(_) => return Ok(Duration::MAX),
                 }
-                Err(ParseError::Overflow) => {
-                    return Ok(Duration::MAX);
+            }
+            (Greater, whole, fract) => {
+                match Whole::parse(
+                    whole.map_or_else(|| [].as_ref(), |whole| &digits[whole.0..whole.1]),
+                    fract.map(|fract| &digits[fract.0..fract.1]),
+                    Some(exponent_abs - fract.map_or(0, |fract| fract.len())),
+                ) {
+                    Ok(seconds) => (seconds, 0),
+                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
+                    Err(_) => return Ok(Duration::MAX),
                 }
-                // only ParseError::Overflow is returned by `Seconds::parse`
-                Err(_) => unreachable!(), // cov:excl-line
-            },
-            None => (0, attos.unwrap_or_default()),
+            }
         };
 
         Ok(Self::calculate_duration(
