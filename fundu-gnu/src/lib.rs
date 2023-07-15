@@ -329,6 +329,7 @@ impl<'a> DurationReprParser<'a> {
         let time_unit = self.0.unit.unwrap_or(self.0.default_unit);
 
         let digits = self.0.input;
+        // TODO: IMPROVE PERFORMANCE
         let result = match (&self.0.whole, &self.0.fract) {
             (None, None) if self.0.numeral.is_some() => {
                 let Multiplier(coefficient, exponent) =
@@ -348,16 +349,22 @@ impl<'a> DurationReprParser<'a> {
                 ));
             }
             (None, None) => {
-                return Err(ParseError::InvalidInput(
-                    // SAFETY: TODO!!
-                    unsafe { std::str::from_utf8_unchecked(self.0.input) }.to_owned(),
-                ));
+                return std::str::from_utf8(self.0.input)
+                    .map_err(|error| ParseError::InvalidInput(error.to_string()))
+                    .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())));
             }
-            (None, Some(fract)) if time_unit == TimeUnit::Second => {
-                Ok((0, Fract::parse(&digits[fract.0..fract.1], None, None)))
+            (None, Some(_)) if time_unit == TimeUnit::Second => {
+                return Err(ParseError::InvalidInput(
+                    "Fraction without a whole number".to_owned(),
+                ));
             }
             (Some(whole), None) => {
                 Whole::parse(&digits[whole.0..whole.1], None, None).map(|s| (s, 0))
+            }
+            (Some(_), Some(fract)) if time_unit == TimeUnit::Second && fract.is_empty() => {
+                return Err(ParseError::InvalidInput(
+                    "Fraction without a fractional number".to_owned(),
+                ));
             }
             (Some(whole), Some(fract)) if time_unit == TimeUnit::Second => {
                 Whole::parse(&digits[whole.0..whole.1], None, None)
@@ -412,7 +419,7 @@ impl<'a> DurationReprParser<'a> {
 
         match self.0.whole {
             None if self.0.numeral.is_some() => {
-                let Multiplier(coefficient, _) = self.0.numeral.unwrap();
+                let Multiplier(coefficient, _) = self.0.numeral.unwrap() * self.0.multiplier;
                 Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
                     unit: fuzzy_unit,
                     value: if self.0.is_negative.unwrap_or_default() {
@@ -425,14 +432,15 @@ impl<'a> DurationReprParser<'a> {
             // We're here when we've encountered just a time unit
             None => Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
                 unit: fuzzy_unit,
-                value: if self.0.is_negative.unwrap_or_default() {
+                value: if self.0.is_negative.unwrap_or_default() ^ self.0.multiplier.is_negative() {
                     -1
                 } else {
                     1
                 },
             })),
             Some(whole) => {
-                let is_negative = self.0.is_negative.unwrap_or_default();
+                let is_negative =
+                    self.0.is_negative.unwrap_or_default() ^ self.0.multiplier.is_negative();
                 match Whole::parse(&self.0.input[whole.0..whole.1], None, None) {
                     Ok(value) => match i64::try_from(value) {
                         Ok(value) if is_negative => Ok(ParseFuzzyOutput::FuzzyTime(FuzzyTime {
@@ -462,7 +470,7 @@ impl<'a> DurationReprParser<'a> {
                         unit: fuzzy_unit,
                         value: i64::MAX,
                     })),
-                    Err(_) => unreachable!(),
+                    Err(_) => unreachable!(), // cov:excl-line
                 }
             }
         }

@@ -1,4 +1,4 @@
-// spell-checker: ignore secondss datetime
+// spell-checker: ignore secondss datetime agotomorrow
 // Copyright (c) 2023 Joining7943 <joining@posteo.de>
 //
 // This software is released under the MIT License.
@@ -31,6 +31,7 @@ use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
     "1\x09\x0A\x0B\x0C\x0D sec",
     Duration::positive(1, 0)
 )]
+#[case::one_yesterday("1 yesterday", Duration::negative(24 * 60 * 60 - 1, 0))]
 #[case::negative("-1", Duration::negative(1, 0))]
 #[case::ago("1 sec ago", Duration::negative(1, 0))]
 #[case::ago_with_all_whitespace("1 sec\x09\x0A\x0B\x0C\x0D ago", Duration::negative(1, 0))]
@@ -44,28 +45,41 @@ use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
 #[case::arithmetic_like_expressions("3 sec - 1 sec", Duration::positive(2, 0))]
 #[case::fraction_when_no_time_unit("1.1", Duration::positive(1, 100_000_000))]
 #[case::fraction_when_second_time_unit("1.1sec", Duration::positive(1, 100_000_000))]
-#[case::fraction_without_whole_part(".1sec", Duration::positive(0, 100_000_000))]
-#[case::fraction_with_whole_zero("0.1sec", Duration::positive(0, 100_000_000))]
+#[case::fraction_with_whole_zero("0.1", Duration::positive(0, 100_000_000))]
+#[case::fraction_with_whole_zero_when_sec("0.1sec", Duration::positive(0, 100_000_000))]
+#[case::fraction_with_fract_zero("1.0", Duration::positive(1, 0))]
+#[case::fraction_with_fract_zero_when_sec("1.0sec", Duration::positive(1, 0))]
 #[case::fraction_gets_capped("0.0123456789sec", Duration::positive(0, 12_345_678))]
 #[case::positive_years_overflow("583344214028year", Duration::positive(18408565361559340800, 0))]
+#[case::sec_two("sec2", Duration::positive(3, 0))]
 fn test_parser_parse_valid_input(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
     assert_eq!(parse(input), Ok(expected));
 }
 
 #[rstest]
+#[case::fuzz(
+    "+minute agotomorrow year",
+    ParseError::InvalidInput("agotomorrow year".to_owned())
+)]
 #[case::empty("", ParseError::Empty)]
 #[case::only_whitespace("    ", ParseError::Empty)]
+#[case::fraction_without_whole_part(".1", ParseError::InvalidInput("Fraction without a whole number".to_owned()))]
+#[case::fraction_without_whole_part_when_sec(".1sec", ParseError::InvalidInput("Fraction without a whole number".to_owned()))]
+#[case::fraction_without_a_number("1.", ParseError::InvalidInput("Fraction without a fractional number".to_owned()))]
+#[case::fraction_without_a_number_when_sec("1.sec", ParseError::InvalidInput("Fraction without a fractional number".to_owned()))]
+#[case::two_fract_delimiter("2.\n0", ParseError::InvalidInput("Fraction without a fractional number".to_owned()))]
+#[case::two_points("2..0", ParseError::InvalidInput("Fraction without a fractional number".to_owned()))]
 #[case::exponent("1e2", ParseError::Syntax(1, "No exponent allowed".to_string()))]
 #[case::infinity_short("inf", ParseError::InvalidInput("inf".to_string()))]
 #[case::infinity_long("infinity", ParseError::InvalidInput("infinity".to_string()))]
-#[case::ago_without_time_unit("1 ago", ParseError::InvalidInput("1 ago".to_string()))]
-#[case::keyword_with_ago("today ago", ParseError::InvalidInput("today ago".to_string()))]
-#[case::fraction_when_not_second_time_unit_year(
+#[case::ago_without_time_unit("1 ago", ParseError::InvalidInput("ago".to_string()))]
+#[case::keyword_with_ago("today ago", ParseError::InvalidInput("ago".to_string()))]
+#[case::fraction_when_fuzzy_unit(
     "1.1year",
     ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
 )]
-#[case::fraction_when_not_second_time_unit_minute(
+#[case::fraction_when_not_second_time_unit(
     "1.1minute",
      ParseError::InvalidInput("Fraction only allowed together with seconds as time unit".to_owned())
 )]
@@ -124,6 +138,28 @@ fn test_parser_parse_with_valid_time_units_with_number(time_units: &[&str], expe
             Ok(expected)
         );
     }
+}
+
+#[rstest]
+#[case::minus_zero_second("-0second", Duration::ZERO)]
+#[case::minus_one_second("-1second", Duration::negative(1, 0))]
+#[case::minus_two_second("-2second", Duration::negative(2, 0))]
+#[case::minus_second("-second", Duration::negative(1, 0))]
+#[case::second_ago("second ago", Duration::negative(1, 0))]
+#[case::plus_second_ago("+second ago", Duration::negative(1, 0))]
+#[case::minus_second_ago("-second ago", Duration::positive(1, 0))]
+#[case::minus_zero_minute("-0minute", Duration::ZERO)]
+#[case::minus_one_minute("-1minute", Duration::negative(60, 0))]
+#[case::minus_two_minute("-2minute", Duration::negative(120, 0))]
+#[case::minus_minute("-minute", Duration::negative(60, 0))]
+#[case::minute_ago("minute ago", Duration::negative(60, 0))]
+#[case::plus_minute_ago("+minute ago", Duration::negative(60, 0))]
+#[case::minus_minute_ago("-minute ago", Duration::positive(60, 0))]
+fn test_parser_parse_with_just_time_unit_when_ago_or_negative(
+    #[case] input: &str,
+    #[case] expected: Duration,
+) {
+    assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
 }
 
 #[cfg(feature = "time")]
@@ -264,9 +300,10 @@ fn test_parser_parse_fuzzy(#[case] input: &str, #[case] expected: (i64, i64, Dur
 }
 
 #[rstest]
-fn test_parser_numerals(
+fn test_parser_numerals_with_not_fuzzy_time_units(
     #[values(
         ("last", -1),
+        ("this", 0),
         ("next", 1),
         ("first", 1),
         ("third", 3),
@@ -281,10 +318,7 @@ fn test_parser_numerals(
         ("twelfth", 12)
     )]
     input: (&str, i64),
-    #[values(("sec", Second), ("min", Minute), ("hour", Hour), ("day", Day))] time_unit: (
-        &str,
-        TimeUnit,
-    ),
+    #[values(("sec", Second), ("min", Minute))] time_unit: (&str, TimeUnit),
 ) {
     let (source, coefficient) = input;
     let (id, unit) = time_unit;
@@ -296,5 +330,65 @@ fn test_parser_numerals(
             seconds.is_negative(),
             StdDuration::new(seconds.unsigned_abs(), 0)
         ))
+    );
+}
+
+#[rstest]
+#[case::last_ago("last minute ago", Duration::positive(60, 0))]
+#[case::this_ago("this minute ago", Duration::ZERO)]
+#[case::next_ago("next minute ago", Duration::negative(60, 0))]
+#[case::third_ago("third minute ago", Duration::negative(3 * 60, 0))]
+fn test_parser_numerals_not_fuzzy_time_units_when_ago(
+    #[case] input: &str,
+    #[case] expected: Duration,
+) {
+    assert_eq!(RelativeTimeParser::new().parse(input), Ok(expected));
+}
+
+#[rstest]
+#[case::last_year("last year", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::plus_last_year("+last year", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::minus_last_year("-last year", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::last_year_ago("last year ago", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::this_year("this year", Duration::ZERO)]
+#[case::minus_this_year("-this year", Duration::ZERO)]
+#[case::this_year_ago("this year ago", Duration::ZERO)]
+#[case::next_year("next year", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::plus_next_year("+next year", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::minus_next_year("-next year", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::next_year_ago("next year ago", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::plus_next_year_ago("+next year ago", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::minus_next_year_ago("-next year ago", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::third_year("third year", Duration::positive(365 * 24 * 60 * 60 * 2 + 366 * 24 * 60 * 60, 0))]
+#[case::third_year_ago("third year ago", Duration::negative(365 * 24 * 60 * 60 * 2 + 366 * 24 * 60 * 60, 0))]
+fn test_parser_numerals_with_fuzzy_time_unit(#[case] input: &str, #[case] expected: Duration) {
+    assert_eq!(
+        RelativeTimeParser::new().parse_with_date(
+            input,
+            Some(DateTime::from_gregorian_date_time(1970, 8, 1, 0, 0, 0, 0))
+        ),
+        Ok(expected)
+    );
+}
+
+#[rstest]
+#[case::plus_year("+year", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::minus_year("-year", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::minus_year_ago("-year ago", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::minus_one_year("-1year", Duration::negative(365 * 24 * 60 * 60, 0))]
+#[case::minus_two_year("-2year", Duration::negative(365 * 2 * 24 * 60 * 60, 0))]
+#[case::minus_one_year_ago("-1year ago", Duration::positive(365 * 24 * 60 * 60, 0))]
+#[case::minus_two_year_ago("-2year ago", Duration::positive((365 + 366) * 24 * 60 * 60, 0))]
+#[case::year_ago("year ago", Duration::negative(365 * 24 * 60 * 60, 0))]
+fn test_parser_with_fuzzy_time_unit_when_ago_or_sign(
+    #[case] input: &str,
+    #[case] expected: Duration,
+) {
+    assert_eq!(
+        RelativeTimeParser::new().parse_with_date(
+            input,
+            Some(DateTime::from_gregorian_date_time(1970, 8, 1, 0, 0, 0, 0))
+        ),
+        Ok(expected)
     );
 }
