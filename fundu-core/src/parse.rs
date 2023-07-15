@@ -1685,14 +1685,29 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                 if self.bytes.next_is_ignore_ascii_case(b"ago") {
                     // SAFETY: We know that next is `ago` which has 3 bytes
                     unsafe { self.bytes.advance_by(3) };
-                    // We're applying the negation on the multiplier only once so we don't need
-                    // the operation to be reflexive and using saturating neg is fine
-                    multiplier = multiplier.saturating_neg();
+                    match self.bytes.current_byte {
+                        Some(byte) if (self.delimiter)(*byte) || Self::is_next_duration(*byte) => {
+                            multiplier = multiplier.saturating_neg();
+                        }
+                        Some(_) => {
+                            self.bytes.reset(start);
+                        }
+                        None => {
+                            multiplier = multiplier.saturating_neg();
+                        }
+                    }
                 } else {
                     self.bytes.reset(start);
                 }
             }
             _ => {}
+        }
+
+        match self.bytes.current_byte {
+            Some(byte) if (self.delimiter)(*byte) => {
+                self.try_consume_connection()?;
+            }
+            Some(_) | None => {}
         }
 
         Ok(Some((time_unit, multiplier)))
