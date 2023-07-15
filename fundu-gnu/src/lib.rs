@@ -314,79 +314,75 @@ impl<'a> DurationReprParser<'a> {
         let time_unit = self.0.unit.unwrap_or(self.0.default_unit);
 
         let digits = self.0.input;
-        // TODO: IMPROVE PERFORMANCE
-        let result = match (&self.0.whole, &self.0.fract) {
+        match (&self.0.whole, &self.0.fract) {
             (None, None) if self.0.numeral.is_some() => {
                 let Multiplier(coefficient, exponent) =
                     self.0.numeral.unwrap() * time_unit.multiplier() * self.0.multiplier;
-                return Ok(self
+                Ok(self
                     .0
-                    .parse_duration_with_fixed_number(coefficient, exponent));
+                    .parse_duration_with_fixed_number(coefficient, exponent))
             }
             (None, None) if self.0.unit.is_some() => {
                 let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
                 let duration_is_negative = is_negative ^ coefficient.is_negative();
-                return Ok(DurationRepr::calculate_duration(
+                Ok(DurationRepr::calculate_duration(
                     duration_is_negative,
                     1,
                     0,
                     coefficient,
-                ));
+                ))
             }
             (None, None) => {
                 return std::str::from_utf8(self.0.input)
                     .map_err(|error| ParseError::InvalidInput(error.to_string()))
                     .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())));
             }
-            (None, Some(_)) if time_unit == TimeUnit::Second => {
-                return Err(ParseError::InvalidInput(
-                    "Fraction without a whole number".to_owned(),
-                ));
-            }
+            (None, Some(_)) if time_unit == TimeUnit::Second => Err(ParseError::InvalidInput(
+                "Fraction without a whole number".to_owned(),
+            )),
             (Some(whole), None) => {
-                Whole::parse(&digits[whole.0..whole.1], None, None).map(|s| (s, 0))
+                let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
+                if coefficient == 0 {
+                    return Ok(Duration::ZERO);
+                }
+                let duration_is_negative = is_negative ^ coefficient.is_negative();
+                let (seconds, attos) = match Whole::parse(&digits[whole.0..whole.1], None, None) {
+                    Ok(seconds) => (seconds, 0),
+                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
+                    Err(_) => return Ok(Duration::MAX),
+                };
+                Ok(DurationRepr::calculate_duration(
+                    duration_is_negative,
+                    seconds,
+                    attos,
+                    coefficient,
+                ))
             }
-            (Some(_), Some(fract)) if time_unit == TimeUnit::Second && fract.is_empty() => {
-                return Err(ParseError::InvalidInput(
-                    "Fraction without a fractional number".to_owned(),
-                ));
-            }
+            (Some(_), Some(fract)) if time_unit == TimeUnit::Second && fract.is_empty() => Err(
+                ParseError::InvalidInput("Fraction without a fractional number".to_owned()),
+            ),
             (Some(whole), Some(fract)) if time_unit == TimeUnit::Second => {
-                Whole::parse(&digits[whole.0..whole.1], None, None)
-                    .map(|s| (s, Fract::parse(&digits[fract.0..fract.1], None, None)))
+                let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
+                if coefficient == 0 {
+                    return Ok(Duration::ZERO);
+                }
+                let duration_is_negative = is_negative ^ coefficient.is_negative();
+                let (seconds, attos) = match Whole::parse(&digits[whole.0..whole.1], None, None) {
+                    Ok(seconds) => (seconds, Fract::parse(&digits[fract.0..fract.1], None, None)),
+                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
+                    Err(_) => return Ok(Duration::MAX),
+                };
+                Ok(DurationRepr::calculate_duration(
+                    duration_is_negative,
+                    seconds,
+                    attos,
+                    coefficient,
+                ))
             }
-            (Some(_) | None, Some(_)) => {
-                return Err(ParseError::InvalidInput(
-                    "Fraction only allowed together with seconds as time unit".to_owned(),
-                ));
-            }
-        };
-
-        let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
-        if coefficient == 0 {
-            return Ok(Duration::ZERO);
+            (Some(_) | None, Some(_)) => Err(ParseError::InvalidInput(
+                "Fraction only allowed together with seconds as time unit".to_owned(),
+            )),
         }
-        let duration_is_negative = is_negative ^ coefficient.is_negative();
-
-        // interpret the result and a seconds overflow as maximum (minimum) `Duration`
-        let (seconds, attos) = match result {
-            Ok(value) => value,
-            Err(ParseError::Overflow) if duration_is_negative => {
-                return Ok(Duration::MIN);
-            }
-            Err(ParseError::Overflow) => {
-                return Ok(Duration::MAX);
-            }
-            // only ParseError::Overflow is returned by `Seconds::parse`
-            Err(_) => unreachable!(), // cov:excl-line
-        };
-
-        Ok(DurationRepr::calculate_duration(
-            duration_is_negative,
-            seconds,
-            attos,
-            coefficient,
-        ))
     }
 
     fn parse_fuzzy(&mut self) -> Result<ParseFuzzyOutput, ParseError> {
