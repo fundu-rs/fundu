@@ -246,47 +246,64 @@ jobs:
       fail-fast: false
       matrix:
         test:
-          - f64_like_input
-          - parse_single
-        include:
-          - test: parse_single
-            dict: parse_single.dict
+          - package: fundu
+            fuzz_target: f64_like_input
+          - package: fundu
+            fuzz_target: parse_single
+          - package: fundu-gnu
+            fuzz_target: parsing
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: "fundu/fuzz"
+        working-directory: "${{ matrix.test.package }}/fuzz"
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: nightly
           components: llvm-tools
+      - name: Prepare
+        run: cargo install cargo-fuzz rustfilt
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            fuzz -> target
+            ${{ matrix.test.package }}/fuzz -> target
           cache-on-failure: true
-      - name: Prepare
-        run: sudo apt-get -y update && sudo apt-get -y install llvm
-      - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
-      - name: Run fuzzing for 5 minutes with dictionary
-        if: matrix.dict
+      - name: Run fuzzing for 5 minutes
         run: |
-          cargo fuzz run --all-features ${{ matrix.test }} -- \
-            -dict=dicts/${{ matrix.dict }} \
-            -max_total_time=300 \
-            -print_final_stats=1 \
-            -print_corpus_stats=1 \
-            -verbosity=2
-      - name: Run fuzzing for 5 minutes without dictionary
-        if: matrix.dict == 0
+          dict="dicts/${{ matrix.test.fuzz_target }}.dict"
+          if test -e "$dict"; then
+            cargo fuzz run --all-features ${{ matrix.test.fuzz_target }} -- \
+              -max_total_time=300 \
+              -print_final_stats=1 \
+              -print_corpus_stats=1 \
+              -verbosity=2 \
+              -dict="$dict"
+          else
+            cargo fuzz run --all-features ${{ matrix.test.fuzz_target }} -- \
+              -max_total_time=300 \
+              -print_final_stats=1 \
+              -print_corpus_stats=1 \
+              -verbosity=2
+          fi
+      - name: Create coverage.profdata
+        run: cargo fuzz coverage ${{ matrix.test.fuzz_target }}
+      - name: Create lcov coverage report
         run: |
-          cargo fuzz run --all-features ${{ matrix.test }} -- \
-            -max_total_time=300 \
-            -print_final_stats=1 \
-            -print_corpus_stats=1 \
-            -verbosity=2
+          llvm_cov_bin=$(realpath -e $(rustc --print target-libdir)/../bin/llvm-cov)
+          $llvm_cov_bin export \
+            target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/${{ matrix.test.fuzz_target }} \
+            --instr-profile=coverage/${{ matrix.test.fuzz_target }}/coverage.profdata \
+            --format=lcov \
+            --ignore-filename-regex='/rustc/.*|\.cargo/registry/.*|fuzz/fuzz_targets/.*' \
+            -Xdemangler='rustfilt' > lcov.info
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
+          name: ${{ matrix.test.package }}-${{ matrix.test.fuzz_target }}
+          override_branch: fuzzy-testing
+          fail_ci_if_error: false
     env:
       RUSTFLAGS: "-C instrument-coverage"
       LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
