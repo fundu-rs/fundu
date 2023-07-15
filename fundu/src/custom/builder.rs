@@ -364,7 +364,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     parser.parse("123 ago"),
     ///     Err(ParseError::Syntax(
     ///         3,
-    ///         "Expected end of input but found: ' '".to_string()
+    ///         "Expected end of input but found: ' ago'".to_string()
     ///     ))
     /// );
     ///
@@ -373,7 +373,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     parser.parse("123ns ago ago"),
     ///     Err(ParseError::Syntax(
     ///         9,
-    ///         "Expected end of input but found: ' '".to_string()
+    ///         "Expected end of input but found: ' ago'".to_string()
     ///     ))
     /// );
     ///

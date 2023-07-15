@@ -139,7 +139,7 @@
 //! Or use one of the global methods [`parse`], [`parse_nanos`].
 //!
 //! ```rust
-//! use fundu::{Duration, ParseError, TimeUnit};
+//! use fundu::{Duration, ParseError};
 //! use fundu_systemd::{
 //!     parse, parse_nanos, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION,
 //! };
@@ -149,7 +149,7 @@
 //! // This is an error with `parse` because the nano seconds are excluded
 //! assert_eq!(
 //!     parse("123 nsec", None, None),
-//!     Err(ParseError::InvalidInput("123 nsec".to_string()))
+//!     Err(ParseError::InvalidInput("nsec".to_string()))
 //! );
 //!
 //! // Use `parse_nanos` if the nano second time units should be included

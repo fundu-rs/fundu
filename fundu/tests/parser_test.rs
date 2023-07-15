@@ -179,7 +179,7 @@ fn test_parse_duration_when_arguments_are_infinity_values(#[case] source: &str) 
 #[rstest]
 #[case::negative_infinity_short("-inf", ParseError::NegativeNumber)]
 #[case::negative_infinity_long("-infinity", ParseError::NegativeNumber)]
-#[case::infinity_long_trailing_invalid("infinityINVALID", ParseError::Syntax(8, "Expected end of input but found: 'I'".to_string()))]
+#[case::infinity_long_trailing_invalid("infinityINVALID", ParseError::Syntax(8, "Expected end of input but found: 'INVALID'".to_string()))]
 #[case::incomplete_infinity("infin", ParseError::Syntax(5, "Error parsing infinity: Premature end of input".to_string()))]
 #[case::infinity_with_number("inf1.0", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
 fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(
@@ -525,7 +525,7 @@ fn test_parser_when_setting_parse_multiple_then_error(
 
 #[rstest]
 #[case::numbers_without_time_units("1 ns 1 s", Ok(Duration::positive(1, 1)))]
-#[case::sign_without_number("1s + 1s", Err(ParseError::InvalidInput("Sign without a number".to_owned())))]
+#[case::sign_without_number("1s + 1s", Err(ParseError::InvalidInput(" 1s".to_owned())))]
 fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
@@ -983,7 +983,7 @@ fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Dura
 }
 
 #[rstest]
-#[case::ago_without_time_unit("1 :ago", ParseError::Syntax(2, "Expected end of input but found: ':'".to_string()))] // TODO: Improve the error message
+#[case::ago_without_time_unit("1 :ago", ParseError::Syntax(2, "Expected end of input but found: ':ago'".to_string()))] // TODO: Improve the error message
 #[case::ago_as_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::just_ago("ago", ParseError::InvalidInput("ago".to_string()))]
 #[case::incomplete_ago("1s:ag", ParseError::TimeUnit(3, "Found unexpected keyword: 'ag'".to_string()))]

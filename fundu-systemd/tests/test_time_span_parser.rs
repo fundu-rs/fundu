@@ -23,7 +23,7 @@ const MAX_USEC_DURATION_NANO: u32 = (u64::MAX % 1_000_000) as u32 * 1000;
 #[case::two_points_leading("..1", ParseError::Syntax(0, "Either the whole number part or the fraction must be present".to_string()))]
 #[case::two_points_trailing("1..", ParseError::Syntax(2, "Either the whole number part or the fraction must be present".to_string()))]
 #[case::exponent("234e10", ParseError::Syntax(3, "No exponent allowed".to_string()))]
-#[case::invalid_time_unit("3.invalid", ParseError::InvalidInput("3.invalid".to_string()))]
+#[case::invalid_time_unit("3.invalid", ParseError::InvalidInput("invalid".to_string()))]
 fn test_parse_parse_when_invalid(#[case] input: &str, #[case] expected: ParseError) {
     assert_eq!(TimeSpanParser::new().parse(input), Err(expected.clone()));
     assert_eq!(parse(input, None, None), Err(expected.clone()));
