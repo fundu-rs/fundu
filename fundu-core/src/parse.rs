@@ -469,10 +469,9 @@ impl<'a> DurationRepr<'a> {
             }
             // We're here if we haven't parsed anything usable
             (None, None) => {
-                return Err(ParseError::InvalidInput(
-                    // SAFETY: TODO!!
-                    unsafe { std::str::from_utf8_unchecked(self.input) }.to_owned(),
-                ));
+                return std::str::from_utf8(self.input)
+                    .map_err(|error| ParseError::InvalidInput(error.to_string()))
+                    .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())));
             }
             (None, Some(fract)) => (Whole(fract.0, fract.0), fract),
             (Some(whole), None) => {
@@ -710,12 +709,14 @@ impl<'a> Bytes<'a> {
     {
         match self.buffer {
             Some((pos, buffer, Some(next))) if pos == self.current_pos && delimiter(*next) => {
-                // SAFETY: TODO!!
+                // SAFETY: The buffer length does not exceed the input because we parsed it before
+                // at the same position
                 unsafe { self.advance_by(buffer.len()) };
                 buffer
             }
             Some((pos, buffer, None)) if pos == self.current_pos => {
-                // SAFETY: TODO!!
+                // SAFETY: The buffer length does not exceed the input because we parsed it before
+                // at the same position
                 unsafe { self.advance_by(buffer.len()) };
                 buffer
             }
@@ -747,6 +748,12 @@ impl<'a> Bytes<'a> {
     #[inline]
     pub unsafe fn get_remainder_str_unchecked(&self) -> &str {
         std::str::from_utf8_unchecked(self.get_remainder())
+    }
+
+    #[inline]
+    pub fn get_remainder_str(&self) -> Result<&str, ParseError> {
+        std::str::from_utf8(self.get_remainder())
+            .map_err(|err| ParseError::InvalidInput(err.to_string()))
     }
 
     #[inline]
@@ -856,25 +863,19 @@ impl<'a> Bytes<'a> {
     }
 
     #[inline]
-    pub fn next_delimited_is(&self, word: &[u8], delimiter: Delimiter) -> bool {
-        self.peek(word.len() + 1).map_or(false, |bytes| {
-            let (last, bytes) = bytes.split_last().unwrap();
-            delimiter(*last) && bytes == word
-        })
-    }
-
-    #[inline]
     pub const fn is_end_of_input(&self) -> bool {
         self.current_byte.is_none()
     }
 
     #[inline]
     pub fn check_end_of_input(&self) -> Result<(), ParseError> {
-        self.current_byte.map_or(Ok(()), |byte| {
-            Err(ParseError::Syntax(
-                self.current_pos,
-                format!("Expected end of input but found: '{}'", *byte as char),
-            ))
+        self.current_byte.map_or(Ok(()), |_| {
+            self.get_remainder_str().and_then(|remainder| {
+                Err(ParseError::Syntax(
+                    self.current_pos,
+                    format!("Expected end of input but found: '{remainder}'"),
+                ))
+            })
         })
     }
 
@@ -1362,7 +1363,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
 
         if let Some(delimiter) = config.allow_ago {
             let start = self.bytes.current_pos;
-            // SAFETY: TODO!!
+            // SAFETY: The delimiter may not match non-ascii bytes and we've parsed only valid utf-8
+            // so far
             let string = unsafe { std::str::from_utf8_unchecked(self.bytes.advance_to(delimiter)) };
 
             let (time_unit, mut multiplier) = if string.is_empty() {
@@ -1609,7 +1611,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                 return Ok(None);
             }
 
-            // SAFETY: TODO!!
+            // SAFETY: The delimiter may not match non-ascii bytes and we've parsed only valid utf-8
+            // so far
             let string = unsafe { std::str::from_utf8_unchecked(buffer) };
 
             match keywords.get(string) {
@@ -1656,7 +1659,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
             return Ok(None);
         }
 
-        // SAFETY: TODO!!
+        // SAFETY: The delimiter may not match non-ascii bytes and we've parsed only valid utf-8 so
+        // far
         let string = unsafe { std::str::from_utf8_unchecked(buffer) };
 
         let (time_unit, mut multiplier) = match time_units.get(string) {
