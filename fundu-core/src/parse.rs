@@ -1019,6 +1019,25 @@ pub trait ReprParserTemplate<'a> {
                 return self.parse_infinity_remainder(duration_repr);
             }
             Some(_) => {
+                if let Some((unit, multi)) = self.parse_keyword(keywords)? {
+                    duration_repr.unit = Some(unit);
+                    duration_repr.multiplier = multi;
+                    return self.finalize(duration_repr);
+                }
+                if config.number_is_optional {
+                    let start = self.bytes().current_pos;
+                    match self.parse_time_unit(config, time_units) {
+                        Ok(Some((time_unit, multiplier))) => {
+                            duration_repr.unit = Some(time_unit);
+                            duration_repr.multiplier = multiplier;
+                            return self.finalize(duration_repr);
+                        }
+                        Ok(None) | Err(ParseError::TimeUnit(_, _)) => {
+                            self.bytes().reset(start);
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
                 if let Some((id, numeral)) = self.parse_numeral(config)? {
                     match self.parse_time_unit(config, time_units)? {
                         Some((time_unit, multiplier)) => {
@@ -1041,22 +1060,10 @@ pub trait ReprParserTemplate<'a> {
                         }
                     }
                 }
-                if let Some((unit, multi)) = self.parse_keyword(keywords)? {
-                    duration_repr.unit = Some(unit);
-                    duration_repr.multiplier = multi;
-                    return self.finalize(duration_repr);
-                }
-                if config.number_is_optional {
-                    if !self.parse_number_time_unit(&mut duration_repr, config, time_units)? {
-                        return Ok(self.make_output(duration_repr)); // cov:excl-line
-                    }
-                    return self.finalize(duration_repr);
-                }
-                return Err(ParseError::InvalidInput(
-                    // SAFETY: The input str is utf-8 and we have only parsed valid utf-8 so
-                    // far
-                    unsafe { self.bytes().get_remainder_str_unchecked() }.to_owned(),
-                ));
+                return self
+                    .bytes()
+                    .get_remainder_str()
+                    .and_then(|remainder| Err(ParseError::InvalidInput(remainder.to_owned())));
             }
             // This is currently unreachable code since empty input and a standalone sign are
             // already handled as errors before. However, keep this code as safety net.
