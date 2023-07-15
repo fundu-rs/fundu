@@ -1,0 +1,29 @@
+[package]
+name = "fundu-gnu-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+regex = "1.9.0"
+lazy_static = "1.4.0"
+
+[dependencies.fundu-gnu]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "parsing"
+path = "fuzz_targets/parsing.rs"
+test = false
+doc = false
