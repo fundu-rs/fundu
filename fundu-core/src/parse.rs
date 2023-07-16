@@ -968,7 +968,8 @@ pub trait ReprParserTemplate<'a> {
             if buffer.is_empty() {
                 return Ok(None);
             }
-            // SAFETY: TODO
+            // SAFETY: we've only parsed valid utf-8 up to this point and the delimiter only matches
+            // ascii
             let string = unsafe { std::str::from_utf8_unchecked(buffer) };
             return match numerals.get(string) {
                 None => {
