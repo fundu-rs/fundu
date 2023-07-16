@@ -66,15 +66,15 @@ pub const SECONDS_AND_ATTOS_MAX: (u64, u64) = (SECONDS_MAX, ATTOS_MAX);
 /// let time_units = TimeUnits {};
 ///
 /// assert_eq!(
-///     parser.parse("1.0s", &time_units, None),
+///     parser.parse("1.0s", &time_units, None, None),
 ///     Ok(Duration::positive(1, 0))
 /// );
 /// assert_eq!(
-///     parser.parse("1min", &time_units, None),
+///     parser.parse("1min", &time_units, None, None),
 ///     Ok(Duration::positive(60, 0))
 /// );
 /// assert_eq!(
-///     parser.parse("1ms", &time_units, None),
+///     parser.parse("1ms", &time_units, None, None),
 ///     Err(ParseError::TimeUnit(
 ///         1,
 ///         "Invalid time unit: 'ms'".to_string()
@@ -203,15 +203,15 @@ impl<'a> Parser<'a> {
     /// let time_units = TimeUnits {};
     ///
     /// assert_eq!(
-    ///     parser.parse("1.0s", &time_units, None),
+    ///     parser.parse("1.0s", &time_units, None, None),
     ///     Ok(Duration::positive(1, 0))
     /// );
     /// assert_eq!(
-    ///     parser.parse("1min", &time_units, None),
+    ///     parser.parse("1min", &time_units, None, None),
     ///     Ok(Duration::positive(60, 0))
     /// );
     /// assert_eq!(
-    ///     parser.parse("1ms", &time_units, None),
+    ///     parser.parse("1ms", &time_units, None, None),
     ///     Err(ParseError::TimeUnit(
     ///         1,
     ///         "Invalid time unit: 'ms'".to_string()

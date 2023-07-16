@@ -97,11 +97,11 @@ pub trait NumbersLike {
 /// const PARSER: Parser = Parser::with_config(CONFIG);
 ///
 /// assert_eq!(
-///     PARSER.parse("1000", &TIME_UNITS, None),
+///     PARSER.parse("1000", &TIME_UNITS, None, None),
 ///     Ok(Duration::positive(1, 0))
 /// );
 /// assert_eq!(
-///     PARSER.parse("-1", &TIME_UNITS, None),
+///     PARSER.parse("-1", &TIME_UNITS, None, None),
 ///     Ok(Duration::negative(0, 1_000_000))
 /// );
 /// ```
