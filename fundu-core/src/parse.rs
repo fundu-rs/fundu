@@ -318,7 +318,7 @@ impl Whole {
         append: Option<&[u8]>,
         zeros: Option<usize>,
     ) -> Result<u64, ParseError> {
-        if digits.is_empty() && append.is_none() {
+        if digits.is_empty() && append.map_or(true, <[u8]>::is_empty) {
             return Ok(0);
         }
 
@@ -356,65 +356,59 @@ impl Parse8Digits for Fract {}
 
 impl Fract {
     #[inline]
-    pub fn parse_slice(mut multi: u64, num_skip: usize, digits: &[u8]) -> (u64, u64) {
-        let mut attos = 0;
-        let len = digits.len();
-
-        if multi >= 100_000_000 && len >= 8 {
-            let max = 18usize.saturating_sub(num_skip);
-            let mut iter = digits[0..if len > max { max } else { len }].chunks_exact(8);
+    pub fn parse_slice(mut attos: u64, max_to_parse: usize, digits: &[u8]) -> (u64, usize) {
+        let num_parsable = digits.len().min(max_to_parse);
+        if num_parsable >= 8 {
+            let mut iter = digits[..num_parsable].chunks_exact(8);
             for digits in iter.by_ref() {
-                multi /= 100_000_000;
-                // SAFETY: The length of digits is exactly 8
-                attos += unsafe { Self::parse_8_digits(digits) } * multi;
+                // SAFETY: We have chunks of exactly 8 bytes
+                attos = attos * 100_000_000 + unsafe { Self::parse_8_digits(digits) };
             }
             for num in iter.remainder() {
-                multi /= 10;
-                attos += u64::from(*num - b'0') * multi;
-            }
-        } else if multi > 0 && len > 0 {
-            for num in digits {
-                multi /= 10;
-                if multi == 0 {
-                    return (0, attos);
-                }
-                attos += u64::from(*num - b'0') * multi;
+                attos = attos * 10 + u64::from(*num - b'0');
             }
         } else {
-            // else would be reached if multi or len are zero but these states are already handled
-            // in parse
+            for num in &digits[..num_parsable] {
+                attos = attos * 10 + u64::from(*num - b'0');
+            }
         }
-        (multi, attos)
+        (attos, max_to_parse - num_parsable)
     }
 
     pub fn parse(digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
-        if digits.is_empty() && prepend.is_none() {
+        if digits.is_empty() && prepend.map_or(true, <[u8]>::is_empty) {
             return 0;
         }
 
-        let num_zeros = zeros.unwrap_or_default();
-        let pow = match POW10.get(num_zeros) {
-            Some(pow) => pow,
-            None => return 0,
+        let max_to_parse = match zeros {
+            Some(z) if z > 18 => return 0,
+            Some(z) => 18 - z,
+            None => 18,
         };
-        let multi = ATTOS_PER_SEC / pow;
-        if multi == 0 {
-            return 0;
-        }
 
         match prepend {
-            Some(prepend) if num_zeros + prepend.len() >= 18 => {
-                let (_, attos) = Self::parse_slice(multi, num_zeros, prepend);
-                attos
-            }
             Some(prepend) if !prepend.is_empty() => {
-                let (multi, attos) = Self::parse_slice(multi, num_zeros, prepend);
-                let (_, remainder) = Self::parse_slice(multi, num_zeros + prepend.len(), digits);
-                attos + remainder
+                let (attos, remainder) = Self::parse_slice(0, max_to_parse, prepend);
+                if remainder == 0 {
+                    attos
+                } else if digits.is_empty() {
+                    attos * POW10[remainder]
+                } else {
+                    let (attos, remainder) = Self::parse_slice(attos, remainder, digits);
+                    if remainder > 0 {
+                        attos * POW10[remainder]
+                    } else {
+                        attos
+                    }
+                }
             }
             Some(_) | None => {
-                let (_, attos) = Self::parse_slice(multi, num_zeros, digits);
-                attos
+                let (attos, remainder) = Self::parse_slice(0, max_to_parse, digits);
+                if remainder > 0 {
+                    attos * POW10[remainder]
+                } else {
+                    attos
+                }
             }
         }
     }
@@ -512,11 +506,25 @@ impl<'a> DurationRepr<'a> {
                 }
             }
             (Less, whole, fract) => {
-                let attos = Fract::parse(
-                    fract.map_or_else(|| [].as_ref(), |fract| &digits[fract.0..fract.1]),
-                    whole.and_then(|whole| (!whole.is_empty()).then(|| &digits[whole.0..whole.1])),
-                    Some(exponent_abs - whole.map_or(0, |w| w.len())),
-                );
+                let attos = match fract {
+                    Some(fract) if fract.is_empty() => Fract::parse(
+                        whole.map_or_else(|| [].as_ref(), |whole| &digits[whole.0..whole.1]),
+                        None,
+                        Some(exponent_abs - whole.map_or(0, |w| w.len())),
+                    ),
+                    Some(fract) => Fract::parse(
+                        &digits[fract.0..fract.1],
+                        whole.and_then(|whole| {
+                            (!whole.is_empty()).then(|| &digits[whole.0..whole.1])
+                        }),
+                        Some(exponent_abs - whole.map_or(0, |w| w.len())),
+                    ),
+                    None => Fract::parse(
+                        whole.map_or_else(|| [].as_ref(), |whole| &digits[whole.0..whole.1]),
+                        None,
+                        Some(exponent_abs - whole.map_or(0, |w| w.len())),
+                    ),
+                };
                 (0, attos)
             }
             (Equal, whole, fract) => {
@@ -1913,5 +1921,21 @@ mod tests {
     fn test_whole_is_empty() {
         assert!(Whole(0, 0).is_empty());
         assert!(Whole(9, 9).is_empty());
+    }
+
+    #[rstest]
+    #[case::one_digit(b"1", None, None, 100_000_000_000_000_000)]
+    #[case::one_digit_one_zero(b"1", None, Some(1), 10_000_000_000_000_000)]
+    #[case::two_digits(b"12", None, None, 120_000_000_000_000_000)]
+    #[case::two_digits_one_zero(b"12", None, Some(1), 12_000_000_000_000_000)]
+    #[case::one_digit_prepend(b"2", Some(b"1".as_ref()), None, 120_000_000_000_000_000)]
+    #[case::empty_digits_prepend_one(b"", Some(b"1".as_ref()), None, 100_000_000_000_000_000)]
+    fn test_fract(
+        #[case] digits: &[u8],
+        #[case] prepend: Option<&[u8]>,
+        #[case] zeros: Option<usize>,
+        #[case] expected: u64,
+    ) {
+        assert_eq!(Fract::parse(digits, prepend, zeros), expected);
     }
 }
