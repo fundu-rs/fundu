@@ -271,7 +271,7 @@ impl Parse8Digits for Whole {}
 
 impl Whole {
     #[inline]
-    pub fn parse_slice(mut seconds: u64, digits: &[u8]) -> Result<u64, ParseError> {
+    pub fn parse_slice(mut seconds: u64, digits: &[u8]) -> Option<u64> {
         if digits.len() >= 8 {
             let mut iter = digits.chunks_exact(8);
             for digits in iter.by_ref() {
@@ -282,7 +282,7 @@ impl Whole {
                 {
                     Some(s) => seconds = s,
                     None => {
-                        return Err(ParseError::Overflow);
+                        return None;
                     }
                 }
             }
@@ -293,7 +293,7 @@ impl Whole {
                 {
                     Some(s) => seconds = s,
                     None => {
-                        return Err(ParseError::Overflow);
+                        return None;
                     }
                 }
             }
@@ -305,37 +305,35 @@ impl Whole {
                 {
                     Some(s) => seconds = s,
                     None => {
-                        return Err(ParseError::Overflow);
+                        return None;
                     }
                 }
             }
         }
-        Ok(seconds)
+        Some(seconds)
     }
 
-    pub fn parse(
-        digits: &[u8],
-        append: Option<&[u8]>,
-        zeros: Option<usize>,
-    ) -> Result<u64, ParseError> {
+    pub fn parse(digits: &[u8], append: Option<&[u8]>, zeros: Option<usize>) -> Option<u64> {
         if digits.is_empty() && append.map_or(true, <[u8]>::is_empty) {
-            return Ok(0);
+            return Some(0);
         }
 
-        let seconds = Self::parse_slice(0, digits)
-            .and_then(|s| append.map_or(Ok(s), |append| Self::parse_slice(s, append)))?;
-        if seconds == 0 {
-            Ok(0)
-        } else {
-            match zeros {
-                Some(num_zeros) if num_zeros > 0 => POW10
-                    .get(num_zeros)
-                    .map_or(Err(ParseError::Overflow), |pow| {
-                        Ok(seconds.saturating_mul(*pow))
-                    }),
-                Some(_) | None => Ok(seconds),
-            }
-        }
+        Self::parse_slice(0, digits).and_then(|s| {
+            append
+                .map_or(Some(s), |append| Self::parse_slice(s, append))
+                .and_then(|seconds| {
+                    if seconds == 0 {
+                        Some(0)
+                    } else {
+                        match zeros {
+                            Some(num_zeros) if num_zeros > 0 => POW10
+                                .get(num_zeros)
+                                .and_then(|pow| seconds.checked_mul(*pow)),
+                            Some(_) | None => Some(seconds),
+                        }
+                    }
+                })
+        })
     }
 
     #[inline]
@@ -493,7 +491,7 @@ impl<'a> DurationRepr<'a> {
         let (seconds, attos) = match (exponent.cmp(&0i32), &self.whole, &self.fract) {
             (Less, Some(whole), fract) if whole.len() > exponent_abs => {
                 match Whole::parse(&digits[whole.0..whole.1 - exponent_abs], None, None) {
-                    Ok(seconds) => {
+                    Some(seconds) => {
                         let attos = Fract::parse(
                             fract.map_or_else(|| [].as_ref(), |fract| &digits[fract.0..fract.1]),
                             Some(&digits[whole.1 - exponent_abs..whole.1]),
@@ -501,8 +499,8 @@ impl<'a> DurationRepr<'a> {
                         );
                         (seconds, attos)
                     }
-                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
-                    Err(_) => return Ok(Duration::MAX),
+                    None if duration_is_negative => return Ok(Duration::MIN),
+                    None => return Ok(Duration::MAX),
                 }
             }
             (Less, whole, fract) => {
@@ -528,17 +526,17 @@ impl<'a> DurationRepr<'a> {
                 (0, attos)
             }
             (Equal, whole, fract) => {
-                match whole.map_or(Ok(0), |whole| {
+                match whole.map_or(Some(0), |whole| {
                     Whole::parse(&digits[whole.0..whole.1], None, None)
                 }) {
-                    Ok(seconds) => {
+                    Some(seconds) => {
                         let attos = fract.map_or(0, |fract| {
                             Fract::parse(&digits[fract.0..fract.1], None, None)
                         });
                         (seconds, attos)
                     }
-                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
-                    Err(_) => return Ok(Duration::MAX),
+                    None if duration_is_negative => return Ok(Duration::MIN),
+                    None => return Ok(Duration::MAX),
                 }
             }
             (Greater, whole, Some(fract)) if fract.len() > exponent_abs => {
@@ -547,13 +545,13 @@ impl<'a> DurationRepr<'a> {
                     Some(&digits[fract.0..fract.0 + exponent_abs]),
                     None,
                 ) {
-                    Ok(seconds) => {
+                    Some(seconds) => {
                         let attos =
                             Fract::parse(&digits[fract.0 + exponent_abs..fract.1], None, None);
                         (seconds, attos)
                     }
-                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
-                    Err(_) => return Ok(Duration::MAX),
+                    None if duration_is_negative => return Ok(Duration::MIN),
+                    None => return Ok(Duration::MAX),
                 }
             }
             (Greater, whole, fract) => {
@@ -562,9 +560,9 @@ impl<'a> DurationRepr<'a> {
                     fract.map(|fract| &digits[fract.0..fract.1]),
                     Some(exponent_abs - fract.map_or(0, |fract| fract.len())),
                 ) {
-                    Ok(seconds) => (seconds, 0),
-                    Err(_) if duration_is_negative => return Ok(Duration::MIN),
-                    Err(_) => return Ok(Duration::MAX),
+                    Some(seconds) => (seconds, 0),
+                    None if duration_is_negative => return Ok(Duration::MIN),
+                    None => return Ok(Duration::MAX),
                 }
             }
         };
