@@ -6,8 +6,8 @@
 //! Flamegraphs for the standard module and the DurationParser
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use fundu::DurationParser;
 use fundu::TimeUnit::*;
+use fundu::{DurationParser, DurationParserBuilder};
 use pprof::criterion::{Output, PProfProfiler};
 use pprof::flamegraph::Options as FlamegraphOptions;
 
@@ -39,20 +39,27 @@ fn flamegraph_initialization(criterion: &mut Criterion) {
 }
 
 fn flamegraph_parsing(criterion: &mut Criterion) {
+    let parser = DurationParserBuilder::new()
+        .all_time_units()
+        .number_is_optional()
+        .build();
     let mut group = criterion.benchmark_group("standard duration parser parsing");
     for &input in &[
         "1",
         "1s",
+        "s",
         "1ns",
+        "ns",
         "1y",
+        "y",
         "1234567.1234567",
         "12345678.12345678",
         &format!("{}.{}e-1022", "1".repeat(1022), "1".repeat(1022)),
     ] {
         group.bench_with_input(
             BenchmarkId::new("all default time units", input),
-            &(DurationParser::with_all_time_units(), input),
-            |b, (parser, input)| b.iter(|| parser.parse(input)),
+            &(&parser, input),
+            |b, (parser, input)| b.iter(|| parser.parse(input).unwrap()),
         );
     }
     group.finish();

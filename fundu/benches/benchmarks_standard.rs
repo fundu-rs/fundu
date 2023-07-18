@@ -91,12 +91,18 @@ fn benchmark_parsing_infinity(criterion: &mut Criterion) {
 fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
     let inputs = [(NanoSecond, "ns"), (Second, "s"), (Year, "y")];
     let mut parser = DurationParser::with_all_time_units();
+    parser.number_is_optional(true);
     let mut group = criterion.benchmark_group("parsing speed time units");
     for (unit, input) in inputs {
         parser.default_unit(unit);
         group.bench_with_input(
             BenchmarkId::new(format!("input without time unit (default = {unit:?})"), "1"),
             "1",
+            |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
+        );
+        group.bench_with_input(
+            BenchmarkId::new(format!("input without number (default = {unit:?})"), input),
+            input,
             |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
         let input = format!("1{input}");

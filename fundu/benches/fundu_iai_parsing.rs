@@ -3,10 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{Duration, DurationParser, ParseError};
+use fundu::{Duration, DurationParser};
 use iai_callgrind::{black_box, main};
-
-type Result<T> = std::result::Result<T, ParseError>;
 
 const SMALL_INPUT: &str = "1";
 const MIXED_INPUT_7: &str = "1234567.1234567";
@@ -26,28 +24,28 @@ fn generate_large_input() -> String {
 }
 
 #[inline(never)]
-fn small_input() -> Result<Duration> {
+fn small_input() -> Duration {
     let parser = setup_parser();
-    black_box(parser).parse(black_box(SMALL_INPUT))
+    black_box(parser).parse(black_box(SMALL_INPUT)).unwrap()
 }
 
 #[inline(never)]
-fn mixed_input_7() -> Result<Duration> {
+fn mixed_input_7() -> Duration {
     let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_7))
+    black_box(parser).parse(black_box(MIXED_INPUT_7)).unwrap()
 }
 
 #[inline(never)]
-fn mixed_input_8() -> Result<Duration> {
+fn mixed_input_8() -> Duration {
     let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_8))
+    black_box(parser).parse(black_box(MIXED_INPUT_8)).unwrap()
 }
 
 #[inline(never)]
-fn large_input() -> Result<Duration> {
+fn large_input() -> Duration {
     let parser = setup_parser();
     let input = generate_large_input();
-    black_box(parser).parse(black_box(&input))
+    black_box(parser).parse(black_box(&input)).unwrap()
 }
 
 main!(

@@ -4,64 +4,88 @@
 // https://opensource.org/licenses/MIT
 
 use fundu::TimeUnit::{self, *};
-use fundu::{Duration, DurationParser, ParseError};
+use fundu::{Duration, DurationParser, DurationParserBuilder};
 use iai_callgrind::{black_box, main};
 
-type Result<T> = std::result::Result<T, ParseError>;
-
-const INPUT_NO_TIME_UNIT: &str = "1";
-const INPUT_NANO_SECOND: &str = "1ns";
-const INPUT_SECOND: &str = "1y";
-const INPUT_YEAR: &str = "1y";
+const ONE: &str = "1";
+const ONE_NANO_SECOND: &str = "1ns";
+const NANO_SECOND: &str = "ns";
+const ONE_SECOND: &str = "1s";
+const SECOND: &str = "s";
+const ONE_YEAR: &str = "1y";
+const YEAR: &str = "y";
 
 #[inline(never)]
 #[export_name = "__iai_setup::setup_parser_with_all_time_units"]
 fn setup_parser_with_all_time_units<'a>(default_unit: TimeUnit) -> DurationParser<'a> {
-    let mut parser = DurationParser::with_all_time_units();
-    parser.default_unit(default_unit);
-    parser
+    DurationParserBuilder::new()
+        .all_time_units()
+        .default_unit(default_unit)
+        .number_is_optional()
+        .build()
 }
 
 #[inline(never)]
-fn parsing_nano_second_when_no_time_unit() -> Result<Duration> {
+fn parsing_one_when_default_is_nano_second() -> Duration {
     let time_unit = black_box(NanoSecond);
     let parser = setup_parser_with_all_time_units(time_unit);
-    black_box(parser).parse(black_box(INPUT_NO_TIME_UNIT))
+    black_box(parser).parse(black_box(ONE)).unwrap()
 }
 
 #[inline(never)]
-fn parsing_nano_second_when_time_unit() -> Result<Duration> {
+fn parsing_one_nano_second() -> Duration {
     let time_unit = black_box(NanoSecond);
     let parser = setup_parser_with_all_time_units(time_unit);
-    black_box(parser).parse(black_box(INPUT_NANO_SECOND))
+    black_box(parser).parse(black_box(ONE_NANO_SECOND)).unwrap()
 }
 
 #[inline(never)]
-fn parsing_second_when_no_time_unit() -> Result<Duration> {
+fn parsing_nano_second() -> Duration {
+    let time_unit = black_box(NanoSecond);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(NANO_SECOND)).unwrap()
+}
+
+#[inline(never)]
+fn parsing_one_when_default_is_second() -> Duration {
     let time_unit = black_box(Second);
     let parser = setup_parser_with_all_time_units(time_unit);
-    black_box(parser).parse(black_box(INPUT_NO_TIME_UNIT))
+    black_box(parser).parse(black_box(ONE)).unwrap()
 }
 
 #[inline(never)]
-fn parsing_second_when_time_unit() -> Result<Duration> {
+fn parsing_one_second() -> Duration {
     let time_unit = black_box(Second);
     let parser = setup_parser_with_all_time_units(time_unit);
-    black_box(parser).parse(black_box(INPUT_SECOND))
+    black_box(parser).parse(black_box(ONE_SECOND)).unwrap()
 }
 
 #[inline(never)]
-fn parsing_year_when_no_time_unit() -> Result<Duration> {
-    let time_unit = black_box(Year);
+fn parsing_second() -> Duration {
+    let time_unit = black_box(Second);
     let parser = setup_parser_with_all_time_units(time_unit);
-    black_box(parser).parse(black_box(INPUT_NO_TIME_UNIT))
+    black_box(parser).parse(black_box(SECOND)).unwrap()
 }
 
 #[inline(never)]
-fn parsing_year_when_time_unit() -> Result<Duration> {
+fn parsing_one_when_default_is_year() -> Duration {
     let time_unit = black_box(Year);
     let parser = setup_parser_with_all_time_units(time_unit);
-    black_box(parser).parse(black_box(INPUT_YEAR))
+    black_box(parser).parse(black_box(ONE)).unwrap()
+}
+
+#[inline(never)]
+fn parsing_one_year() -> Duration {
+    let time_unit = black_box(Year);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(ONE_YEAR)).unwrap()
+}
+
+#[inline(never)]
+fn parsing_year() -> Duration {
+    let time_unit = black_box(Year);
+    let parser = setup_parser_with_all_time_units(time_unit);
+    black_box(parser).parse(black_box(YEAR)).unwrap()
 }
 
 main!(
@@ -69,10 +93,13 @@ main!(
         "toggle-collect=iai_callgrind::black_box",
         "toggle-collect=__iai_setup::setup_parser_with_all_time_units";
     functions =
-        parsing_nano_second_when_no_time_unit,
-        parsing_nano_second_when_time_unit,
-        parsing_second_when_no_time_unit,
-        parsing_second_when_time_unit,
-        parsing_year_when_no_time_unit,
-        parsing_year_when_time_unit
+    parsing_one_when_default_is_nano_second,
+    parsing_one_nano_second,
+    parsing_nano_second,
+    parsing_one_when_default_is_second,
+    parsing_one_second,
+    parsing_second,
+    parsing_one_when_default_is_year,
+    parsing_one_year,
+    parsing_year,
 );
