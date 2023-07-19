@@ -1912,6 +1912,7 @@ mod tests {
     #[case::two_digits_one_zero(b"12", None, Some(1), 12_000_000_000_000_000)]
     #[case::one_digit_prepend(b"2", Some(b"1".as_ref()), None, 120_000_000_000_000_000)]
     #[case::empty_digits_prepend_one(b"", Some(b"1".as_ref()), None, 100_000_000_000_000_000)]
+    #[case::more_than_18_digits_when_zeros(b"234", Some(b"1".as_ref()), Some(16), 12)]
     fn test_fract(
         #[case] digits: &[u8],
         #[case] prepend: Option<&[u8]>,
@@ -1919,5 +1920,17 @@ mod tests {
         #[case] expected: u64,
     ) {
         assert_eq!(Fract::parse(digits, prepend, zeros), expected);
+    }
+
+    #[test]
+    fn test_try_consume_delimiter_when_input_starts_with_delimiter_then_error() {
+        let mut bytes = Bytes::new(b" some");
+        assert_eq!(
+            bytes.try_consume_delimiter(|byte| byte == b' '),
+            Err(ParseError::Syntax(
+                0,
+                "Input may not start with a delimiter".to_owned()
+            ))
+        );
     }
 }

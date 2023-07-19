@@ -80,9 +80,11 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 }
 
 #[rstest]
+#[case::seconds_overflow_when_negative_and_positive_exponent(&format!("-{}.11e1", u64::MAX as u128 * 100), Duration::MIN)]
 #[case::minimum_exponent_with_minimum_time_unit(&format!("1{}.0e{}ns", "0".repeat((i16::MAX as usize) + 1), i16::MIN), Duration::positive(0, 1))]
-#[case::seconds_overflow_when_negative_exponent(&format!("{}e-1", u64::MAX as u128 * 100), Duration::MAX)]
-#[case::seconds_overflow_when_positive_exponent(&format!("{}.11e1", u64::MAX), Duration::MAX)]
+#[case::seconds_overflow_when_positive_and_negative_exponent(&format!("{}e-1", u64::MAX as u128 * 100), Duration::MAX)]
+#[case::seconds_overflow_when_positive_and_positive_exponent(&format!("{}.11e1", u64::MAX), Duration::MAX)]
+#[case::seconds_overflow_when_negative_and_negative_exponent(&format!("-{}e-1", u64::MAX as u128 * 100), Duration::MIN)]
 #[case::minus_sign_whole_to_fract("1.00000001e-1", Duration::positive(0, 100_000_001))]
 #[case::zero("1.1e0", Duration::positive(1, 100_000_000))]
 #[case::point_and_then_exponent("1.e0", Duration::positive(1, 0))]
@@ -108,7 +110,10 @@ fn test_parse_duration_when_arguments_contain_exponent(
     #[case] source: &str,
     #[case] expected: Duration,
 ) {
-    let duration = DurationParser::with_all_time_units().parse(source).unwrap();
+    let duration = DurationParser::with_all_time_units()
+        .allow_negative(true)
+        .parse(source)
+        .unwrap();
     assert_eq!(duration, expected);
 }
 
@@ -203,8 +208,15 @@ fn test_parse_duration_when_arguments_are_illegal_infinity_values_then_error(
 #[case::hours_underflow("0.000000000001h", Duration::positive(0, 3))]
 #[case::years_underflow("0.0000000000000001y", Duration::positive(0, 3))]
 #[case::minutes_overflow(&format!("{}m", u64::MAX), Duration::MAX)]
+#[case::time_unit_overflow_with_fraction(&format!("{}.00001m", u64::MAX), Duration::MAX)]
+#[case::negative_time_unit_overflow_with_fraction(&format!("-{}.00001m", u64::MAX), Duration::MIN)]
+#[case::time_unit_overflow_with_overflowing_fraction(&format!("{}.1d", u64::MAX), Duration::MAX)]
+#[case::negative_time_unit_overflow_with_overflowing_fraction(&format!("-{}.1d", u64::MAX), Duration::MIN)]
 fn test_parse_duration_when_time_units_are_given(#[case] source: &str, #[case] expected: Duration) {
-    let duration = DurationParser::with_all_time_units().parse(source).unwrap();
+    let duration = DurationParser::with_all_time_units()
+        .allow_negative(true)
+        .parse(source)
+        .unwrap();
     assert_eq!(duration, expected);
 }
 
@@ -983,11 +995,11 @@ fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Dura
 }
 
 #[rstest]
-#[case::ago_without_time_unit("1 :ago", ParseError::Syntax(2, "Expected end of input but found: ':ago'".to_string()))] // TODO: Improve the error message
+#[case::ago_without_time_unit("1 :ago", ParseError::TimeUnit(2, "Invalid time unit: ':ago'".to_string()))]
 #[case::ago_as_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::just_ago("ago", ParseError::InvalidInput("ago".to_string()))]
-#[case::incomplete_ago("1s:ag", ParseError::TimeUnit(3, "Found unexpected keyword: 'ag'".to_string()))]
-#[case::one_second_twice("1s:1s", ParseError::TimeUnit(3, "Found unexpected keyword: '1s'".to_string()))]
+#[case::incomplete_ago("1s:ag", ParseError::TimeUnit(1, "Invalid time unit: 's:ag'".to_string()))]
+#[case::one_second_twice("1s:1s", ParseError::TimeUnit(1, "Invalid time unit: 's:1s'".to_string()))]
 fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {
     let parser = CustomDurationParserBuilder::new()
         .time_units(&SYSTEMD_TIME_UNITS)

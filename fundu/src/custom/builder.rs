@@ -362,9 +362,9 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// // Error because no time unit was specified
     /// assert_eq!(
     ///     parser.parse("123 ago"),
-    ///     Err(ParseError::Syntax(
+    ///     Err(ParseError::TimeUnit(
     ///         3,
-    ///         "Expected end of input but found: ' ago'".to_string()
+    ///         "Invalid time unit: ' ago'".to_string()
     ///     ))
     /// );
     ///

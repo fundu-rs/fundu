@@ -275,7 +275,9 @@ fn test_parser_trims_whitespace(#[case] input: &str) {
 
 #[rstest]
 #[case::number_one_too_high(&format!("{}", u64::MAX as u128 + 1), Duration::MAX)]
+#[case::number_one_too_high_with_fraction(&format!("{}.0", u64::MAX as u128 + 1), Duration::MAX)]
 #[case::number_one_too_low(&format!("-{}", u64::MAX as u128 + 1), Duration::MIN)]
+#[case::number_one_too_low_with_fraction(&format!("-{}.0", u64::MAX as u128 + 1), Duration::MIN)]
 #[case::number_far_too_high(&format!("{}", u128::MAX), Duration::MAX)]
 #[case::number_far_too_low(&format!("-{}", u128::MAX), Duration::MIN)]
 #[case::time_unit_causes_positive_overflow(&format!("{}min", u64::MAX - 1), Duration::MAX)]

@@ -179,8 +179,8 @@ fn test_parse_with_numerals_when_number_is_optional(
 #[case::incomplete_numeral("nex second", ParseError::InvalidInput("nex second".to_owned()))]
 #[case::just_numeral("next", ParseError::InvalidInput("next".to_owned()))]
 #[case::numeral_end_with_delimiter("next    ", ParseError::Syntax(4, "Input may not end with a delimiter".to_owned()))]
-#[case::numeral_with_keyword("next tomorrow", ParseError::TimeUnit(5, "Invalid time unit: 'tomorrow'".to_owned()))]
-#[case::numeral_with_wrong_time_unit("next hour", ParseError::TimeUnit(5, "Invalid time unit: 'hour'".to_owned()))]
+#[case::numeral_with_keyword("next tomorrow", ParseError::TimeUnit(5, "Found numeral 'next' without a time unit".to_owned()))]
+#[case::numeral_with_wrong_time_unit("next hour", ParseError::TimeUnit(5, "Found numeral 'next' without a time unit".to_owned()))]
 fn test_parse_with_numerals_when_invalid(
     #[case] input: &str,
     #[case] expected: ParseError,
