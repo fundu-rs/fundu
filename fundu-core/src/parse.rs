@@ -218,6 +218,7 @@ impl<'a> Parser<'a> {
     ///     ))
     /// );
     /// ```
+    #[inline]
     pub fn parse(
         &self,
         source: &str,
@@ -269,6 +270,7 @@ pub struct Whole(pub usize, pub usize);
 impl Parse8Digits for Whole {}
 
 impl Whole {
+    #[inline]
     pub fn parse_slice(mut seconds: u64, digits: &[u8]) -> Option<u64> {
         if digits.len() >= 8 {
             let mut iter = digits.chunks_exact(8);
@@ -351,6 +353,7 @@ pub struct Fract(pub usize, pub usize);
 impl Parse8Digits for Fract {}
 
 impl Fract {
+    #[inline]
     pub fn parse_slice(mut attos: u64, max_to_parse: usize, digits: &[u8]) -> (u64, usize) {
         let num_parsable = digits.len().min(max_to_parse);
         if num_parsable >= 8 {
@@ -568,7 +571,7 @@ impl<'a> DurationRepr<'a> {
         ))
     }
 
-    // #[inline]
+    #[inline]
     pub fn parse_duration_with_fixed_number(&self, coefficient: i64, exponent: i16) -> Duration {
         if coefficient == 0 {
             return Duration::ZERO;
@@ -596,7 +599,7 @@ impl<'a> DurationRepr<'a> {
         Self::calculate_duration(duration_is_negative, seconds, attos, coefficient)
     }
 
-    // #[inline]
+    #[inline]
     pub fn calculate_duration(
         is_negative: bool,
         seconds: u64,
@@ -698,6 +701,7 @@ impl<'a> Bytes<'a> {
         &self.input[start..self.current_pos]
     }
 
+    #[inline]
     pub fn buffered_advance_to<F>(&mut self, delimiter: F) -> &'a [u8]
     where
         F: Fn(u8) -> bool,
@@ -1182,7 +1186,6 @@ pub trait ReprParserTemplate<'a> {
         }
     }
 
-    #[inline]
     fn parse_exponent(&mut self) -> Result<i16, ParseError> {
         let is_negative = self.parse_sign_is_negative()?.unwrap_or_default();
         let bytes = self.bytes();
@@ -1230,7 +1233,6 @@ pub trait ReprParserTemplate<'a> {
         }
     }
 
-    #[inline]
     fn parse_number_exponent(
         &mut self,
         duration_repr: &mut DurationRepr<'a>,
@@ -1252,7 +1254,6 @@ pub trait ReprParserTemplate<'a> {
         }
     }
 
-    #[inline]
     fn parse_number_delimiter(&mut self, delimiter: Option<Delimiter>) -> Result<bool, ParseError> {
         let bytes = self.bytes();
 
@@ -1351,6 +1352,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
     }
 
+    #[inline]
     fn parse_time_unit(
         &mut self,
         config: &Config,
@@ -1632,6 +1634,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         }
     }
 
+    #[inline]
     fn parse_time_unit(
         &mut self,
         config: &Config,
