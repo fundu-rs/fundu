@@ -444,9 +444,7 @@ impl<'a> DurationRepr<'a> {
         }
 
         if self.whole.is_none() && self.fract.is_none() {
-            return if self.is_negative.is_some() && self.unit.is_none() {
-                Err(ParseError::InvalidInput("Sign without a number".to_owned()))
-            } else if self.numeral.is_some() {
+            return if self.numeral.is_some() {
                 let time_unit = self.unit.expect("Numeral without time unit");
                 let numeral = self.numeral.unwrap();
                 let Multiplier(coefficient, exponent) =
@@ -460,11 +458,9 @@ impl<'a> DurationRepr<'a> {
                 let Multiplier(coefficient, exponent) = time_unit.multiplier() * self.multiplier;
 
                 Ok(self.parse_duration_with_fixed_number(coefficient, exponent))
-            // We're here if we haven't parsed anything usable
+            // We're here if we wouldn't have parsed anything usable.
             } else {
-                std::str::from_utf8(self.input)
-                    .map_err(|error| ParseError::InvalidInput(error.to_string()))
-                    .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())))
+                unreachable!() // cov:excl-line
             };
         }
 
@@ -959,6 +955,7 @@ pub trait ReprParserTemplate<'a> {
             let bytes = self.bytes();
             let start = bytes.current_pos;
             let buffer = bytes.buffered_advance_to(delimiter);
+
             if buffer.is_empty() {
                 return Ok(None);
             }
@@ -1025,16 +1022,15 @@ pub trait ReprParserTemplate<'a> {
                 }
                 if config.number_is_optional {
                     let start = self.bytes().current_pos;
-                    match self.parse_time_unit(config, time_units) {
-                        Ok(Some((time_unit, multiplier))) => {
+                    match self.parse_time_unit(config, time_units)? {
+                        Some((time_unit, multiplier)) => {
                             duration_repr.unit = Some(time_unit);
                             duration_repr.multiplier = multiplier;
                             return self.finalize(duration_repr);
                         }
-                        Ok(None) | Err(ParseError::TimeUnit(_, _)) => {
+                        None => {
                             self.bytes().reset(start);
                         }
-                        Err(error) => return Err(error),
                     }
                 }
                 if let Some((id, numeral)) = self.parse_numeral(numerals, config)? {
@@ -1243,16 +1239,9 @@ pub trait ReprParserTemplate<'a> {
         let bytes = self.bytes();
         match bytes.current_byte {
             Some(byte) if byte.eq_ignore_ascii_case(&b'e') && !disable_exponent => {
-                if duration_repr.whole.is_none() && duration_repr.fract.is_none() {
-                    Err(ParseError::Syntax(
-                        bytes.current_pos,
-                        "Exponent must have a mantissa".to_owned(),
-                    ))
-                } else {
-                    bytes.advance();
-                    duration_repr.exponent = self.parse_exponent()?;
-                    Ok(true)
-                }
+                bytes.advance();
+                duration_repr.exponent = self.parse_exponent()?;
+                Ok(true)
             }
             Some(byte) if byte.eq_ignore_ascii_case(&b'e') => Err(ParseError::Syntax(
                 bytes.current_pos,
@@ -1384,10 +1373,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
             } else {
                 match time_units.get(string) {
                     None => {
-                        return Err(ParseError::TimeUnit(
-                            start,
-                            format!("Invalid time unit: '{string}'"),
-                        ));
+                        self.bytes.reset(start);
+                        return Ok(None);
                     }
                     Some(unit) => unit,
                 }
@@ -1404,13 +1391,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                     // the operation to be reflexive and using saturating neg is fine
                     multiplier = multiplier.saturating_neg();
                 } else {
-                    return Err(ParseError::TimeUnit(
-                        self.bytes.current_pos,
-                        // SAFETY: We've just parsed valid utf-8 so far
-                        format!("Found unexpected keyword: '{}'", unsafe {
-                            self.bytes.get_remainder_str_unchecked()
-                        }),
-                    ));
+                    self.bytes.reset(start);
+                    return Ok(None);
                 }
             };
 
@@ -1420,10 +1402,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
             // only ascii characters up to this point.
             let string = unsafe { self.bytes.get_remainder_str_unchecked() };
             let result = match time_units.get(string) {
-                None => Err(ParseError::TimeUnit(
-                    self.bytes.current_pos,
-                    format!("Invalid time unit: '{string}'"),
-                )),
+                None => return Ok(None),
                 some_time_unit => Ok(some_time_unit),
             };
             self.bytes.finish();
@@ -1438,13 +1417,20 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         config: &Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<bool, ParseError> {
-        match self.bytes().current_byte.copied() {
+        match self.bytes.current_byte {
             Some(_) if !time_units.is_empty() => {
                 if let Some((unit, multi)) = self.parse_time_unit(config, time_units)? {
                     duration_repr.unit = Some(unit);
                     duration_repr.multiplier = multi;
+                    Ok(true)
+                } else {
+                    self.bytes.get_remainder_str().and_then(|remainder| {
+                        Err(ParseError::TimeUnit(
+                            self.bytes.current_pos,
+                            format!("Invalid time unit: '{remainder}'"),
+                        ))
+                    })
                 }
-                Ok(true)
             }
             Some(_) => {
                 Err(ParseError::TimeUnit(
