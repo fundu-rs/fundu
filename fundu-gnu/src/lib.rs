@@ -333,18 +333,13 @@ impl<'a> DurationReprParser<'a> {
                 ))
             }
             (None, None) => {
-                return std::str::from_utf8(self.0.input)
-                    .map_err(|error| ParseError::InvalidInput(error.to_string()))
-                    .and_then(|rem| Err(ParseError::InvalidInput(rem.to_owned())));
+                unreachable!() // cov:excl-line
             }
             (None, Some(_)) if time_unit == TimeUnit::Second => Err(ParseError::InvalidInput(
                 "Fraction without a whole number".to_owned(),
             )),
             (Some(whole), None) => {
                 let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
-                if coefficient == 0 {
-                    return Ok(Duration::ZERO);
-                }
                 let duration_is_negative = is_negative ^ coefficient.is_negative();
                 let (seconds, attos) = match Whole::parse(&digits[whole.0..whole.1], None, None) {
                     Some(seconds) => (seconds, 0),
@@ -363,9 +358,6 @@ impl<'a> DurationReprParser<'a> {
             ),
             (Some(whole), Some(fract)) if time_unit == TimeUnit::Second => {
                 let Multiplier(coefficient, _) = time_unit.multiplier() * self.0.multiplier;
-                if coefficient == 0 {
-                    return Ok(Duration::ZERO);
-                }
                 let duration_is_negative = is_negative ^ coefficient.is_negative();
                 let (seconds, attos) = match Whole::parse(&digits[whole.0..whole.1], None, None) {
                     Some(seconds) => (seconds, Fract::parse(&digits[fract.0..fract.1], None, None)),
