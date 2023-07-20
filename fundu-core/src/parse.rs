@@ -109,15 +109,13 @@ impl<'a> Parser<'a> {
     pub fn parse_multiple(
         &self,
         source: &str,
-        delimiter: Delimiter,
-        conjunctions: &[&str],
         time_units: &dyn TimeUnitsLike,
         keywords: Option<&dyn TimeUnitsLike>,
         numerals: Option<&dyn NumbersLike>,
     ) -> Result<Duration, ParseError> {
         let mut duration = Duration::ZERO;
 
-        let mut parser = &mut ReprParserMultiple::new(source, delimiter, conjunctions);
+        let mut parser = &mut ReprParserMultiple::new(source);
         loop {
             let (mut duration_repr, maybe_parser) =
                 parser.parse(&self.config, time_units, keywords, numerals)?;
@@ -226,19 +224,11 @@ impl<'a> Parser<'a> {
         keywords: Option<&dyn TimeUnitsLike>,
         numerals: Option<&dyn NumbersLike>,
     ) -> Result<Duration, ParseError> {
-        self.config.delimiter_multiple.map_or_else(
-            || self.parse_single(source, time_units, keywords, numerals),
-            |delimiter| {
-                self.parse_multiple(
-                    source,
-                    delimiter,
-                    self.config.conjunctions.unwrap_or_default(),
-                    time_units,
-                    keywords,
-                    numerals,
-                )
-            },
-        )
+        if self.config.allow_multiple {
+            self.parse_multiple(source, time_units, keywords, numerals)
+        } else {
+            self.parse_single(source, time_units, keywords, numerals)
+        }
     }
 }
 
@@ -914,27 +904,33 @@ pub trait ReprParserTemplate<'a> {
     fn parse_infinity_remainder(
         &'a mut self,
         duration_repr: DurationRepr<'a>,
+        config: &'a Config,
     ) -> Result<Self::Output, ParseError>;
 
     fn parse_keyword(
         &mut self,
         keywords: Option<&dyn TimeUnitsLike>,
+        config: &'a Config,
     ) -> Result<Option<(TimeUnit, Multiplier)>, ParseError>;
 
     fn parse_time_unit(
         &mut self,
-        config: &Config,
+        config: &'a Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<Option<(TimeUnit, Multiplier)>, ParseError>;
 
     fn parse_number_time_unit(
         &mut self,
         duration_repr: &mut DurationRepr<'a>,
-        config: &Config,
+        config: &'a Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<bool, ParseError>;
 
-    fn finalize(&'a mut self, duration_repr: DurationRepr<'a>) -> Result<Self::Output, ParseError>;
+    fn finalize(
+        &'a mut self,
+        duration_repr: DurationRepr<'a>,
+        config: &'a Config,
+    ) -> Result<Self::Output, ParseError>;
 
     #[inline]
     fn parse_whole(&mut self) -> Whole {
@@ -949,13 +945,9 @@ pub trait ReprParserTemplate<'a> {
         config: &'a Config,
     ) -> Result<Option<(&'a str, Multiplier)>, ParseError> {
         if let Some(numerals) = numerals {
-            let delimiter = config.allow_delimiter.expect(
-                "Configuration error: If numerals are defined then allow_delimiter must be set, \
-                 too.",
-            );
             let bytes = self.bytes();
             let start = bytes.current_pos;
-            let buffer = bytes.buffered_advance_to(delimiter);
+            let buffer = bytes.buffered_advance_to(config.inner_delimiter);
 
             if buffer.is_empty() {
                 return Ok(None);
@@ -969,8 +961,8 @@ pub trait ReprParserTemplate<'a> {
                     Ok(None)
                 }
                 some_option => match bytes.current_byte {
-                    Some(byte) if delimiter(*byte) => {
-                        bytes.try_consume_delimiter(delimiter)?;
+                    Some(byte) if (config.inner_delimiter)(*byte) => {
+                        bytes.try_consume_delimiter(config.inner_delimiter)?;
                         Ok(some_option.map(|m| (string, m)))
                     }
                     None | Some(_) => {
@@ -1000,7 +992,7 @@ pub trait ReprParserTemplate<'a> {
             ..Default::default()
         };
 
-        self.parse_number_sign(&mut duration_repr, config.sign_delimiter)?;
+        self.parse_number_sign(&mut duration_repr, config)?;
 
         // parse infinity, keywords, ... or the whole number part of the input
         match self.bytes().current_byte.copied() {
@@ -1013,13 +1005,13 @@ pub trait ReprParserTemplate<'a> {
             {
                 // SAFETY: We just checked that there are at least 3 bytes
                 unsafe { self.bytes().advance_by(3) }
-                return self.parse_infinity_remainder(duration_repr);
+                return self.parse_infinity_remainder(duration_repr, config);
             }
             Some(_) => {
-                if let Some((unit, multi)) = self.parse_keyword(keywords)? {
+                if let Some((unit, multi)) = self.parse_keyword(keywords, config)? {
                     duration_repr.unit = Some(unit);
                     duration_repr.multiplier = multi;
-                    return self.finalize(duration_repr);
+                    return self.finalize(duration_repr, config);
                 }
                 if config.number_is_optional {
                     let start = self.bytes().current_pos;
@@ -1027,7 +1019,7 @@ pub trait ReprParserTemplate<'a> {
                         Some((time_unit, multiplier)) => {
                             duration_repr.unit = Some(time_unit);
                             duration_repr.multiplier = multiplier;
-                            return self.finalize(duration_repr);
+                            return self.finalize(duration_repr, config);
                         }
                         None => {
                             self.bytes().reset(start);
@@ -1040,7 +1032,7 @@ pub trait ReprParserTemplate<'a> {
                             duration_repr.numeral = Some(numeral);
                             duration_repr.unit = Some(time_unit);
                             duration_repr.multiplier = multiplier;
-                            return self.finalize(duration_repr);
+                            return self.finalize(duration_repr, config);
                         }
                         None if time_units.is_empty() => {
                             return Err(ParseError::TimeUnit(
@@ -1080,7 +1072,11 @@ pub trait ReprParserTemplate<'a> {
             return Ok(self.make_output(duration_repr));
         }
 
-        if !self.parse_number_delimiter(config.allow_delimiter)? {
+        if !self.parse_number_delimiter(
+            config
+                .allow_time_unit_delimiter
+                .then_some(config.inner_delimiter),
+        )? {
             return Ok(self.make_output(duration_repr));
         }
 
@@ -1090,7 +1086,7 @@ pub trait ReprParserTemplate<'a> {
             return Ok(self.make_output(duration_repr)); // cov:excl-line
         }
 
-        self.finalize(duration_repr)
+        self.finalize(duration_repr, config)
     }
 
     /// Parse and consume the sign if present. Return true if sign is negative.
@@ -1116,23 +1112,23 @@ pub trait ReprParserTemplate<'a> {
     fn parse_number_sign(
         &mut self,
         duration_repr: &mut DurationRepr,
-        delimiter: Option<Delimiter>,
+        config: &Config,
     ) -> Result<(), ParseError> {
         if let Some(is_negative) = self.parse_sign_is_negative()? {
             duration_repr.is_negative = Some(is_negative);
 
             let bytes = self.bytes();
-            match (bytes.current_byte, delimiter) {
-                (Some(byte), Some(delimiter)) if delimiter(*byte) => {
-                    return bytes.try_consume_delimiter(delimiter);
+            match bytes.current_byte {
+                Some(byte) if config.allow_sign_delimiter && (config.inner_delimiter)(*byte) => {
+                    return bytes.try_consume_delimiter(config.inner_delimiter);
                 }
-                (None, Some(_) | None) => {
+                Some(_) => {}
+                None => {
                     return Err(ParseError::Syntax(
                         bytes.current_pos,
                         "Unexpected end of input. Sign without a number".to_owned(),
                     ));
                 }
-                (Some(_), Some(_) | None) => {}
             }
         }
         Ok(())
@@ -1296,6 +1292,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
     fn parse_infinity_remainder(
         &'a mut self,
         mut duration_repr: DurationRepr<'a>,
+        _: &Config,
     ) -> Result<DurationRepr<'a>, ParseError> {
         if self.bytes.is_end_of_input() {
             duration_repr.is_infinite = true;
@@ -1333,6 +1330,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
     fn parse_keyword(
         &mut self,
         keywords: Option<&dyn TimeUnitsLike>,
+        _: &Config,
     ) -> Result<Option<(TimeUnit, Multiplier)>, ParseError> {
         if let Some(keywords) = keywords {
             // SAFETY: we've only parsed valid utf-8 up to this point
@@ -1360,11 +1358,13 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
             "Don't call this function without being sure there's at least 1 byte remaining"
         ); // cov:excl-stop
 
-        if let Some(delimiter) = config.allow_ago {
+        if config.allow_ago {
             let start = self.bytes.current_pos;
             // SAFETY: The delimiter may not match non-ascii bytes and we've parsed only valid utf-8
             // so far
-            let string = unsafe { std::str::from_utf8_unchecked(self.bytes.advance_to(delimiter)) };
+            let string = unsafe {
+                std::str::from_utf8_unchecked(self.bytes.advance_to(config.inner_delimiter))
+            };
 
             let (time_unit, mut multiplier) = if string.is_empty() {
                 return Ok(None);
@@ -1381,7 +1381,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
             // At this point, either there are one or more bytes of which the first is the
             // delimiter or we've reached the end of input
             if self.bytes.current_byte.is_some() {
-                self.bytes.try_consume_delimiter(delimiter)?;
+                self.bytes.try_consume_delimiter(config.inner_delimiter)?;
                 if self.bytes.next_is_ignore_ascii_case(b"ago") {
                     // SAFETY: We have checked that there are at least 3 bytes
                     unsafe { self.bytes.advance_by(3) };
@@ -1412,7 +1412,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
     fn parse_number_time_unit(
         &mut self,
         duration_repr: &mut DurationRepr<'a>,
-        config: &Config,
+        config: &'a Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<bool, ParseError> {
         match self.bytes.current_byte {
@@ -1446,23 +1446,23 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
     }
 
     #[inline]
-    fn finalize(&'a mut self, duration_repr: DurationRepr<'a>) -> Result<Self::Output, ParseError> {
+    fn finalize(
+        &'a mut self,
+        duration_repr: DurationRepr<'a>,
+        _: &Config,
+    ) -> Result<Self::Output, ParseError> {
         self.bytes.check_end_of_input().map(|_| duration_repr)
     }
 }
 
 pub struct ReprParserMultiple<'a> {
     pub bytes: Bytes<'a>,
-    pub delimiter: Delimiter,
-    pub conjunctions: &'a [&'a str],
 }
 
 impl<'a> ReprParserMultiple<'a> {
-    pub fn new(input: &'a str, delimiter: Delimiter, conjunctions: &'a [&'a str]) -> Self {
+    pub fn new(input: &'a str) -> Self {
         Self {
             bytes: Bytes::new(input.as_bytes()),
-            delimiter,
-            conjunctions,
         }
     }
 
@@ -1471,14 +1471,17 @@ impl<'a> ReprParserMultiple<'a> {
         byte.is_ascii_digit() || byte == b'+' || byte == b'-'
     }
 
-    pub fn try_consume_connection(&mut self) -> Result<(), ParseError> {
-        let delimiter = self.delimiter;
+    pub fn try_consume_connection(
+        &mut self,
+        delimiter: Delimiter,
+        conjunctions: &'a [&'a str],
+    ) -> Result<(), ParseError> {
         debug_assert!(delimiter(*self.bytes.current_byte.unwrap()));
 
         self.bytes.try_consume_delimiter(delimiter)?;
         let start = self.bytes.current_pos;
         // try_consume_delimiter ensures there's at least one byte here
-        for word in self.conjunctions {
+        for word in conjunctions {
             if self.bytes.next_is_ignore_ascii_case(word.as_bytes()) {
                 // SAFETY: We're advancing by the amount of bytes of the word we just found
                 unsafe { self.bytes.advance_by(word.len()) };
@@ -1529,13 +1532,16 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
     fn parse_infinity_remainder(
         &'a mut self,
         mut duration_repr: DurationRepr<'a>,
+        config: &'a Config,
     ) -> Result<(DurationRepr<'a>, Option<&'a mut ReprParserMultiple<'a>>), ParseError> {
-        let delimiter = self.delimiter;
         match self.bytes.current_byte {
-            Some(byte) if delimiter(*byte) => {
+            Some(byte) if (config.outer_delimiter)(*byte) => {
                 duration_repr.is_infinite = true;
                 return self
-                    .try_consume_connection()
+                    .try_consume_connection(
+                        config.outer_delimiter,
+                        config.conjunctions.unwrap_or_default(),
+                    )
                     .map(|_| (duration_repr, Some(self)));
             }
             Some(_) => {}
@@ -1576,8 +1582,11 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
 
         duration_repr.is_infinite = true;
         match self.bytes.current_byte {
-            Some(byte) if delimiter(*byte) => {
-                self.try_consume_connection()?;
+            Some(byte) if (config.outer_delimiter)(*byte) => {
+                self.try_consume_connection(
+                    config.outer_delimiter,
+                    config.conjunctions.unwrap_or_default(),
+                )?;
                 Ok((duration_repr, Some(self)))
             }
             Some(byte) => Err(ParseError::Syntax(
@@ -1595,13 +1604,13 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
     fn parse_keyword(
         &mut self,
         keywords: Option<&dyn TimeUnitsLike>,
+        config: &'a Config,
     ) -> Result<Option<(TimeUnit, Multiplier)>, ParseError> {
         if let Some(keywords) = keywords {
-            let delimiter = self.delimiter;
             let start = self.bytes.current_pos;
-            let buffer = self
-                .bytes
-                .buffered_advance_to(|byte: u8| delimiter(byte) || Self::is_next_duration(byte));
+            let buffer = self.bytes.buffered_advance_to(|byte: u8| {
+                (config.outer_delimiter)(byte) || Self::is_next_duration(byte)
+            });
 
             if buffer.is_empty() {
                 return Ok(None);
@@ -1618,8 +1627,11 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                 }
                 some_time_unit => {
                     if let Some(byte) = self.bytes.current_byte {
-                        if delimiter(*byte) {
-                            self.try_consume_connection()?;
+                        if (config.outer_delimiter)(*byte) {
+                            self.try_consume_connection(
+                                config.outer_delimiter,
+                                config.conjunctions.unwrap_or_default(),
+                            )?;
                         }
                     }
                     Ok(some_time_unit)
@@ -1633,7 +1645,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
     #[inline]
     fn parse_time_unit(
         &mut self,
-        config: &Config,
+        config: &'a Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<Option<(TimeUnit, Multiplier)>, ParseError> {
         // cov:excl-start
@@ -1643,13 +1655,16 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         ); // cov:excl-stop
 
         let start = self.bytes.current_pos;
-        let buffer = match config.allow_ago {
-            Some(ago_delimiter) => self.bytes.buffered_advance_to(|byte: u8| {
-                ago_delimiter(byte) || (self.delimiter)(byte) || Self::is_next_duration(byte)
-            }),
-            None => self.bytes.buffered_advance_to(|byte: u8| {
-                (self.delimiter)(byte) || Self::is_next_duration(byte)
-            }),
+        let buffer = if config.allow_ago {
+            self.bytes.buffered_advance_to(|byte: u8| {
+                (config.inner_delimiter)(byte)
+                    || (config.outer_delimiter)(byte)
+                    || Self::is_next_duration(byte)
+            })
+        } else {
+            self.bytes.buffered_advance_to(|byte: u8| {
+                (config.outer_delimiter)(byte) || Self::is_next_duration(byte)
+            })
         };
         if buffer.is_empty() {
             return Ok(None);
@@ -1667,15 +1682,17 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
             Some(some_time_unit) => some_time_unit,
         };
 
-        match (self.bytes.current_byte, config.allow_ago) {
-            (Some(byte), Some(delimiter)) if delimiter(*byte) => {
+        match self.bytes.current_byte {
+            Some(byte) if config.allow_ago && (config.inner_delimiter)(*byte) => {
                 let start = self.bytes.current_pos;
-                self.bytes.try_consume_delimiter(delimiter)?;
+                self.bytes.try_consume_delimiter(config.inner_delimiter)?;
                 if self.bytes.next_is_ignore_ascii_case(b"ago") {
                     // SAFETY: We know that next is `ago` which has 3 bytes
                     unsafe { self.bytes.advance_by(3) };
                     match self.bytes.current_byte {
-                        Some(byte) if (self.delimiter)(*byte) || Self::is_next_duration(*byte) => {
+                        Some(byte)
+                            if (config.outer_delimiter)(*byte) || Self::is_next_duration(*byte) =>
+                        {
                             multiplier = multiplier.saturating_neg();
                         }
                         Some(_) => {
@@ -1693,8 +1710,11 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         }
 
         match self.bytes.current_byte {
-            Some(byte) if (self.delimiter)(*byte) => {
-                self.try_consume_connection()?;
+            Some(byte) if (config.outer_delimiter)(*byte) => {
+                self.try_consume_connection(
+                    config.outer_delimiter,
+                    config.conjunctions.unwrap_or_default(),
+                )?;
             }
             Some(_) | None => {}
         }
@@ -1706,7 +1726,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
     fn parse_number_time_unit(
         &mut self,
         duration_repr: &mut DurationRepr<'a>,
-        config: &Config,
+        config: &'a Config,
         time_units: &dyn TimeUnitsLike,
     ) -> Result<bool, ParseError> {
         match self.bytes().current_byte {
@@ -1725,11 +1745,17 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
     }
 
     #[inline]
-    fn finalize(&'a mut self, duration_repr: DurationRepr<'a>) -> Result<Self::Output, ParseError> {
-        let delimiter = self.delimiter;
+    fn finalize(
+        &'a mut self,
+        duration_repr: DurationRepr<'a>,
+        config: &'a Config,
+    ) -> Result<Self::Output, ParseError> {
         match self.bytes().current_byte {
-            Some(byte) if delimiter(*byte) => self
-                .try_consume_connection()
+            Some(byte) if (config.outer_delimiter)(*byte) => self
+                .try_consume_connection(
+                    config.outer_delimiter,
+                    config.conjunctions.unwrap_or_default(),
+                )
                 .map(|_| (duration_repr, Some(self))),
             Some(_) => Ok((duration_repr, Some(self))),
             None => Ok((duration_repr, None)),
@@ -1823,7 +1849,7 @@ mod tests {
 
     #[apply(test_duration_repr_parser_parse_whole)]
     fn test_duration_repr_parser_parse_whole_multiple(input: &str, expected: Whole) {
-        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]); // cov:excl-line
+        let mut parser = ReprParserMultiple::new(input); // cov:excl-line
         assert_eq!(parser.parse_whole(), expected);
     }
 
@@ -1854,9 +1880,8 @@ mod tests {
         assert_eq!(duration_repr.fract, Some(Fract(1, i16::MAX as usize + 101)));
 
         let mut config = Config::new();
-        let delimiter = |byte| byte == b' ';
-        config.delimiter_multiple = Some(delimiter);
-        let mut parser = ReprParserMultiple::new(&input, delimiter, &[]);
+        config.allow_multiple = true;
+        let mut parser = ReprParserMultiple::new(&input);
         let (duration_repr, maybe_parser) = parser
             .parse(&config, &TimeUnitsFixture, None, None)
             .unwrap();
@@ -1888,7 +1913,7 @@ mod tests {
 
     #[apply(test_duration_repr_parser_parse_fract)]
     fn test_duration_repr_parser_parse_fract_multiple(input: &str, expected: Fract) {
-        let mut parser = ReprParserMultiple::new(input, |byte| byte == b' ', &[]); // cov:excl-line
+        let mut parser = ReprParserMultiple::new(input); // cov:excl-line
         assert_eq!(parser.parse_fract(), expected);
     }
 

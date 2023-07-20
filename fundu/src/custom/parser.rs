@@ -3,12 +3,13 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use fundu_core::config::Delimiter;
 use fundu_core::parse::Parser;
 use fundu_core::time::{Duration, Multiplier, TimeUnitsLike};
 
 use super::builder::CustomDurationParserBuilder;
 use super::time_units::{CustomTimeUnit, CustomTimeUnits, TimeKeyword};
-use crate::{Delimiter, ParseError, TimeUnit};
+use crate::{ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
 ///
@@ -28,6 +29,7 @@ use crate::{Delimiter, ParseError, TimeUnit};
 /// to true, this problem does not occur
 /// * `+`, `-` which are in use for signs.
 /// * whitespace characters
+// TODO: Add numerals
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParser<'a> {
     pub(super) time_units: CustomTimeUnits<'a>,
@@ -397,8 +399,8 @@ impl<'a> CustomDurationParser<'a> {
     /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
     /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.allow_delimiter = delimiter;
+    pub fn allow_time_unit_delimiter(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_time_unit_delimiter = value;
         self
     }
 
@@ -421,8 +423,8 @@ impl<'a> CustomDurationParser<'a> {
     /// assert_eq!(parser.parse("+ 123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("+     123ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub fn allow_sign_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.sign_delimiter = delimiter;
+    pub fn allow_sign_delimiter(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_sign_delimiter = value;
         self
     }
 
@@ -535,9 +537,9 @@ impl<'a> CustomDurationParser<'a> {
     ///     Err(ParseError::InvalidInput("yesterday ago".to_string()))
     /// );
     /// ```
-    pub fn allow_ago(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.allow_ago = delimiter;
-        if delimiter.is_some() {
+    pub fn allow_ago(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_ago = value;
+        if value {
             self.inner.config.allow_negative = true;
         }
         self
@@ -679,11 +681,23 @@ impl<'a> CustomDurationParser<'a> {
     /// ```
     pub fn parse_multiple(
         &mut self,
-        delimiter: Option<Delimiter>,
+        value: bool,
         conjunctions: Option<&'a [&'a str]>,
     ) -> &mut Self {
-        self.inner.config.delimiter_multiple = delimiter;
+        self.inner.config.allow_multiple = value;
         self.inner.config.conjunctions = conjunctions;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub fn set_inner_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
+        self.inner.config.inner_delimiter = delimiter;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub fn set_outer_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
+        self.inner.config.inner_delimiter = delimiter;
         self
     }
 
@@ -845,15 +859,15 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_setting_allow_spaces() {
         let mut parser = CustomDurationParser::new();
-        parser.allow_delimiter(Some(|b| b == b' '));
-        assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
+        parser.allow_time_unit_delimiter(true);
+        assert!(parser.inner.config.allow_time_unit_delimiter);
     }
 
     #[test]
     fn test_custom_duration_parser_setting_allow_sign_delimiter() {
         let mut parser = CustomDurationParser::new();
-        parser.allow_sign_delimiter(Some(|b| b == b' '));
-        assert!(parser.inner.config.sign_delimiter.unwrap()(b' '));
+        parser.allow_sign_delimiter(true);
+        assert!(parser.inner.config.allow_sign_delimiter);
     }
 
     #[test]
@@ -887,9 +901,9 @@ mod tests {
     #[test]
     fn test_custom_duration_parser_setting_parse_multiple() {
         let mut parser = CustomDurationParser::new();
-        parser.parse_multiple(Some(|byte| byte == 0xff), None);
+        parser.parse_multiple(true, None);
 
-        assert!(parser.inner.config.delimiter_multiple.unwrap()(b'\xff'));
+        assert!(parser.inner.config.allow_multiple);
         assert!(parser.inner.config.conjunctions.is_none());
     }
 
@@ -969,13 +983,12 @@ mod tests {
     #[test]
     #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_allow_ago() {
-        let delimiter = |byte: u8| byte.is_ascii_whitespace();
         let mut expected = Config::new();
-        expected.allow_ago = Some(delimiter);
+        expected.allow_ago = true;
         expected.allow_negative = true;
 
         let mut parser = CustomDurationParser::new();
-        parser.allow_ago(Some(delimiter));
+        parser.allow_ago(true);
 
         assert_eq!(parser.inner.config, expected);
     }

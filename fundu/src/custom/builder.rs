@@ -3,11 +3,11 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu_core::config::Config;
+use fundu_core::config::{Config, Delimiter};
 use fundu_core::parse::Parser;
 
 use super::time_units::{CustomTimeUnits, TimeKeyword};
-use crate::{CustomDurationParser, CustomTimeUnit, Delimiter, TimeUnit};
+use crate::{CustomDurationParser, CustomTimeUnit, TimeUnit};
 
 /// Like [`crate::DurationParserBuilder`] for [`crate::DurationParser`], this is a builder for a
 /// [`CustomDurationParser`].
@@ -250,8 +250,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("123   ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
-        self.config.allow_delimiter = Some(delimiter);
+    pub const fn allow_time_unit_delimiter(mut self) -> Self {
+        self.config.allow_time_unit_delimiter = true;
         self
     }
 
@@ -275,8 +275,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("+ 123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("+     123ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub const fn allow_sign_delimiter(mut self, delimiter: Delimiter) -> Self {
-        self.config.sign_delimiter = Some(delimiter);
+    pub const fn allow_sign_delimiter(mut self) -> Self {
+        self.config.allow_sign_delimiter = true;
         self
     }
 
@@ -383,8 +383,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Err(ParseError::InvalidInput("yesterday ago".to_string()))
     /// );
     /// ```
-    pub const fn allow_ago(mut self, delimiter: Delimiter) -> Self {
-        self.config.allow_ago = Some(delimiter);
+    pub const fn allow_ago(mut self) -> Self {
+        self.config.allow_ago = true;
         self.config.allow_negative = true;
         self
     }
@@ -530,13 +530,21 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub const fn parse_multiple(
-        mut self,
-        delimiter: Delimiter,
-        conjunctions: Option<&'a [&'a str]>,
-    ) -> Self {
-        self.config.delimiter_multiple = Some(delimiter);
+    pub const fn parse_multiple(mut self, conjunctions: Option<&'a [&'a str]>) -> Self {
+        self.config.allow_multiple = true;
         self.config.conjunctions = conjunctions;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn outer_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.outer_delimiter = delimiter;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn inner_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.inner_delimiter = delimiter;
         self
     }
 
@@ -605,14 +613,14 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_builder_when_allow_delimiter() {
-        let builder = CustomDurationParserBuilder::new().allow_delimiter(|byte| byte == b' ');
-        assert!(builder.config.allow_delimiter.unwrap()(b' '));
+        let builder = CustomDurationParserBuilder::new().allow_time_unit_delimiter();
+        assert!(builder.config.allow_time_unit_delimiter);
     }
 
     #[test]
     fn test_custom_duration_parser_builder_when_allow_sign_delimiter() {
-        let builder = CustomDurationParserBuilder::new().allow_sign_delimiter(|byte| byte == b' ');
-        assert!(builder.config.sign_delimiter.unwrap()(b' '));
+        let builder = CustomDurationParserBuilder::new().allow_sign_delimiter();
+        assert!(builder.config.allow_sign_delimiter);
     }
 
     #[test]
@@ -653,8 +661,8 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_builder_when_parse_multiple() {
-        let builder = CustomDurationParserBuilder::new().parse_multiple(|byte| byte == 0xff, None);
-        assert!(builder.config.delimiter_multiple.unwrap()(b'\xff'));
+        let builder = CustomDurationParserBuilder::new().parse_multiple(None);
+        assert!(builder.config.allow_multiple);
         assert!(builder.config.conjunctions.is_none());
     }
 

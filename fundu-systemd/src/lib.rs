@@ -214,11 +214,13 @@ use fundu::{
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
 
 const CONFIG: Config = ConfigBuilder::new()
-    .allow_delimiter(DELIMITER)
+    .allow_time_unit_delimiter()
     .disable_exponent()
     .disable_infinity()
     .number_is_optional()
-    .parse_multiple(DELIMITER, None)
+    .parse_multiple(None)
+    .inner_delimiter(DELIMITER)
+    .outer_delimiter(DELIMITER)
     .build();
 
 const TIME_UNITS_WITH_NANOS: TimeUnitsWithNanos = TimeUnitsWithNanos {};

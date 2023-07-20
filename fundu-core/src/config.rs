@@ -109,6 +109,11 @@ pub trait NumbersLike {
 #[allow(clippy::struct_excessive_bools)]
 #[non_exhaustive]
 pub struct Config<'a> {
+    // TODO: DOCUMENT
+    pub inner_delimiter: Delimiter,
+    // TODO: DOCUMENT
+    pub outer_delimiter: Delimiter,
+
     /// Allow a [`Delimiter`] between the number and time unit (Default: `None`)
     ///
     /// This setting does not enforce the delimiter, so time units directly following the number
@@ -116,7 +121,7 @@ pub struct Config<'a> {
     ///
     /// For example, setting the delimiter to `Some(|byte| matches!(byte, b' ' | b'\n'))` would
     /// parse strings like `"1ms"`, `"1 ms"`, `"3.2 minutes"`, `"4e2000 \n years"` ...
-    pub allow_delimiter: Option<Delimiter>,
+    pub allow_time_unit_delimiter: bool,
 
     /// The [`TimeUnit`] the parser applies if no time unit was given (Default: `TimeUnit::Second`)
     ///
@@ -166,7 +171,7 @@ pub struct Config<'a> {
     /// matches!(byte, b' ' | b'\n'))` would parse the following strings `"1second \n2seconds"` to
     /// a `Duration::positive(3, 0)` but also `"3seconds1second"` to a `Duration::positive(4,
     /// 0)`.
-    pub delimiter_multiple: Option<Delimiter>,
+    pub allow_multiple: bool,
 
     /// When parsing multiple durations, allow conjunctions in addition to the [`Delimiter`]
     /// (Default: `None`)
@@ -193,7 +198,7 @@ pub struct Config<'a> {
     /// The `ago` keyword can only occur in conjunction with a time unit like in `"1second ago"`
     /// which would result in a `Duration::negative(1, 0)`. `"1 ago"` and `"1ago"` would result in
     /// a [`crate::error::ParseError`]. Note the delimiter is mandatory to occur at least once.
-    pub allow_ago: Option<Delimiter>,
+    pub allow_ago: bool,
 
     /// Allow a [`Delimiter`] between the sign and a number, time keyword ... (Default: `None`)
     ///
@@ -201,7 +206,7 @@ pub struct Config<'a> {
     ///
     /// For example, setting the delimiter to `Some(|byte| matches!(byte, b' ' | b'\n'))` would
     /// parse strings like `"+1ms"`, `"- 1ms"`, `"+   yesterday"`, `"+\n4e2000years"` ...
-    pub sign_delimiter: Option<Delimiter>,
+    pub allow_sign_delimiter: bool,
 }
 
 impl<'a> Default for Config<'a> {
@@ -238,18 +243,20 @@ impl<'a> Config<'a> {
     /// ```
     pub const fn new() -> Self {
         Self {
-            allow_delimiter: None,
+            allow_time_unit_delimiter: false,
             default_unit: DEFAULT_TIME_UNIT,
             default_multiplier: Multiplier(1, 0),
             disable_exponent: false,
             disable_fraction: false,
             number_is_optional: false,
             disable_infinity: false,
-            delimiter_multiple: None,
+            allow_multiple: false,
             conjunctions: None,
             allow_negative: false,
-            allow_ago: None,
-            sign_delimiter: None,
+            allow_ago: false,
+            allow_sign_delimiter: false,
+            inner_delimiter: |byte| byte.is_ascii_whitespace(),
+            outer_delimiter: |byte| byte.is_ascii_whitespace(),
         }
     }
 
@@ -371,8 +378,8 @@ impl<'a> ConfigBuilder<'a> {
     /// assert!(delimiter(b'\x0c'));
     /// assert!(delimiter(b'\r'));
     /// ```
-    pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
-        self.config.allow_delimiter = Some(delimiter);
+    pub const fn allow_time_unit_delimiter(mut self) -> Self {
+        self.config.allow_time_unit_delimiter = true;
         self
     }
 
@@ -509,12 +516,8 @@ impl<'a> ConfigBuilder<'a> {
     ///
     /// assert_eq!(CONFIG.conjunctions, Some(CONJUNCTIONS));
     /// ```
-    pub const fn parse_multiple(
-        mut self,
-        delimiter: Delimiter,
-        conjunctions: Option<&'a [&'a str]>,
-    ) -> Self {
-        self.config.delimiter_multiple = Some(delimiter);
+    pub const fn parse_multiple(mut self, conjunctions: Option<&'a [&'a str]>) -> Self {
+        self.config.allow_multiple = true;
         self.config.conjunctions = conjunctions;
         self
     }
@@ -540,8 +543,8 @@ impl<'a> ConfigBuilder<'a> {
     /// assert!(delimiter(b'\n'));
     /// assert!(delimiter(b' '));
     /// ```
-    pub const fn allow_ago(mut self, delimiter: Delimiter) -> Self {
-        self.config.allow_ago = Some(delimiter);
+    pub const fn allow_ago(mut self) -> Self {
+        self.config.allow_ago = true;
         self
     }
 
@@ -564,8 +567,18 @@ impl<'a> ConfigBuilder<'a> {
     /// assert!(delimiter(b'\n'));
     /// assert!(delimiter(b' '));
     /// ```
-    pub const fn allow_sign_delimiter(mut self, delimiter: Delimiter) -> Self {
-        self.config.sign_delimiter = Some(delimiter);
+    pub const fn allow_sign_delimiter(mut self) -> Self {
+        self.config.allow_sign_delimiter = true;
+        self
+    }
+
+    pub const fn inner_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.inner_delimiter = delimiter;
+        self
+    }
+
+    pub const fn outer_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.outer_delimiter = delimiter;
         self
     }
 }
@@ -602,11 +615,11 @@ mod tests {
     }
 
     #[rstest]
-    fn test_config_builder_allow_delimiter(test_delimiter: Delimiter) {
-        let config = ConfigBuilder::new().allow_delimiter(test_delimiter).build();
+    fn test_config_builder_allow_delimiter() {
+        let config = ConfigBuilder::new().allow_time_unit_delimiter().build();
 
         let mut expected = Config::new();
-        expected.allow_delimiter = Some(test_delimiter);
+        expected.allow_time_unit_delimiter = true;
 
         assert_eq!(config, expected);
     }
@@ -672,50 +685,46 @@ mod tests {
     }
 
     #[rstest]
-    fn test_config_builder_parse_multiple_when_no_conjunctions(test_delimiter: Delimiter) {
-        let config = ConfigBuilder::new()
-            .parse_multiple(test_delimiter, None)
-            .build();
+    fn test_config_builder_parse_multiple_when_no_conjunctions() {
+        let config = ConfigBuilder::new().parse_multiple(None).build();
 
         let mut expected = Config::new();
-        expected.delimiter_multiple = Some(test_delimiter);
+        expected.allow_multiple = true;
         expected.conjunctions = None;
 
         assert_eq!(config, expected);
     }
 
     #[rstest]
-    fn test_config_builder_parse_multiple_when_conjunctions(test_delimiter: Delimiter) {
+    fn test_config_builder_parse_multiple_when_conjunctions() {
         let conjunctions = &["and", ","];
         let config = ConfigBuilder::new()
-            .parse_multiple(test_delimiter, Some(conjunctions))
+            .parse_multiple(Some(conjunctions))
             .build();
 
         let mut expected = Config::new();
-        expected.delimiter_multiple = Some(test_delimiter);
+        expected.allow_multiple = true;
         expected.conjunctions = Some(conjunctions);
 
         assert_eq!(config, expected);
     }
 
     #[rstest]
-    fn test_config_builder_allow_ago(test_delimiter: Delimiter) {
-        let config = ConfigBuilder::new().allow_ago(test_delimiter).build();
+    fn test_config_builder_allow_ago() {
+        let config = ConfigBuilder::new().allow_ago().build();
 
         let mut expected = Config::new();
-        expected.allow_ago = Some(test_delimiter);
+        expected.allow_ago = true;
 
         assert_eq!(config, expected);
     }
 
     #[rstest]
-    fn test_config_builder_allow_sign_delimiter(test_delimiter: Delimiter) {
-        let config = ConfigBuilder::new()
-            .allow_sign_delimiter(test_delimiter)
-            .build();
+    fn test_config_builder_allow_sign_delimiter() {
+        let config = ConfigBuilder::new().allow_sign_delimiter().build();
 
         let mut expected = Config::new();
-        expected.sign_delimiter = Some(test_delimiter);
+        expected.allow_sign_delimiter = true;
 
         assert_eq!(config, expected);
     }

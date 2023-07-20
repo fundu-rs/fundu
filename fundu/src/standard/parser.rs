@@ -282,8 +282,8 @@ impl<'a> DurationParser<'a> {
     /// assert_eq!(parser.parse("123\r\nns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub fn allow_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.allow_delimiter = delimiter;
+    pub fn allow_time_unit_delimiter(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_time_unit_delimiter = value;
         self
     }
 
@@ -306,8 +306,8 @@ impl<'a> DurationParser<'a> {
     /// assert_eq!(parser.parse("+ 123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("+     123ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub fn allow_sign_delimiter(&mut self, delimiter: Option<Delimiter>) -> &mut Self {
-        self.inner.config.sign_delimiter = delimiter;
+    pub fn allow_sign_delimiter(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_sign_delimiter = value;
         self
     }
 
@@ -510,11 +510,23 @@ impl<'a> DurationParser<'a> {
     /// ```
     pub fn parse_multiple(
         &mut self,
-        delimiter: Option<Delimiter>,
+        value: bool,
         conjunctions: Option<&'static [&'static str]>,
     ) -> &mut Self {
-        self.inner.config.delimiter_multiple = delimiter;
+        self.inner.config.allow_multiple = value;
         self.inner.config.conjunctions = conjunctions;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub fn set_inner_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
+        self.inner.config.inner_delimiter = delimiter;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub fn set_outer_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
+        self.inner.config.outer_delimiter = delimiter;
         self
     }
 
@@ -614,15 +626,15 @@ mod tests {
     #[test]
     fn test_duration_parser_setting_allow_delimiter() {
         let mut parser = DurationParser::new();
-        parser.allow_delimiter(Some(|byte| byte == b' '));
-        assert!(parser.inner.config.allow_delimiter.unwrap()(b' '));
+        parser.allow_time_unit_delimiter(true);
+        assert!(parser.inner.config.allow_time_unit_delimiter);
     }
 
     #[test]
     fn test_duration_parser_setting_allow_sign_delimiter() {
         let mut parser = DurationParser::new();
-        parser.allow_sign_delimiter(Some(|byte| byte == b' '));
-        assert!(parser.inner.config.sign_delimiter.unwrap()(b' '));
+        parser.allow_sign_delimiter(true);
+        assert!(parser.inner.config.allow_sign_delimiter);
     }
 
     #[test]
@@ -636,9 +648,9 @@ mod tests {
     #[test]
     fn test_duration_parser_setting_parse_multiple() {
         let mut parser = DurationParser::new();
-        parser.parse_multiple(Some(|byte: u8| byte == 0xff), None);
+        parser.parse_multiple(true, None);
 
-        assert!(parser.inner.config.delimiter_multiple.unwrap()(b'\xff'));
+        assert!(parser.inner.config.allow_multiple);
         assert!(parser.inner.config.conjunctions.is_none());
     }
 

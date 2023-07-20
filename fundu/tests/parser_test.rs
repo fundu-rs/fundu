@@ -41,7 +41,7 @@ fn test_parse_duration_with_illegal_argument_then_error(#[case] source: &str) {
 
     let parser = DurationParser::builder()
         .default_time_units()
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .build();
     assert!(parser.parse(source).is_err());
 }
@@ -74,7 +74,7 @@ fn test_parse_duration_when_simple_arguments_are_valid(
 
     let parser = DurationParser::builder()
         .default_time_units()
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"])) // cov:excl-line
+        .parse_multiple(Some(&["and"])) // cov:excl-line
         .build();
     assert_eq!(parser.parse(source), Ok(expected));
 }
@@ -248,10 +248,14 @@ fn test_parser_when_time_units_are_not_present_then_error(
 #[case::space_before_number(" 123", ParseError::InvalidInput(" 123".to_string()))]
 #[case::space_at_end_of_input("123 ns ", ParseError::TimeUnit(4, "Invalid time unit: 'ns '".to_string()))]
 #[case::other_whitespace("123\tns", ParseError::TimeUnit(3, "Invalid time unit: '\tns'".to_string()))]
-fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expected: ParseError) {
+fn test_parser_when_allow_time_unit_delimiter_then_error(
+    #[case] input: &str,
+    #[case] expected: ParseError,
+) {
     assert_eq!(
         DurationParser::with_all_time_units()
-            .allow_delimiter(Some(|b| b == b' '))
+            .allow_time_unit_delimiter(true)
+            .set_inner_delimiter(|byte| byte == b' ')
             .parse(input)
             .unwrap_err(),
         expected
@@ -261,14 +265,15 @@ fn test_parser_when_allow_delimiter_then_error(#[case] input: &str, #[case] expe
 #[rstest]
 #[case::without_delimiter("123ns", |b : u8| b.is_ascii_whitespace(),  Duration::positive(0, 123))]
 #[case::all_rust_whitespace("123 \t\n\x0C\rns", |b : u8| b.is_ascii_whitespace(),  Duration::positive(0, 123))]
-fn test_parser_when_allow_delimiter(
+fn test_parser_when_allow_time_unit_delimiter(
     #[case] input: &str,
     #[case] delimiter: fundu::Delimiter,
     #[case] expected: Duration,
 ) {
     assert_eq!(
         DurationParser::with_all_time_units()
-            .allow_delimiter(Some(delimiter))
+            .allow_time_unit_delimiter(true)
+            .set_inner_delimiter(delimiter)
             .parse(input)
             .unwrap(),
         expected
@@ -282,7 +287,8 @@ fn test_parser_when_allow_delimiter(
 fn test_parser_when_allow_delimiter_then_ok(#[case] input: &str, #[case] expected: Duration) {
     assert_eq!(
         DurationParser::with_all_time_units()
-            .allow_delimiter(Some(|b| b == b' '))
+            .allow_time_unit_delimiter(true)
+            .set_inner_delimiter(|byte| byte == b' ')
             .parse(input),
         Ok(expected)
     );
@@ -313,7 +319,7 @@ fn test_parser_when_number_is_optional_and_allow_delimiter_then_error(
     assert_eq!(
         DurationParser::with_all_time_units()
             .number_is_optional(true)
-            .allow_delimiter(Some(|byte| byte.is_ascii_whitespace()))
+            .allow_time_unit_delimiter(true)
             .parse(input),
         Err(expected)
     );
@@ -498,7 +504,7 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
 fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected: Duration) {
     let parser = DurationParser::builder()
         .all_time_units()
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Ok(expected))
@@ -530,7 +536,7 @@ fn test_parser_when_setting_parse_multiple_then_error(
 ) {
     let parser = DurationParser::builder()
         .all_time_units()
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .build();
     assert_eq!(parser.parse(input), Err(expected))
 }
@@ -542,12 +548,11 @@ fn test_parser_when_parse_multiple_number_is_optional_allow_delimiter(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
 ) {
-    let delimiter = |byte: u8| byte == b' ';
     let parser = DurationParser::builder()
         .all_time_units()
-        .parse_multiple(delimiter, Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .number_is_optional()
-        .allow_delimiter(delimiter)
+        .allow_time_unit_delimiter()
         .build();
     assert_eq!(parser.parse(input), expected)
 }
@@ -576,12 +581,11 @@ fn test_parser_when_parse_multiple_with_sign_delimiter(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
 ) {
-    let delimiter = |byte: u8| byte == b' ';
     let parser = DurationParser::builder()
         .all_time_units()
-        .parse_multiple(delimiter, Some(&["and"]))
-        .allow_delimiter(delimiter)
-        .allow_sign_delimiter(delimiter)
+        .parse_multiple(Some(&["and"]))
+        .allow_time_unit_delimiter()
+        .allow_sign_delimiter()
         .allow_negative()
         .build();
     assert_eq!(parser.parse(input), expected)
@@ -589,10 +593,9 @@ fn test_parser_when_parse_multiple_with_sign_delimiter(
 
 #[test]
 fn test_parser_when_parse_multiple_number_is_optional_not_allow_delimiter() {
-    let delimiter = |byte: u8| byte == b' ';
     let parser = DurationParser::builder()
         .all_time_units()
-        .parse_multiple(delimiter, Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .number_is_optional()
         .build();
     assert_eq!(parser.parse("1 ns 1 s"), Ok(Duration::positive(3, 1)))
@@ -603,7 +606,8 @@ fn test_parser_when_parse_multiple_with_invalid_delimiter() {
     let delimiter = |byte: u8| byte == 0xb5;
     let parser = CustomDurationParser::builder()
         .time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
-        .parse_multiple(delimiter, None)
+        .parse_multiple(None)
+        .outer_delimiter(delimiter)
         .build();
 
     // The delimiter will split the multibyte µ and produces invalid utf-8
@@ -619,7 +623,8 @@ fn test_parser_when_allow_ago_with_invalid_delimiter() {
     let delimiter = |byte: u8| byte == 0xb5;
     let parser = CustomDurationParser::builder()
         .time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
-        .allow_ago(delimiter)
+        .allow_ago()
+        .inner_delimiter(delimiter)
         .build();
 
     // The delimiter will split the multibyte µ and produces invalid utf-8
@@ -633,7 +638,8 @@ fn test_parser_parse_multiple_and_keywords_with_invalid_delimiter() {
     let parser = CustomDurationParser::builder()
         .time_unit(CustomTimeUnit::with_default(MicroSecond, &["µ"]))
         .keyword(TimeKeyword::new(MicroSecond, &["manµ"], None))
-        .parse_multiple(delimiter, None)
+        .parse_multiple(None)
+        .outer_delimiter(delimiter)
         .build();
 
     // The delimiter will split the multibyte µ and produces invalid utf-8
@@ -653,19 +659,17 @@ fn test_parser_when_parse_multiple_without_time_units(
     #[case] input: &str,
     #[case] expected: Result<Duration, ParseError>,
 ) {
-    let delimiter = |byte: u8| byte == b' ';
     let parser = CustomDurationParser::builder()
-        .parse_multiple(delimiter, Some(&["and"]))
-        .allow_ago(delimiter)
+        .parse_multiple(Some(&["and"]))
+        .allow_ago()
         .build();
     assert_eq!(parser.parse(input), expected);
 }
 
 #[test]
 fn test_parser_when_parse_multiple_without_time_units_default_unit_is_not_seconds() {
-    let delimiter = |byte: u8| byte == b' ';
     let parser = DurationParser::builder()
-        .parse_multiple(delimiter, Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .default_unit(NanoSecond)
         .build();
     assert_eq!(parser.parse("1 1"), Ok(Duration::positive(0, 2)));
@@ -763,7 +767,7 @@ fn test_parse_negative_when_multiple(#[case] input: &str, #[case] expected: Dura
     assert_eq!(
         DurationParser::builder()
             .all_time_units()
-            .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+            .parse_multiple(Some(&["and"]))
             .allow_negative()
             .build()
             .parse(input)
@@ -900,7 +904,7 @@ fn test_custom_parser_with_keywords_when_parse_multiple(
             CustomTimeUnit::with_default(NanoSecond, &["ns"]),
             CustomTimeUnit::with_default(Second, &["s", "second"]),
         ])
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Ok(expected));
@@ -926,7 +930,7 @@ fn test_custom_parser_with_keywords_when_parse_multiple_and_number_is_optional(
             CustomTimeUnit::with_default(NanoSecond, &["ns"]),
             CustomTimeUnit::with_default(Second, &["s", "second"]),
         ])
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .number_is_optional()
         .build();
     assert_eq!(parser.parse(input), Ok(expected));
@@ -987,24 +991,24 @@ fn test_custom_parser_with_negative_keyword_when_not_allow_negative_then_error()
 fn test_custom_parser_with_allow_ago(#[case] input: &str, #[case] expected: Duration) {
     let parser = CustomDurationParserBuilder::new()
         .time_units(&SYSTEMD_TIME_UNITS)
-        .allow_delimiter(|byte| byte.is_ascii_whitespace())
-        .allow_ago(|byte| byte.is_ascii_whitespace())
+        .allow_time_unit_delimiter()
+        .allow_ago()
         .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Ok(expected));
 }
 
 #[rstest]
-#[case::ago_without_time_unit("1 :ago", ParseError::TimeUnit(2, "Invalid time unit: ':ago'".to_string()))]
+#[case::ago_without_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::ago_as_time_unit("1 ago", ParseError::TimeUnit(2, "Invalid time unit: 'ago'".to_string()))]
 #[case::just_ago("ago", ParseError::InvalidInput("ago".to_string()))]
-#[case::incomplete_ago("1s:ag", ParseError::TimeUnit(1, "Invalid time unit: 's:ag'".to_string()))]
-#[case::one_second_twice("1s:1s", ParseError::TimeUnit(1, "Invalid time unit: 's:1s'".to_string()))]
+#[case::incomplete_ago("1s ag", ParseError::TimeUnit(1, "Invalid time unit: 's ag'".to_string()))]
+#[case::one_second_twice("1s 1s", ParseError::TimeUnit(1, "Invalid time unit: 's 1s'".to_string()))]
 fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] expected: ParseError) {
     let parser = CustomDurationParserBuilder::new()
         .time_units(&SYSTEMD_TIME_UNITS)
-        .allow_delimiter(|byte| byte.is_ascii_whitespace())
-        .allow_ago(|byte| matches!(byte, b':'))
+        .allow_time_unit_delimiter()
+        .allow_ago()
         .allow_negative()
         .build();
     assert_eq!(parser.parse(input), Err(expected));
@@ -1046,10 +1050,10 @@ fn test_custom_parser_with_allow_ago_when_parse_multiple(
 ) {
     let parser = CustomDurationParserBuilder::new()
         .time_units(&SYSTEMD_TIME_UNITS)
-        .allow_delimiter(|byte| byte.is_ascii_whitespace())
-        .allow_ago(|byte| byte.is_ascii_whitespace())
+        .allow_time_unit_delimiter()
+        .allow_ago()
         .allow_negative()
-        .parse_multiple(|byte| byte.is_ascii_whitespace(), Some(&["and"]))
+        .parse_multiple(Some(&["and"]))
         .build();
     assert_eq!(parser.parse(input), Ok(expected));
 }

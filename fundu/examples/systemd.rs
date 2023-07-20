@@ -97,8 +97,10 @@ fn main() {
         .time_units(&SYSTEMD_TIME_UNITS)
         .disable_exponent()
         .disable_infinity()
-        .allow_delimiter(delimiter)
-        .parse_multiple(delimiter, None)
+        .allow_time_unit_delimiter()
+        .parse_multiple(None)
+        .inner_delimiter(delimiter)
+        .outer_delimiter(delimiter)
         .build();
 
     let input: &String = matches

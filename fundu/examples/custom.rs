@@ -73,7 +73,8 @@ fn main() {
         .time_units(&CUSTOM_TIME_UNITS)
         .default_unit(NanoSecond)
         .disable_exponent()
-        .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
+        .allow_time_unit_delimiter()
+        .inner_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
         .build();
 
     // The headline

@@ -280,8 +280,8 @@ impl<'a> DurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123   ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub const fn allow_delimiter(mut self, delimiter: Delimiter) -> Self {
-        self.config.allow_delimiter = Some(delimiter);
+    pub const fn allow_time_unit_delimiter(mut self) -> Self {
+        self.config.allow_time_unit_delimiter = true;
         self
     }
 
@@ -304,8 +304,8 @@ impl<'a> DurationParserBuilder<'a> {
     /// assert_eq!(parser.parse("+ 123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("+     123ns"), Ok(Duration::positive(0, 123)));
     /// ```
-    pub const fn allow_sign_delimiter(mut self, delimiter: Delimiter) -> Self {
-        self.config.sign_delimiter = Some(delimiter);
+    pub const fn allow_sign_delimiter(mut self) -> Self {
+        self.config.allow_sign_delimiter = true;
         self
     }
 
@@ -465,13 +465,21 @@ impl<'a> DurationParserBuilder<'a> {
     ///     Ok(Duration::positive(5 * 60 * 60 * 24 + 20, 300_000_000))
     /// );
     /// ```
-    pub const fn parse_multiple(
-        mut self,
-        delimiter: Delimiter,
-        conjunctions: Option<&'a [&'a str]>,
-    ) -> Self {
-        self.config.delimiter_multiple = Some(delimiter);
+    pub const fn parse_multiple(mut self, conjunctions: Option<&'a [&'a str]>) -> Self {
+        self.config.allow_multiple = true;
         self.config.conjunctions = conjunctions;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn inner_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.inner_delimiter = delimiter;
+        self
+    }
+
+    /// TODO: DOCUMENT
+    pub const fn outer_delimiter(mut self, delimiter: Delimiter) -> Self {
+        self.config.outer_delimiter = delimiter;
         self
     }
 
@@ -559,14 +567,14 @@ mod tests {
 
     #[test]
     fn test_duration_parser_builder_when_allow_delimiter() {
-        let builder = DurationParserBuilder::new().allow_delimiter(|b| b == b' ');
-        assert!(builder.config.allow_delimiter.unwrap()(b' '));
+        let builder = DurationParserBuilder::new().allow_time_unit_delimiter();
+        assert!(builder.config.allow_time_unit_delimiter);
     }
 
     #[test]
     fn test_duration_parser_builder_when_allow_sign_delimiter() {
-        let builder = DurationParserBuilder::new().allow_sign_delimiter(|b| b == b' ');
-        assert!(builder.config.sign_delimiter.unwrap()(b' '));
+        let builder = DurationParserBuilder::new().allow_sign_delimiter();
+        assert!(builder.config.allow_sign_delimiter);
     }
 
     #[test]
@@ -610,9 +618,9 @@ mod tests {
 
     #[test]
     fn test_duration_parser_builder_when_parse_multiple() {
-        let builder = DurationParserBuilder::new().parse_multiple(|byte: u8| byte == 0xff, None);
+        let builder = DurationParserBuilder::new().parse_multiple(None);
 
-        assert!(builder.config.delimiter_multiple.unwrap()(0xff));
+        assert!(builder.config.allow_multiple);
     }
 
     #[rstest]

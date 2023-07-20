@@ -264,14 +264,16 @@ use util::trim_whitespace;
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
 
 const CONFIG: Config = ConfigBuilder::new()
-    .allow_delimiter(DELIMITER)
-    .allow_ago(DELIMITER)
+    .allow_time_unit_delimiter()
+    .allow_ago()
     .disable_exponent()
     .disable_infinity()
     .allow_negative()
     .number_is_optional()
-    .parse_multiple(DELIMITER, None)
-    .allow_sign_delimiter(DELIMITER)
+    .parse_multiple(None)
+    .allow_sign_delimiter()
+    .inner_delimiter(DELIMITER)
+    .outer_delimiter(DELIMITER)
     .build();
 
 const TIME_UNITS: TimeUnits = TimeUnits {};
@@ -664,12 +666,7 @@ impl<'a> RelativeTimeParser<'a> {
         let mut years = 0i64;
         let mut months = 0i64;
 
-        // the unwraps are safe here because both config values are defined
-        let mut parser = &mut ReprParserMultiple::new(
-            trimmed,
-            self.raw.config.delimiter_multiple.unwrap(),
-            self.raw.config.conjunctions.unwrap_or_default(),
-        );
+        let mut parser = &mut ReprParserMultiple::new(trimmed);
 
         loop {
             let (duration_repr, maybe_parser) = parser.parse(

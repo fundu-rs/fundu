@@ -36,14 +36,16 @@ const DELIMITER: fn(u8) -> bool =
     |byte| matches!(byte, b' ' | b'\t' | b'\n' | b'\x0c' | b'\r' | b'\x0b');
 
 const PARSER_BUILDER: CustomDurationParserBuilder = CustomDurationParserBuilder::new()
-    .allow_ago(DELIMITER)
-    .allow_delimiter(DELIMITER)
+    .allow_ago()
+    .allow_time_unit_delimiter()
     .allow_negative()
     .disable_exponent()
     .disable_fraction()
     .disable_infinity()
     .number_is_optional()
-    .parse_multiple(DELIMITER, None);
+    .inner_delimiter(DELIMITER)
+    .outer_delimiter(DELIMITER)
+    .parse_multiple(None);
 
 fn make_plural(time: u64, singular: &str) -> String {
     if time > 1 {

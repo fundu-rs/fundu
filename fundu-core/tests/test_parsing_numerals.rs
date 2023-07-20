@@ -105,7 +105,8 @@ fn test_parse_with_numerals(
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_delimiter(space_delimiter)
+        .allow_time_unit_delimiter()
+        .inner_delimiter(space_delimiter)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
@@ -133,9 +134,10 @@ fn test_parse_with_numerals_when_sign_is_present(
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_delimiter(space_delimiter)
-        .allow_ago(space_delimiter)
-        .allow_sign_delimiter(space_delimiter)
+        .allow_time_unit_delimiter()
+        .allow_ago()
+        .allow_sign_delimiter()
+        .inner_delimiter(space_delimiter)
         .allow_negative()
         .build();
     let parser = Parser::with_config(config);
@@ -190,7 +192,8 @@ fn test_parse_with_numerals_when_invalid(
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_delimiter(space_delimiter)
+        .allow_time_unit_delimiter()
+        .inner_delimiter(space_delimiter)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
@@ -217,8 +220,10 @@ fn test_parse_with_numerals_when_invalid_parse_multiple(
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_delimiter(space_delimiter)
-        .parse_multiple(space_delimiter, None)
+        .allow_time_unit_delimiter()
+        .parse_multiple(None)
+        .inner_delimiter(space_delimiter)
+        .outer_delimiter(space_delimiter)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
@@ -250,8 +255,10 @@ fn test_parse_with_numerals_when_empty_time_units_no_keywords_and_parse_multiple
     space_delimiter: Delimiter,
 ) {
     let config = ConfigBuilder::new()
-        .allow_delimiter(space_delimiter)
-        .parse_multiple(space_delimiter, None)
+        .allow_time_unit_delimiter()
+        .parse_multiple(None)
+        .inner_delimiter(space_delimiter)
+        .outer_delimiter(space_delimiter)
         .build();
     let parser = Parser::with_config(config);
     assert_eq!(
