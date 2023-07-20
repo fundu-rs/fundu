@@ -270,7 +270,6 @@ pub struct Whole(pub usize, pub usize);
 impl Parse8Digits for Whole {}
 
 impl Whole {
-    #[inline]
     pub fn parse_slice(mut seconds: u64, digits: &[u8]) -> Option<u64> {
         if digits.len() >= 8 {
             let mut iter = digits.chunks_exact(8);
@@ -353,7 +352,6 @@ pub struct Fract(pub usize, pub usize);
 impl Parse8Digits for Fract {}
 
 impl Fract {
-    #[inline]
     pub fn parse_slice(mut attos: u64, max_to_parse: usize, digits: &[u8]) -> (u64, usize) {
         let num_parsable = digits.len().min(max_to_parse);
         if num_parsable >= 8 {
@@ -701,7 +699,6 @@ impl<'a> Bytes<'a> {
         &self.input[start..self.current_pos]
     }
 
-    #[inline]
     pub fn buffered_advance_to<F>(&mut self, delimiter: F) -> &'a [u8]
     where
         F: Fn(u8) -> bool,
@@ -1352,7 +1349,6 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
     }
 
-    #[inline]
     fn parse_time_unit(
         &mut self,
         config: &Config,
