@@ -69,11 +69,6 @@ harness = false
 required-features = ["standard", "with-iai"]
 
 [[bench]]
-name = "fundu_iai_standard"
-harness = false
-required-features = ["standard", "with-iai"]
-
-[[bench]]
 name = "fundu_iai_custom"
 harness = false
 required-features = ["custom", "with-iai"]
