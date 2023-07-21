@@ -238,16 +238,16 @@ impl<'a> Config<'a> {
     /// const DEFAULT_CONFIG: Config = Config::new();
     ///
     /// assert_eq!(DEFAULT_CONFIG.default_unit, TimeUnit::Second);
-    /// assert_eq!(DEFAULT_CONFIG.allow_delimiter, None);
+    /// assert_eq!(DEFAULT_CONFIG.allow_time_unit_delimiter, false);
     /// assert_eq!(DEFAULT_CONFIG.default_multiplier, Multiplier(1, 0));
     /// assert_eq!(DEFAULT_CONFIG.disable_exponent, false);
     /// assert_eq!(DEFAULT_CONFIG.disable_fraction, false);
     /// assert_eq!(DEFAULT_CONFIG.number_is_optional, false);
     /// assert_eq!(DEFAULT_CONFIG.disable_infinity, false);
-    /// assert_eq!(DEFAULT_CONFIG.delimiter_multiple, None);
+    /// assert_eq!(DEFAULT_CONFIG.allow_multiple, false);
     /// assert_eq!(DEFAULT_CONFIG.conjunctions, None);
     /// assert_eq!(DEFAULT_CONFIG.allow_negative, false);
-    /// assert_eq!(DEFAULT_CONFIG.allow_ago, None);
+    /// assert_eq!(DEFAULT_CONFIG.allow_ago, false);
     /// ```
     pub const fn new() -> Self {
         Self {
@@ -357,34 +357,23 @@ impl<'a> ConfigBuilder<'a> {
     /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
-    /// const CONFIG: Config = ConfigBuilder::new()
-    ///     .allow_delimiter(|byte| matches!(byte, b' ' | b'\n'))
-    ///     .build();
+    /// const CONFIG: Config = ConfigBuilder::new().allow_time_unit_delimiter().build();
     ///
-    /// assert!(CONFIG.allow_delimiter.is_some());
-    ///
-    /// let delimiter = CONFIG.allow_delimiter.unwrap();
-    /// assert!(delimiter(b'\n'));
-    /// assert!(delimiter(b' '));
+    /// assert!(CONFIG.allow_time_unit_delimiter);
     /// ```
     ///
-    /// or with the rust whitespace definition
+    /// or with another whitespace definition for the `inner_delimiter`
     ///
     /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
     /// const CONFIG: Config = ConfigBuilder::new()
-    ///     .allow_delimiter(|byte| byte.is_ascii_whitespace())
+    ///     .allow_time_unit_delimiter()
+    ///     .inner_delimiter(|byte| byte == b' ')
     ///     .build();
     ///
-    /// assert!(CONFIG.allow_delimiter.is_some());
-    ///
-    /// let delimiter = CONFIG.allow_delimiter.unwrap();
-    /// assert!(delimiter(b' '));
-    /// assert!(delimiter(b'\t'));
-    /// assert!(delimiter(b'\n'));
-    /// assert!(delimiter(b'\x0c'));
-    /// assert!(delimiter(b'\r'));
+    /// assert!(CONFIG.allow_time_unit_delimiter);
+    /// assert!((CONFIG.inner_delimiter)(b' '));
     /// ```
     pub const fn allow_time_unit_delimiter(mut self) -> Self {
         self.config.allow_time_unit_delimiter = true;
@@ -512,15 +501,10 @@ impl<'a> ConfigBuilder<'a> {
     /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder, Delimiter};
     ///
-    /// const DELIMITER: Delimiter = |byte| matches!(byte, b' ' | b'\n');
     /// const CONJUNCTIONS: &[&str] = &["and", ",", "also"];
     /// const CONFIG: Config = ConfigBuilder::new()
-    ///     .parse_multiple(DELIMITER, Some(CONJUNCTIONS))
+    ///     .parse_multiple(Some(CONJUNCTIONS))
     ///     .build();
-    ///
-    /// assert!(CONFIG.delimiter_multiple.is_some());
-    /// assert!(CONFIG.delimiter_multiple.unwrap()(b' '));
-    /// assert!(CONFIG.delimiter_multiple.unwrap()(b'\n'));
     ///
     /// assert_eq!(CONFIG.conjunctions, Some(CONJUNCTIONS));
     /// ```
@@ -541,15 +525,9 @@ impl<'a> ConfigBuilder<'a> {
     /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
-    /// const CONFIG: Config = ConfigBuilder::new()
-    ///     .allow_ago(|byte| matches!(byte, b' ' | b'\n'))
-    ///     .build();
+    /// const CONFIG: Config = ConfigBuilder::new().allow_ago().build();
     ///
-    /// assert!(CONFIG.allow_ago.is_some());
-    ///
-    /// let delimiter = CONFIG.allow_ago.unwrap();
-    /// assert!(delimiter(b'\n'));
-    /// assert!(delimiter(b' '));
+    /// assert!(CONFIG.allow_ago);
     /// ```
     pub const fn allow_ago(mut self) -> Self {
         self.config.allow_ago = true;
@@ -565,26 +543,59 @@ impl<'a> ConfigBuilder<'a> {
     /// ```rust
     /// use fundu_core::config::{Config, ConfigBuilder};
     ///
-    /// const CONFIG: Config = ConfigBuilder::new()
-    ///     .allow_sign_delimiter(|byte| matches!(byte, b' ' | b'\n'))
-    ///     .build();
+    /// const CONFIG: Config = ConfigBuilder::new().allow_sign_delimiter().build();
     ///
-    /// assert!(CONFIG.sign_delimiter.is_some());
-    ///
-    /// let delimiter = CONFIG.sign_delimiter.unwrap();
-    /// assert!(delimiter(b'\n'));
-    /// assert!(delimiter(b' '));
+    /// assert!(CONFIG.allow_sign_delimiter);
     /// ```
     pub const fn allow_sign_delimiter(mut self) -> Self {
         self.config.allow_sign_delimiter = true;
         self
     }
 
+    /// Set the inner [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// Where the inner delimiter occurs, depends on other options:
+    /// * [`ConfigBuilder::allow_sign_delimiter`]: Between the sign and the number
+    /// * [`ConfigBuilder::allow_time_unit_delimiter`]: Between the number and the time unit
+    /// * [`ConfigBuilder::allow_ago`]: Between the time unit and the `ago` keyword
+    /// * If [`NumbersLike`] numerals are used, between the numeral and the time unit
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::config::{Config, ConfigBuilder};
+    ///
+    /// const CONFIG: Config = ConfigBuilder::new()
+    ///     .inner_delimiter(|byte| byte == b'#')
+    ///     .build();
+    ///
+    /// assert!((CONFIG.inner_delimiter)(b'#'));
+    /// ```
     pub const fn inner_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.inner_delimiter = delimiter;
         self
     }
 
+    /// Set the outer [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// The outer delimiter is used to separate multiple durations like in `1second 1minute` and is
+    /// therefore used only if [`CustomDurationParser::parse_multiple`] is set. If
+    /// `conjunctions` are set, this delimiter also separates the conjunction from the durations
+    /// (like in `1second and 1minute`)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu_core::config::{Config, ConfigBuilder};
+    ///
+    /// const CONFIG: Config = ConfigBuilder::new()
+    ///     .outer_delimiter(|byte| byte == b'#')
+    ///     .build();
+    ///
+    /// assert!((CONFIG.outer_delimiter)(b'#'));
+    /// ```
     pub const fn outer_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.outer_delimiter = delimiter;
         self
