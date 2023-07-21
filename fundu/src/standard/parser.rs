@@ -511,20 +511,82 @@ impl<'a> DurationParser<'a> {
     pub fn parse_multiple(
         &mut self,
         value: bool,
-        conjunctions: Option<&'static [&'static str]>,
+        conjunctions: Option<&'a [&'a str]>,
     ) -> &mut Self {
         self.inner.config.allow_multiple = value;
         self.inner.config.conjunctions = conjunctions;
         self
     }
 
-    /// TODO: DOCUMENT
+    /// Set the inner [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// Where the inner delimiter occurs, depends on other options:
+    /// * [`DurationParser::allow_sign_delimiter`]: Between the sign and the number
+    /// * [`DurationParser::allow_time_unit_delimiter`]: Between the number and the time unit
+    /// * [`DurationParser::allow_ago`]: Between the time unit and the `ago` keyword
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParser, DEFAULT_TIME_UNITS};
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser
+    ///     .allow_ago()
+    ///     .set_inner_delimiter(|byte| byte == '#')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1.5h#ago"), Ok(Duration::negative(5400, 0)));
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser
+    ///     .allow_sign_delimiter()
+    ///     .set_inner_delimiter(|byte| byte == '#')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("+##1.5h"), Ok(Duration::positive(5400, 0)));
+    /// ```
     pub fn set_inner_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
         self.inner.config.inner_delimiter = delimiter;
         self
     }
 
-    /// TODO: DOCUMENT
+    /// Set the outer [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// The outer delimiter is used to separate multiple durations like in `1second 1minute` and is
+    /// therefore used only if [`DurationParser::parse_multiple`] is set. If `conjunctions` are set,
+    /// this delimiter also separates the conjunction from the durations (like in `1second and
+    /// 1minute`)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParser};
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser
+    ///     .parse_multiple(None)
+    ///     .set_outer_delimiter(|byte| byte == ';')
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.5h;2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser
+    ///     .parse_multiple(Some(&["and"]))
+    ///     .set_outer_delimiter(|byte| byte == ';')
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.5h;and;2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    /// ```
     pub fn set_outer_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
         self.inner.config.outer_delimiter = delimiter;
         self

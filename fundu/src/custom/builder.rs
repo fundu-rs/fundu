@@ -498,8 +498,9 @@ impl<'a> CustomDurationParserBuilder<'a> {
 
     /// Parse possibly multiple durations and sum them up.
     ///
-    /// The durations can be separated from each other by a [`Delimiter`] or one or more
-    /// conjunctions, like `and`. See also [`crate::DurationParser::parse_multiple`].
+    /// The durations can be separated from each other by the
+    /// [`CustomDurationParserBuilder::outer_delimiter`] and/or one or more conjunctions, like
+    /// `"and"`. See also [`crate::DurationParser::parse_multiple`].
     ///
     /// # Examples
     ///
@@ -508,7 +509,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
-    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), Some(&["and"]))
+    ///     .parse_multiple(Some(&["and"]))
     ///     .build();
     ///
     /// assert_eq!(
@@ -536,13 +537,69 @@ impl<'a> CustomDurationParserBuilder<'a> {
         self
     }
 
-    /// TODO: DOCUMENT
+    /// Set the outer [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// See also [`CustomDurationParser::set_outer_delimiter`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .parse_multiple(None)
+    ///     .outer_delimiter(|byte| byte == ';')
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.5h;2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .parse_multiple(Some(&["and"]))
+    ///     .outer_delimiter(|byte| byte == ';')
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.5h;and;2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    /// ```
     pub const fn outer_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.outer_delimiter = delimiter;
         self
     }
 
-    /// TODO: DOCUMENT
+    /// Set the inner [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// See also [`CustomDurationParser::set_inner_delimiter`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .allow_ago()
+    ///     .inner_delimiter(|byte| byte == '#')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1.5h#ago"), Ok(Duration::negative(5400, 0)));
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .time_units(&DEFAULT_TIME_UNITS)
+    ///     .allow_sign_delimiter()
+    ///     .inner_delimiter(|byte| byte == '#')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("+##1.5h"), Ok(Duration::positive(5400, 0)));
+    /// ```
     pub const fn inner_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.inner_delimiter = delimiter;
         self

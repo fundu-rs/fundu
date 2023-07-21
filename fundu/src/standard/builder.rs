@@ -471,13 +471,69 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
-    /// TODO: DOCUMENT
+    /// Set the inner [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// See also [`DurationParser::set_inner_delimiter`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParserBuilder, DEFAULT_TIME_UNITS};
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .all_time_units()
+    ///     .allow_ago()
+    ///     .inner_delimiter(|byte| byte == '#')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("1.5h#ago"), Ok(Duration::negative(5400, 0)));
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .all_time_units()
+    ///     .allow_sign_delimiter()
+    ///     .inner_delimiter(|byte| byte == '#')
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("+##1.5h"), Ok(Duration::positive(5400, 0)));
+    /// ```
     pub const fn inner_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.inner_delimiter = delimiter;
         self
     }
 
-    /// TODO: DOCUMENT
+    /// Set the outer [`Delimiter`] to something different then the default
+    /// [`u8::is_ascii_whitespace`]
+    ///
+    /// See also [`DurationParser::set_outer_delimiter`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::{Duration, DurationParserBuilder};
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .all_time_units()
+    ///     .parse_multiple(None)
+    ///     .outer_delimiter(|byte| byte == ';')
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.5h;2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .all_time_units()
+    ///     .parse_multiple(Some(&["and"]))
+    ///     .outer_delimiter(|byte| byte == ';')
+    ///     .build();
+    ///
+    /// assert_eq!(
+    ///     parser.parse("1.5h;and;2e+2ns"),
+    ///     Ok(Duration::positive(5400, 200))
+    /// );
+    /// ```
     pub const fn outer_delimiter(mut self, delimiter: Delimiter) -> Self {
         self.config.outer_delimiter = delimiter;
         self
