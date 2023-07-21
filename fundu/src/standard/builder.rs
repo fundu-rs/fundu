@@ -328,6 +328,61 @@ impl<'a> DurationParserBuilder<'a> {
         self
     }
 
+    /// The `ago` keyword can follow a time unit separated by the `inner_delimiter` to denote a
+    /// negative duration.
+    ///
+    /// See also [`DurationParser::allow_ago`]
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{Duration, DurationParserBuilder, Multiplier};
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .all_time_units()
+    ///     .allow_ago()
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("123ns ago"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(parser.parse("-123ns ago"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123neg ago"), Ok(Duration::positive(123, 0)));
+    /// ```
+    ///
+    /// And some illegal usages of `ago`
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{DurationParserBuilder, Multiplier, ParseError, TimeKeyword, DEFAULT_TIME_UNITS};
+    ///
+    /// let parser = DurationParserBuilder::new()
+    ///     .with_all_time_units()
+    ///     .allow_ago()
+    ///     .build();
+    ///
+    /// // Error because no time unit was specified
+    /// assert_eq!(
+    ///     parser.parse("123 ago"),
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: ' ago'".to_string()
+    ///     ))
+    /// );
+    ///
+    /// // Error because ago was specified multiple times
+    /// assert_eq!(
+    ///     parser.parse("123ns ago ago"),
+    ///     Err(ParseError::Syntax(
+    ///         9,
+    ///         "Expected end of input but found: ' ago'".to_string()
+    ///     ))
+    /// );
+    /// ```
+    pub const fn allow_ago(mut self) -> Self {
+        self.config.allow_ago = true;
+        self
+    }
+
     /// Disable parsing an exponent.
     ///
     /// See also [`DurationParser::disable_exponent`].

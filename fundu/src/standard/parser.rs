@@ -332,6 +332,59 @@ impl<'a> DurationParser<'a> {
         self
     }
 
+    /// If true, the `ago` keyword can follow a time unit and the `inner_delimiter` to denote a
+    /// negative duration
+    ///
+    /// The `ago` keyword is allowed in the source string after a time unit and only if a time unit
+    /// was encountered. The time unit and `ago` must be delimited by the `inner_delimiter`. Note
+    /// that setting this option automatically sets [`DurationParser::allow_negative`] to true.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{Duration, DurationParser, Multiplier};
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser.allow_ago(true);
+    ///
+    /// assert_eq!(parser.parse("123ns ago"), Ok(Duration::negative(0, 123)));
+    /// assert_eq!(parser.parse("-123ns ago"), Ok(Duration::positive(0, 123)));
+    /// assert_eq!(parser.parse("123neg ago"), Ok(Duration::positive(123, 0)));
+    /// ```
+    ///
+    /// And some illegal usages of `ago`
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{DurationParser, Multiplier, ParseError, TimeKeyword};
+    ///
+    /// let mut parser = DurationParser::with_all_time_units();
+    /// parser.allow_ago(true);
+    ///
+    /// // Error because no time unit was specified
+    /// assert_eq!(
+    ///     parser.parse("123 ago"),
+    ///     Err(ParseError::TimeUnit(
+    ///         3,
+    ///         "Invalid time unit: ' ago'".to_string()
+    ///     ))
+    /// );
+    ///
+    /// // Error because ago was specified multiple times
+    /// assert_eq!(
+    ///     parser.parse("123ns ago ago"),
+    ///     Err(ParseError::Syntax(
+    ///         9,
+    ///         "Expected end of input but found: ' ago'".to_string()
+    ///     ))
+    /// );
+    /// ```
+    pub fn allow_ago(&mut self, value: bool) -> &mut Self {
+        self.inner.config.allow_ago = value;
+        self
+    }
+
     /// If true, disable parsing an exponent.
     ///
     /// If an exponent is encountered in the input string and this setting is active this results
