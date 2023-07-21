@@ -132,7 +132,7 @@ impl<'a> CustomDurationParser<'a> {
     /// let parser = DurationParser::builder()
     ///     .all_time_units()
     ///     .default_unit(MicroSecond)
-    ///     .allow_delimiter(|b| b == b' ')
+    ///     .allow_time_unit_delimiter()
     ///     .build();
     ///
     /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::positive(0, 1));
@@ -143,7 +143,7 @@ impl<'a> CustomDurationParser<'a> {
     /// let mut parser = DurationParser::with_all_time_units();
     /// parser
     ///     .default_unit(MicroSecond)
-    ///     .allow_delimiter(Some(|b| b == b' '));
+    ///     .allow_time_unit_delimiter(true);
     ///
     /// assert_eq!(parser.parse("1 ns").unwrap(), Duration::positive(0, 1));
     /// assert_eq!(parser.parse("1").unwrap(), Duration::positive(0, 1_000));
@@ -391,12 +391,10 @@ impl<'a> CustomDurationParser<'a> {
     ///     ))
     /// );
     ///
-    /// parser.allow_delimiter(Some(|byte| byte == b' '));
+    /// parser.allow_time_unit_delimiter(true);
     /// assert_eq!(parser.parse("123 ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123     ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("123ns"), Ok(Duration::positive(0, 123)));
-    ///
-    /// parser.allow_delimiter(Some(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' ')));
     /// assert_eq!(parser.parse("123\t\n\r ns"), Ok(Duration::positive(0, 123)));
     /// ```
     pub fn allow_time_unit_delimiter(&mut self, value: bool) -> &mut Self {
@@ -416,7 +414,7 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// let mut parser =
     ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
-    /// parser.allow_sign_delimiter(Some(|byte| byte.is_ascii_whitespace()));
+    /// parser.allow_sign_delimiter(true);
     ///
     /// assert_eq!(parser.parse("+123ns"), Ok(Duration::positive(0, 123)));
     /// assert_eq!(parser.parse("+\t\n 123ns"), Ok(Duration::positive(0, 123)));
@@ -484,13 +482,11 @@ impl<'a> CustomDurationParser<'a> {
     ///     CustomTimeUnit::with_default(NanoSecond, &["ns"]),
     ///     CustomTimeUnit::new(Second, &["neg"], Some(Multiplier(-1, 0))),
     /// ]);
-    /// parser
-    ///     .allow_ago(Some(|byte: u8| byte.is_ascii_whitespace()))
-    ///     .keyword(TimeKeyword::new(
-    ///         Day,
-    ///         &["yesterday"],
-    ///         Some(Multiplier(-1, 0)),
-    ///     ));
+    /// parser.allow_ago(true).keyword(TimeKeyword::new(
+    ///     Day,
+    ///     &["yesterday"],
+    ///     Some(Multiplier(-1, 0)),
+    /// ));
     ///
     /// assert_eq!(parser.parse("123ns ago"), Ok(Duration::negative(0, 123)));
     /// assert_eq!(parser.parse("-123ns ago"), Ok(Duration::positive(0, 123)));
@@ -505,13 +501,11 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// let mut parser =
     ///     CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(NanoSecond, &["ns"])]);
-    /// parser
-    ///     .allow_ago(Some(|byte: u8| byte.is_ascii_whitespace()))
-    ///     .keyword(TimeKeyword::new(
-    ///         Day,
-    ///         &["yesterday"],
-    ///         Some(Multiplier(-1, 0)),
-    ///     ));
+    /// parser.allow_ago(true).keyword(TimeKeyword::new(
+    ///     Day,
+    ///     &["yesterday"],
+    ///     Some(Multiplier(-1, 0)),
+    /// ));
     ///
     /// // Error because no time unit was specified
     /// assert_eq!(
@@ -658,7 +652,7 @@ impl<'a> CustomDurationParser<'a> {
     /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
-    /// parser.parse_multiple(Some(|byte| matches!(byte, b' ' | b'\t')), Some(&["and"]));
+    /// parser.parse_multiple(true, Some(&["and"]));
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h 2e+2ns"),
@@ -705,17 +699,15 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser
-    ///     .allow_ago()
-    ///     .set_inner_delimiter(|byte| byte == '#')
-    ///     .build();
+    ///     .allow_ago(true)
+    ///     .set_inner_delimiter(|byte| byte == b'#');
     ///
     /// assert_eq!(parser.parse("1.5h#ago"), Ok(Duration::negative(5400, 0)));
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser
-    ///     .allow_sign_delimiter()
-    ///     .set_inner_delimiter(|byte| byte == '#')
-    ///     .build();
+    ///     .allow_sign_delimiter(true)
+    ///     .set_inner_delimiter(|byte| byte == b'#');
     ///
     /// assert_eq!(parser.parse("+##1.5h"), Ok(Duration::positive(5400, 0)));
     /// ```
@@ -739,20 +731,18 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser
-    ///     .parse_multiple(None)
-    ///     .set_outer_delimiter(|byte| byte == ';')
-    ///     .build();
+    ///     .parse_multiple(true, None)
+    ///     .set_outer_delimiter(|byte| byte == b';');
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h;2e+2ns"),
     ///     Ok(Duration::positive(5400, 200))
     /// );
     ///
-    /// let mut parser = DurationParser::with_time_units(&DEFAULT_TIME_UNITS);
+    /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser
-    ///     .parse_multiple(Some(&["and"]))
-    ///     .set_outer_delimiter(|byte| byte == ';')
-    ///     .build();
+    ///     .parse_multiple(true, Some(&["and"]))
+    ///     .set_outer_delimiter(|byte| byte == b';');
     ///
     /// assert_eq!(
     ///     parser.parse("1.5h;and;2e+2ns"),
@@ -760,7 +750,7 @@ impl<'a> CustomDurationParser<'a> {
     /// );
     /// ```
     pub fn set_outer_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
-        self.inner.config.inner_delimiter = delimiter;
+        self.inner.config.outer_delimiter = delimiter;
         self
     }
 

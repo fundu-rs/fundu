@@ -34,7 +34,7 @@ enum TimeUnitsChoice<'a> {
 /// let parser = DurationParserBuilder::new()
 ///     .all_time_units()
 ///     .default_unit(MicroSecond)
-///     .allow_delimiter(|byte| byte == b' ')
+///     .allow_time_unit_delimiter()
 ///     .build();
 ///
 /// assert_eq!(parser.parse("1   ns").unwrap(), Duration::positive(0, 1));
@@ -45,7 +45,7 @@ enum TimeUnitsChoice<'a> {
 /// let mut parser = DurationParser::with_all_time_units();
 /// parser
 ///     .default_unit(MicroSecond)
-///     .allow_delimiter(Some(|byte| byte == b' '));
+///     .allow_time_unit_delimiter(true);
 ///
 /// assert_eq!(parser.parse("1    ns").unwrap(), Duration::positive(0, 1));
 /// assert_eq!(parser.parse("1").unwrap(), Duration::positive(0, 1_000));
@@ -60,7 +60,7 @@ enum TimeUnitsChoice<'a> {
 /// const PARSER: DurationParser = DurationParserBuilder::new()
 ///     .time_units(&[Second, Minute, Hour, Day])
 ///     .allow_negative()
-///     .parse_multiple(|byte| byte.is_ascii_whitespace(), None)
+///     .parse_multiple(None)
 ///     .build();
 /// assert_eq!(PARSER.parse("1h").unwrap(), Duration::positive(60 * 60, 0));
 /// ```
@@ -270,7 +270,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
-    ///     .allow_delimiter(|byte| byte.is_ascii_whitespace())
+    ///     .allow_time_unit_delimiter()
     ///     .build();
     ///
     /// assert_eq!(
@@ -296,7 +296,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
-    ///     .allow_sign_delimiter(|byte| byte.is_ascii_whitespace())
+    ///     .allow_sign_delimiter()
     ///     .build();
     ///
     /// assert_eq!(parser.parse("+123ns"), Ok(Duration::positive(0, 123)));
@@ -336,8 +336,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::TimeUnit::*;
-    /// use fundu::{Duration, DurationParserBuilder, Multiplier};
+    /// use fundu::{Duration, DurationParserBuilder};
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .all_time_units()
@@ -346,17 +345,15 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// assert_eq!(parser.parse("123ns ago"), Ok(Duration::negative(0, 123)));
     /// assert_eq!(parser.parse("-123ns ago"), Ok(Duration::positive(0, 123)));
-    /// assert_eq!(parser.parse("123neg ago"), Ok(Duration::positive(123, 0)));
     /// ```
     ///
     /// And some illegal usages of `ago`
     ///
     /// ```rust
-    /// use fundu::TimeUnit::*;
-    /// use fundu::{DurationParserBuilder, Multiplier, ParseError, TimeKeyword, DEFAULT_TIME_UNITS};
+    /// use fundu::{DurationParserBuilder, ParseError};
     ///
     /// let parser = DurationParserBuilder::new()
-    ///     .with_all_time_units()
+    ///     .all_time_units()
     ///     .allow_ago()
     ///     .build();
     ///
@@ -380,6 +377,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// ```
     pub const fn allow_ago(mut self) -> Self {
         self.config.allow_ago = true;
+        self.config.allow_negative = true;
         self
     }
 
@@ -498,7 +496,7 @@ impl<'a> DurationParserBuilder<'a> {
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .default_time_units()
-    ///     .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), Some(&["and"]))
+    ///     .parse_multiple(Some(&["and"]))
     ///     .build();
     ///
     /// assert_eq!(
@@ -534,12 +532,12 @@ impl<'a> DurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{Duration, DurationParserBuilder, DEFAULT_TIME_UNITS};
+    /// use fundu::{Duration, DurationParserBuilder};
     ///
     /// let parser = DurationParserBuilder::new()
     ///     .all_time_units()
     ///     .allow_ago()
-    ///     .inner_delimiter(|byte| byte == '#')
+    ///     .inner_delimiter(|byte| byte == b'#')
     ///     .build();
     ///
     /// assert_eq!(parser.parse("1.5h#ago"), Ok(Duration::negative(5400, 0)));
@@ -547,7 +545,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// let parser = DurationParserBuilder::new()
     ///     .all_time_units()
     ///     .allow_sign_delimiter()
-    ///     .inner_delimiter(|byte| byte == '#')
+    ///     .inner_delimiter(|byte| byte == b'#')
     ///     .build();
     ///
     /// assert_eq!(parser.parse("+##1.5h"), Ok(Duration::positive(5400, 0)));
@@ -570,7 +568,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// let parser = DurationParserBuilder::new()
     ///     .all_time_units()
     ///     .parse_multiple(None)
-    ///     .outer_delimiter(|byte| byte == ';')
+    ///     .outer_delimiter(|byte| byte == b';')
     ///     .build();
     ///
     /// assert_eq!(
@@ -581,7 +579,7 @@ impl<'a> DurationParserBuilder<'a> {
     /// let parser = DurationParserBuilder::new()
     ///     .all_time_units()
     ///     .parse_multiple(Some(&["and"]))
-    ///     .outer_delimiter(|byte| byte == ';')
+    ///     .outer_delimiter(|byte| byte == b';')
     ///     .build();
     ///
     /// assert_eq!(

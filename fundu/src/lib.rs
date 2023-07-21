@@ -280,7 +280,7 @@
 //!
 //! const PARSER: DurationParser = DurationParser::builder()
 //!     .time_units(&[NanoSecond])
-//!     .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
+//!     .allow_time_unit_delimiter()
 //!     .number_is_optional()
 //!     .disable_fraction()
 //!     .disable_exponent()
