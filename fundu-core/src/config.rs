@@ -109,20 +109,6 @@ pub trait NumbersLike {
 #[allow(clippy::struct_excessive_bools)]
 #[non_exhaustive]
 pub struct Config<'a> {
-    // TODO: DOCUMENT
-    pub inner_delimiter: Delimiter,
-    // TODO: DOCUMENT
-    pub outer_delimiter: Delimiter,
-
-    /// Allow a [`Delimiter`] between the number and time unit (Default: `None`)
-    ///
-    /// This setting does not enforce the delimiter, so time units directly following the number
-    /// are still parsed without error. A delimiter may occur multiple times.
-    ///
-    /// For example, setting the delimiter to `Some(|byte| matches!(byte, b' ' | b'\n'))` would
-    /// parse strings like `"1ms"`, `"1 ms"`, `"3.2 minutes"`, `"4e2000 \n years"` ...
-    pub allow_time_unit_delimiter: bool,
-
     /// The [`TimeUnit`] the parser applies if no time unit was given (Default: `TimeUnit::Second`)
     ///
     /// A configuration with `TimeUnit::MilliSecond` would parse a string without time units like
@@ -163,17 +149,13 @@ pub struct Config<'a> {
     /// time unit can occur without number like `"second"` and a number with value `1` is assumed.
     pub number_is_optional: bool,
 
-    /// When set to `Some` this setting allows multiple `durations` in the input (Default: `None`)
+    /// If `true`, this setting allows multiple `durations` in the input (Default: `false`)
     ///
-    /// The [`Delimiter`] follows the same rules as the `Delimiter` of the `allow_delimiter`
-    /// setting and can occur multiple times or not at all. In a addition to this delimiter, a
-    /// digit is also indicating a new duration. For example, setting this option to `Some(|byte|
-    /// matches!(byte, b' ' | b'\n'))` would parse the following strings `"1second \n2seconds"` to
-    /// a `Duration::positive(3, 0)` but also `"3seconds1second"` to a `Duration::positive(4,
-    /// 0)`.
+    /// Multiple durations may be delimited by the [`Config::outer_delimiter`]. A subsequent
+    /// duration is also recognized if it starts with a digit or a sign character.
     pub allow_multiple: bool,
 
-    /// When parsing multiple durations, allow conjunctions in addition to the [`Delimiter`]
+    /// If parsing multiple durations, allow conjunctions in addition to the [`Delimiter`]
     /// (Default: `None`)
     ///
     /// Conjunctions are words like `"and"`, `"or"` but also single characters like `","` or ";".
@@ -189,24 +171,50 @@ pub struct Config<'a> {
     /// `allow_ago` settings is set to `true`.
     pub allow_negative: bool,
 
-    /// Allow the ago keyword delimited by a [`Delimiter`] to indicate a negative duration
-    /// (Default: `None`)
+    /// This delimiter may occur within a duration
     ///
+    /// The occurrences of this delimiter depend on other configuration settings:
+    /// * If allow_sign_delimiter is set, this delimiter may separate the sign from the number
+    /// * If allow_time_unit_delimiter is set, this delimiter may separate the number from the time
+    /// unit
+    /// * If allow_ago is set, this delimiter has to separate the time unit from the `ago` keyword
+    ///
+    /// If parsing with [`NumbersLike`] numerals, then this delimiter has to separate the numeral
+    /// from the time unit.
+    pub inner_delimiter: Delimiter,
+
+    /// This delimiter may occur to separate multiple durations and [`Config::conjunctions`]
+    ///
+    /// This delimiter is used only if `allow_multiple` is set.
+    pub outer_delimiter: Delimiter,
+
+    /// Allow the ago keyword to indicate a negative duration (Default: false)
+    ///
+    /// The `ago` keyword must be delimited by the [`Config::inner_delimiter`] from the time unit.
     /// IMPORTANT: If `allow_ago` is set to `true` it's also necessary to set `allow_negative` to
     /// `true` explicitly.
     ///
     /// The `ago` keyword can only occur in conjunction with a time unit like in `"1second ago"`
     /// which would result in a `Duration::negative(1, 0)`. `"1 ago"` and `"1ago"` would result in
-    /// a [`crate::error::ParseError`]. Note the delimiter is mandatory to occur at least once.
+    /// a [`crate::error::ParseError`].
     pub allow_ago: bool,
 
-    /// Allow a [`Delimiter`] between the sign and a number, time keyword ... (Default: `None`)
+    /// Allow the [`Config::inner_delimiter`] between the sign and a number, time keyword ...
+    /// (Default: `false`)
     ///
-    /// A delimiter may occur multiple times.
-    ///
-    /// For example, setting the delimiter to `Some(|byte| matches!(byte, b' ' | b'\n'))` would
+    /// For example, setting the `inner_delimiter` to `|byte| matches!(byte, b' ' | b'\n')` would
     /// parse strings like `"+1ms"`, `"- 1ms"`, `"+   yesterday"`, `"+\n4e2000years"` ...
     pub allow_sign_delimiter: bool,
+
+    /// Allow a [`Delimiter`] between the number and time unit (Default: `false`)
+    ///
+    /// This setting does not enforce the [`Config::inner_delimiter`], so time units directly
+    /// following the number are still parsed without error. A delimiter may occur multiple times.
+    ///
+    /// For example, setting this option with an `inner_delimiter` of `|byte| matches!(byte, b' ' |
+    /// b'\n')` would parse strings like `"1ms"`, `"1 ms"`, `"3.2 minutes"`, `"4e2000 \n years"`
+    /// ...
+    pub allow_time_unit_delimiter: bool,
 }
 
 impl<'a> Default for Config<'a> {

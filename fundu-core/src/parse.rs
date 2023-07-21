@@ -1527,7 +1527,6 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         (duration_repr, self.bytes().current_byte.map(|_| self))
     }
 
-    // TODO: REMOVE FINALIZING CODE??
     #[inline]
     fn parse_infinity_remainder(
         &'a mut self,
