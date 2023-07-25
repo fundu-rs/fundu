@@ -528,9 +528,11 @@ impl<'a> ConfigBuilder<'a> {
     /// const CONFIG: Config = ConfigBuilder::new().allow_ago().build();
     ///
     /// assert!(CONFIG.allow_ago);
+    /// assert!(CONFIG.allow_negative);
     /// ```
     pub const fn allow_ago(mut self) -> Self {
         self.config.allow_ago = true;
+        self.config.allow_negative = true;
         self
     }
 
@@ -734,6 +736,7 @@ mod tests {
 
         let mut expected = Config::new();
         expected.allow_ago = true;
+        expected.allow_negative = true;
 
         assert_eq!(config, expected);
     }
