@@ -261,7 +261,7 @@ impl<'a> DurationParserBuilder<'a> {
 
     /// Allow one or more delimiters between the number and the [`TimeUnit`].
     ///
-    /// See also [`DurationParser::allow_delimiter`].
+    /// See also [`DurationParser::allow_time_unit_delimiter`].
     ///
     /// # Examples
     ///

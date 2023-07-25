@@ -295,7 +295,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
 
     /// Allow one or more delimiters between the number and the [`TimeUnit`].
     ///
-    /// See also [`crate::DurationParser::allow_delimiter`].
+    /// See also [`crate::DurationParser::allow_time_unit_delimiter`].
     ///
     /// # Examples
     ///

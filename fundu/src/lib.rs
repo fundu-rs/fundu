@@ -34,9 +34,9 @@
 //!
 //! ## `standard`
 //!
-//! The `standard` feature exposes the [`DurationParser`] and [`DurationParserBuilder`] structs
-//! with time units which can be customized. However, the `identifier` for each [`TimeUnit`] is
-//! fixed.
+//! The `standard` feature exposes the [`DurationParser`] and [`DurationParserBuilder`] structs with
+//! the a predefined small set of time units. The set of time units can be customized but the
+//! `identifier` for each [`TimeUnit`] is fixed.
 //!
 //! ## `custom`
 //!
@@ -46,12 +46,13 @@
 //!
 //! ## `base`
 //!
-//! The `base` feature exports the basic parser [`Parser`] and the [`Config`] on which the
-//! `standard` and `custom` features are built. It may lack the convenience of the other features
-//! but provides greater freedom. To be able to use this [`Parser`] an implementation of
-//! [`TimeUnitsLike`] is needed for time units and optionally for time keywords. For fixed sets of
-//! time units and time keywords this is usually a simple and straightforward process. See the
-//! documentation of the [`Parser`] and [`TimeUnitsLike`] for examples.
+//! The `base` feature exports the basic [`Parser`] and the [`Config`] on which the `standard` and
+//! `custom` features are built. It may lack the convenience of the other features but provides
+//! greater freedom. To be able to use this [`Parser`] an implementation of [`TimeUnitsLike`] is
+//! needed for time units and optionally for time keywords. Optionally, [`NumbersLike`]
+//! implementations are supported, too. For fixed sets of time units and time keywords this is
+//! usually a simple and straightforward process. See the documentation of [`Parser`],
+//! [`TimeUnitsLike`] and [`NumbersLike`] for examples.
 //!
 //! ## `chrono` and `time`
 //!
@@ -106,7 +107,7 @@
 //! * ...
 //!
 //! Per default there is no whitespace allowed between the number and the [`TimeUnit`], but this
-//! behavior can be changed with [`DurationParser::allow_delimiter`].
+//! behavior can be changed with [`DurationParser::allow_time_unit_delimiter`].
 //!
 //! # Format specification
 //!
@@ -149,8 +150,8 @@
 //! the `allow_negative` option is enabled, negative infinity and numbers falling below
 //! [`Duration::MIN`] saturate at [`Duration::MIN`].
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`
-//! * If `allow_delimiter` is set then any [`Delimiter`] is allowed between the `Number` and
-//! `TimeUnit`.
+//! * If `allow_time_unit_delimiter` is set then any [`Delimiter`] is allowed between the `Number`
+//! and `TimeUnit`.
 //! * If `number_is_optional` is enabled then the `Number` is optional but the `TimeUnit` must be
 //! present instead.
 //! * The `ago` keyword must be enabled in the parser with `allow_ago`

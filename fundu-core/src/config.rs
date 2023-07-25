@@ -3,7 +3,8 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-//! Provide the [`Config`] and related structures
+//! Provide the [`Config`], [`ConfigBuilder`] and other structures used to adjust the parsing
+//! process
 
 use crate::time::{Multiplier, TimeUnit, DEFAULT_TIME_UNIT};
 
@@ -11,21 +12,7 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 
 /// An ascii delimiter defined as closure.
 ///
-/// The [`Delimiter`] is a type alias for a closure taking a `u8` byte and returning a `bool`. Most
-/// likely, the [`Delimiter`] is used to define some whitespace but whitespace definitions differ,
-/// so a closure provides the most flexible definition of a delimiter. For example the definition of
-/// whitespace from rust [`u8::is_ascii_whitespace`]:
-///
-/// ```text
-/// Checks if the value is an ASCII whitespace character: U+0020 SPACE, U+0009 HORIZONTAL TAB,
-/// U+000A LINE FEED, U+000C FORM FEED, or U+000D CARRIAGE RETURN.
-///
-/// Rust uses the WhatWG Infra Standard’s definition of ASCII whitespace. There are several other
-/// definitions in wide use. For instance, the POSIX locale includes U+000B VERTICAL TAB as well
-/// as all the above characters, but—from the very same specification—the default rule for “field
-/// splitting” in the Bourne shell considers only SPACE, HORIZONTAL TAB, and LINE FEED as
-/// whitespace.
-/// ```
+/// The [`Delimiter`] is a type alias for a closure taking a `u8` byte and returning a `bool`.
 ///
 /// # Problems
 ///
@@ -54,6 +41,35 @@ pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 /// ```
 pub type Delimiter = fn(u8) -> bool;
 
+/// [`NumbersLike`] strings can occur where usually a number would occur in the source string
+///
+/// `NumbersLike` words or strings express a number as a word like `one` or `next` instead of `1` or
+/// `half` instead of `0.5` but also `last` instead of `-1` etc. This symbolic number is defined
+/// as a [`Multiplier`]. In contrast to numbers, `NumbersLike` without a time unit are considered an
+/// error and therefore have to be followed by a time unit.
+///
+/// # Examples
+///
+/// ```rust
+/// use fundu_core::config::NumbersLike;
+/// use fundu_core::time::Multiplier;
+///
+/// struct Numerals {}
+/// impl NumbersLike for Numerals {
+///     fn get(&self, input: &str) -> Option<Multiplier> {
+///         match input {
+///             "one" | "next" => Some(Multiplier(1, 0)),
+///             "this" => Some(Multiplier(0, 0)),
+///             "last" => Some(Multiplier(-1, 0)),
+///             "half" => Some(Multiplier(5, -1)),
+///             _ => None,
+///         }
+///     }
+/// }
+///
+/// let numerals = Numerals {};
+/// assert_eq!(numerals.get("one"), Some(Multiplier(1, 0)));
+/// ```
 pub trait NumbersLike {
     fn get(&self, input: &str) -> Option<Multiplier>;
 }
@@ -350,7 +366,7 @@ impl<'a> ConfigBuilder<'a> {
 
     /// Allow a [`Delimiter`] between the number and time unit (Default: `None`)
     ///
-    /// See also the documentation of [`Config::allow_delimiter`]
+    /// See also the documentation of [`Config::allow_time_unit_delimiter`]
     ///
     /// # Examples
     ///
@@ -437,7 +453,7 @@ impl<'a> ConfigBuilder<'a> {
         self
     }
 
-    /// Disable parsing a infinity (Default: `false`)
+    /// Disable parsing infinity (Default: `false`)
     ///
     /// See also the documentation of [`Config::disable_infinity`]
     ///
@@ -491,9 +507,9 @@ impl<'a> ConfigBuilder<'a> {
         self
     }
 
-    /// When set this setting allows multiple `durations` in the input (Default: `None`)
+    /// This setting allows multiple `durations` in the source string (Default: `None`)
     ///
-    /// See also the documentation of [`Config::delimiter_multiple`] and
+    /// See also the documentation of [`Config::allow_multiple`] and
     /// [`Config::conjunctions`].
     ///
     /// # Examples
@@ -538,7 +554,7 @@ impl<'a> ConfigBuilder<'a> {
 
     /// Allow a [`Delimiter`] between the sign and a number, time keyword ... (Default: `None`)
     ///
-    /// See also the documentation of [`Config::sign_delimiter`]
+    /// See also the documentation of [`Config::allow_sign_delimiter`]
     ///
     /// # Examples
     ///
@@ -563,6 +579,8 @@ impl<'a> ConfigBuilder<'a> {
     /// * [`ConfigBuilder::allow_ago`]: Between the time unit and the `ago` keyword
     /// * If [`NumbersLike`] numerals are used, between the numeral and the time unit
     ///
+    /// See also the documentation of [`Config::inner_delimiter`]
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -583,9 +601,11 @@ impl<'a> ConfigBuilder<'a> {
     /// [`u8::is_ascii_whitespace`]
     ///
     /// The outer delimiter is used to separate multiple durations like in `1second 1minute` and is
-    /// therefore used only if [`CustomDurationParser::parse_multiple`] is set. If
+    /// therefore used only if [`Config::allow_multiple`] is set to true. If
     /// `conjunctions` are set, this delimiter also separates the conjunction from the durations
     /// (like in `1second and 1minute`)
+    ///
+    /// See also the documentation of [`Config::outer_delimiter`]
     ///
     /// # Examples
     ///

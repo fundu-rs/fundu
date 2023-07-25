@@ -431,7 +431,7 @@ impl<'a> CustomDurationParser<'a> {
 
     /// If `Some`, allow one or more [`Delimiter`] between the number and the [`TimeUnit`].
     ///
-    /// See also [`crate::DurationParser::allow_delimiter`].
+    /// See also [`crate::DurationParser::allow_time_unit_delimiter`].
     ///
     /// # Examples
     ///

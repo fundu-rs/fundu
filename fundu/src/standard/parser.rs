@@ -512,10 +512,10 @@ impl<'a> DurationParser<'a> {
     /// struct and have the known effect. However, there is a notable constellation which has an
     /// effect on how durations are parsed:
     ///
-    /// If [`DurationParser::allow_delimiter`] is set to some delimiter, the [`Delimiter`] of this
-    /// method and the [`Delimiter`] of the `allow_delimiter` method can be equal either in parts or
-    /// in a whole without having side-effects on each other. But, if simultaneously
-    /// [`DurationParser::number_is_optional`] is set to true, then the resulting
+    /// If [`DurationParser::allow_time_unit_delimiter`] is set to some delimiter, the [`Delimiter`]
+    /// of this method and the [`Delimiter`] of the `allow_time_unit_delimiter` method can be equal
+    /// either in parts or in a whole without having side-effects on each other. But, if
+    /// simultaneously [`DurationParser::number_is_optional`] is set to true, then the resulting
     /// [`crate::Duration`] will differ:
     ///
     /// ```rust

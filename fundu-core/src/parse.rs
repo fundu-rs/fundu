@@ -29,12 +29,13 @@ pub const SECONDS_AND_ATTOS_MAX: (u64, u64) = (SECONDS_MAX, ATTOS_MAX);
 ///
 /// To be able to use the [`Parser::parse`] method an implementation of the
 /// [`crate::time::TimeUnitsLike`] trait is needed for the time units (even if there are no time
-/// units) and optionally for time keywords (like `yesterday` and `tomorrow` etc.). The `custom` and
-/// `standard` features have such implementations and their parsers are more convenient to use than
-/// using this parser directly. However, for example, the `custom` feature's
-/// [`fundu::CustomDurationParser`] cannot be fully built in `const` context and is a slightly
-/// slower than this parser. So, using this parser is more involved but if maximum performance and
-/// building a parser in `const` context is wanted then this parser is the better choice.
+/// units) and optionally for time keywords (like `yesterday` and `tomorrow` etc.). Optionally, an
+/// implementation of the [`NumbersLike`] trait can be provided, too. The `custom` and `standard`
+/// features have such implementations and their parsers are more convenient to use than using this
+/// parser directly. However, for example, the `custom` feature's [`fundu::CustomDurationParser`]
+/// cannot be fully built in `const` context and is a slightly slower than this parser. So, using
+/// this parser is more involved but if maximum performance and building a parser in `const` context
+/// is wanted then this parser is the better choice.
 ///
 /// # Examples
 ///
@@ -160,10 +161,11 @@ impl<'a> Parser<'a> {
     /// Parse the `source` string into a saturating [`crate::time::Duration`]
     ///
     /// This method needs a struct implementing the [`crate::time::TimeUnitsLike`] for time units
-    /// and optionally for time keywords (like `yesterday`, `tomorrow`). The `standard` and `custom`
-    /// features of `fundu`  offer such implementations and are more convenient to use than using
-    /// this method directly. They both provide facades and and an own parser which uses this method
-    /// in the end.
+    /// and optionally for time keywords (like `yesterday`, `tomorrow`). But also [`NumbersLike`]
+    /// implementations for words like `one`, `next`, `last` are supported. The `standard` and
+    /// `custom` features of `fundu`  offer such implementations and are more convenient to use than
+    /// using this method directly. They both provide facades and an own parser which calls this
+    /// method.
     ///
     /// # Errors
     ///
@@ -1250,8 +1252,8 @@ pub trait ReprParserTemplate<'a> {
     fn parse_number_delimiter(&mut self, delimiter: Option<Delimiter>) -> Result<bool, ParseError> {
         let bytes = self.bytes();
 
-        // If allow_delimiter is Some and there are any delimiters between the number and the time
-        // unit, the delimiters are consumed before trying to parse the time units
+        // If allow_time_unit_delimiter is true and there are any delimiters between the number and
+        // the time unit, the delimiters are consumed before trying to parse the time units
         match (bytes.current_byte, delimiter) {
             (Some(byte), Some(delimiter)) if delimiter(*byte) => {
                 bytes.try_consume_delimiter(delimiter)?;
