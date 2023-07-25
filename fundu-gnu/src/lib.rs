@@ -258,7 +258,7 @@ pub use fundu_core::time::{Duration, SaturatingInto};
 use fundu_core::time::{Multiplier, TimeUnit, TimeUnitsLike};
 #[cfg(test)]
 pub use rstest_reuse;
-use util::trim_whitespace;
+use util::{to_lowercase_u64, trim_whitespace};
 
 // whitespace definition of: b' ', b'\x09', b'\x0A', b'\x0B', b'\x0C', b'\x0D'
 const DELIMITER: Delimiter = |byte| byte == b' ' || byte.wrapping_sub(9) < 5;
@@ -280,14 +280,14 @@ const TIME_UNITS: TimeUnits = TimeUnits {};
 const TIME_KEYWORDS: TimeKeywords = TimeKeywords {};
 const NUMERALS: Numerals = Numerals {};
 
-const SECOND: (TimeUnit, Multiplier) = (Second, Multiplier(1, 0));
-const MINUTE: (TimeUnit, Multiplier) = (Minute, Multiplier(1, 0));
-const HOUR: (TimeUnit, Multiplier) = (Hour, Multiplier(1, 0));
-const DAY: (TimeUnit, Multiplier) = (Day, Multiplier(1, 0));
-const WEEK: (TimeUnit, Multiplier) = (Week, Multiplier(1, 0));
-const FORTNIGHT: (TimeUnit, Multiplier) = (Week, Multiplier(2, 0));
-const MONTH: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
-const YEAR: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
+const SECOND_UNIT: (TimeUnit, Multiplier) = (Second, Multiplier(1, 0));
+const MINUTE_UNIT: (TimeUnit, Multiplier) = (Minute, Multiplier(1, 0));
+const HOUR_UNIT: (TimeUnit, Multiplier) = (Hour, Multiplier(1, 0));
+const DAY_UNIT: (TimeUnit, Multiplier) = (Day, Multiplier(1, 0));
+const WEEK_UNIT: (TimeUnit, Multiplier) = (Week, Multiplier(1, 0));
+const FORTNIGHT_UNIT: (TimeUnit, Multiplier) = (Week, Multiplier(2, 0));
+const MONTH_UNIT: (TimeUnit, Multiplier) = (Month, Multiplier(1, 0));
+const YEAR_UNIT: (TimeUnit, Multiplier) = (Year, Multiplier(1, 0));
 
 const PARSER: RelativeTimeParser<'static> = RelativeTimeParser::new();
 
@@ -716,15 +716,63 @@ impl TimeUnitsLike for TimeUnits {
 
     #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
-        match identifier {
-            "sec" | "secs" | "second" | "seconds" => Some(SECOND),
-            "min" | "mins" | "minute" | "minutes" => Some(MINUTE),
-            "hour" | "hours" => Some(HOUR),
-            "day" | "days" => Some(DAY),
-            "week" | "weeks" => Some(WEEK),
-            "fortnight" | "fortnights" => Some(FORTNIGHT),
-            "month" | "months" => Some(MONTH),
-            "year" | "years" => Some(YEAR),
+        const SEC: [u64; 2] = to_lowercase_u64("sec");
+        const SECS: [u64; 2] = to_lowercase_u64("secs");
+        const SECOND: [u64; 2] = to_lowercase_u64("second");
+        const SECONDS: [u64; 2] = to_lowercase_u64("seconds");
+        const MIN: [u64; 2] = to_lowercase_u64("min");
+        const MINS: [u64; 2] = to_lowercase_u64("mins");
+        const MINUTE: [u64; 2] = to_lowercase_u64("minute");
+        const MINUTES: [u64; 2] = to_lowercase_u64("minutes");
+        const HOUR: [u64; 2] = to_lowercase_u64("hour");
+        const HOURS: [u64; 2] = to_lowercase_u64("hours");
+        const DAY: [u64; 2] = to_lowercase_u64("day");
+        const DAYS: [u64; 2] = to_lowercase_u64("days");
+        const WEEK: [u64; 2] = to_lowercase_u64("week");
+        const WEEKS: [u64; 2] = to_lowercase_u64("weeks");
+        const FORTNIGHT: [u64; 2] = to_lowercase_u64("fortnight");
+        const FORTNIGHTS: [u64; 2] = to_lowercase_u64("fortnights");
+        const MONTH: [u64; 2] = to_lowercase_u64("month");
+        const MONTHS: [u64; 2] = to_lowercase_u64("months");
+        const YEAR: [u64; 2] = to_lowercase_u64("year");
+        const YEARS: [u64; 2] = to_lowercase_u64("years");
+
+        match identifier.len() {
+            3 => match to_lowercase_u64(identifier) {
+                SEC => Some(SECOND_UNIT),
+                MIN => Some(MINUTE_UNIT),
+                DAY => Some(DAY_UNIT),
+                _ => None,
+            },
+            4 => match to_lowercase_u64(identifier) {
+                SECS => Some(SECOND_UNIT),
+                MINS => Some(MINUTE_UNIT),
+                DAYS => Some(DAY_UNIT),
+                HOUR => Some(HOUR_UNIT),
+                WEEK => Some(WEEK_UNIT),
+                YEAR => Some(YEAR_UNIT),
+                _ => None,
+            },
+            5 => match to_lowercase_u64(identifier) {
+                HOURS => Some(HOUR_UNIT),
+                WEEKS => Some(WEEK_UNIT),
+                YEARS => Some(YEAR_UNIT),
+                MONTH => Some(MONTH_UNIT),
+                _ => None,
+            },
+            6 => match to_lowercase_u64(identifier) {
+                SECOND => Some(SECOND_UNIT),
+                MINUTE => Some(MINUTE_UNIT),
+                MONTHS => Some(MONTH_UNIT),
+                _ => None,
+            },
+            7 => match to_lowercase_u64(identifier) {
+                SECONDS => Some(SECOND_UNIT),
+                MINUTES => Some(MINUTE_UNIT),
+                _ => None,
+            },
+            9 => (to_lowercase_u64(identifier) == FORTNIGHT).then_some(FORTNIGHT_UNIT),
+            10 => (to_lowercase_u64(identifier) == FORTNIGHTS).then_some(FORTNIGHT_UNIT),
             _ => None,
         }
     }
@@ -741,10 +789,20 @@ impl TimeUnitsLike for TimeKeywords {
 
     #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
-        match identifier {
-            "yesterday" => Some((TimeUnit::Day, Multiplier(-1, 0))),
-            "tomorrow" => Some((TimeUnit::Day, Multiplier(1, 0))),
-            "now" | "today" => Some((TimeUnit::Day, Multiplier(0, 0))),
+        const NOW: [u64; 2] = to_lowercase_u64("now");
+        const YESTERDAY: [u64; 2] = to_lowercase_u64("yesterday");
+        const TOMORROW: [u64; 2] = to_lowercase_u64("tomorrow");
+        const TODAY: [u64; 2] = to_lowercase_u64("today");
+
+        match identifier.len() {
+            3 => (to_lowercase_u64(identifier) == NOW).then_some((TimeUnit::Day, Multiplier(0, 0))),
+            5 => {
+                (to_lowercase_u64(identifier) == TODAY).then_some((TimeUnit::Day, Multiplier(0, 0)))
+            }
+            8 => (to_lowercase_u64(identifier) == TOMORROW)
+                .then_some((TimeUnit::Day, Multiplier(1, 0))),
+            9 => (to_lowercase_u64(identifier) == YESTERDAY)
+                .then_some((TimeUnit::Day, Multiplier(-1, 0))),
             _ => None,
         }
     }
@@ -754,21 +812,49 @@ struct Numerals {}
 
 impl NumbersLike for Numerals {
     #[inline]
-    fn get(&self, input: &str) -> Option<Multiplier> {
-        match input {
-            "last" => Some(Multiplier(-1, 0)),
-            "this" => Some(Multiplier(0, 0)),
-            "next" | "first" => Some(Multiplier(1, 0)),
-            "third" => Some(Multiplier(3, 0)),
-            "fourth" => Some(Multiplier(4, 0)),
-            "fifth" => Some(Multiplier(5, 0)),
-            "sixth" => Some(Multiplier(6, 0)),
-            "seventh" => Some(Multiplier(7, 0)),
-            "eighth" => Some(Multiplier(8, 0)),
-            "ninth" => Some(Multiplier(9, 0)),
-            "tenth" => Some(Multiplier(10, 0)),
-            "eleventh" => Some(Multiplier(11, 0)),
-            "twelfth" => Some(Multiplier(12, 0)),
+    fn get(&self, identifier: &str) -> Option<Multiplier> {
+        const LAST: [u64; 2] = to_lowercase_u64("last");
+        const THIS: [u64; 2] = to_lowercase_u64("this");
+        const NEXT: [u64; 2] = to_lowercase_u64("next");
+        const FIRST: [u64; 2] = to_lowercase_u64("first");
+        const THIRD: [u64; 2] = to_lowercase_u64("third");
+        const FOURTH: [u64; 2] = to_lowercase_u64("fourth");
+        const FIFTH: [u64; 2] = to_lowercase_u64("fifth");
+        const SIXTH: [u64; 2] = to_lowercase_u64("sixth");
+        const SEVENTH: [u64; 2] = to_lowercase_u64("seventh");
+        const EIGHTH: [u64; 2] = to_lowercase_u64("eighth");
+        const NINTH: [u64; 2] = to_lowercase_u64("ninth");
+        const TENTH: [u64; 2] = to_lowercase_u64("tenth");
+        const ELEVENTH: [u64; 2] = to_lowercase_u64("eleventh");
+        const TWELFTH: [u64; 2] = to_lowercase_u64("twelfth");
+
+        match identifier.len() {
+            4 => match to_lowercase_u64(identifier) {
+                LAST => Some(Multiplier(-1, 0)),
+                THIS => Some(Multiplier(0, 0)),
+                NEXT => Some(Multiplier(1, 0)),
+                _ => None,
+            },
+            5 => match to_lowercase_u64(identifier) {
+                FIRST => Some(Multiplier(1, 0)),
+                THIRD => Some(Multiplier(3, 0)),
+                FIFTH => Some(Multiplier(5, 0)),
+                SIXTH => Some(Multiplier(6, 0)),
+                NINTH => Some(Multiplier(9, 0)),
+                TENTH => Some(Multiplier(10, 0)),
+                _ => None,
+            },
+            6 => match to_lowercase_u64(identifier) {
+                FOURTH => Some(Multiplier(4, 0)),
+                EIGHTH => Some(Multiplier(8, 0)),
+                _ => None,
+            },
+            7 => match to_lowercase_u64(identifier) {
+                SEVENTH => Some(Multiplier(7, 0)),
+                TWELFTH => Some(Multiplier(12, 0)),
+                _ => None,
+            },
+            8 => (ELEVENTH == to_lowercase_u64(identifier)).then_some(Multiplier(11, 0)),
             _ => None,
         }
     }

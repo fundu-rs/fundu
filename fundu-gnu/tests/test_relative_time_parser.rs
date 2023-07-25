@@ -121,12 +121,23 @@ fn test_parser_parse_with_invalid_time_units(#[case] input: &str, #[case] expect
 #[case::hour(&["hour", "hours"], Duration::positive(60 * 60, 0))]
 #[case::day(&["day", "days"], Duration::positive(60 * 60 * 24, 0))]
 #[case::week(&["week", "weeks"], Duration::positive(60 * 60 * 24 * 7, 0))]
+#[case::fortnight(&["fortnight", "fortnights"], Duration::positive(60 * 60 * 24 * 7 * 2, 0))]
 fn valid_time_units_template(#[case] time_units: &[&str], #[case] expected: Duration) {}
 
 #[apply(valid_time_units_template)]
 fn test_parser_parse_with_valid_time_units_blank(time_units: &[&str], expected: Duration) {
     for unit in time_units {
         assert_eq!(RelativeTimeParser::new().parse(unit), Ok(expected));
+    }
+}
+
+#[apply(valid_time_units_template)]
+fn test_parser_parse_with_valid_time_units_uppercase(time_units: &[&str], expected: Duration) {
+    for unit in time_units {
+        assert_eq!(
+            RelativeTimeParser::new().parse(&unit.to_uppercase()),
+            Ok(expected)
+        );
     }
 }
 
