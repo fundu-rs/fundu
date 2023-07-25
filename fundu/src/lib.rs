@@ -353,6 +353,7 @@ pub use custom::{
     time_units::{
         CustomTimeUnit, TimeKeyword, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
     },
+    Numeral,
 };
 pub use fundu_core::config::Delimiter;
 pub use fundu_core::error::{ParseError, TryFromDurationError};
@@ -369,7 +370,7 @@ pub use standard::{
 };
 #[cfg(feature = "base")]
 pub use {
-    fundu_core::config::{Config, ConfigBuilder},
+    fundu_core::config::{Config, ConfigBuilder, NumbersLike},
     fundu_core::parse::Parser,
     fundu_core::time::TimeUnitsLike,
 };

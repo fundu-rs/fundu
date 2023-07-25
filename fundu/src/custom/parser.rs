@@ -9,7 +9,8 @@ use fundu_core::time::{Duration, Multiplier, TimeUnitsLike};
 
 use super::builder::CustomDurationParserBuilder;
 use super::time_units::{CustomTimeUnit, CustomTimeUnits, TimeKeyword};
-use crate::{ParseError, TimeUnit};
+use super::Numerals;
+use crate::{Numeral, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
 ///
@@ -34,6 +35,7 @@ use crate::{ParseError, TimeUnit};
 pub struct CustomDurationParser<'a> {
     pub(super) time_units: CustomTimeUnits<'a>,
     pub(super) keywords: CustomTimeUnits<'a>,
+    pub(super) numerals: Numerals<'a>,
     pub(super) inner: Parser<'a>,
 }
 
@@ -58,6 +60,7 @@ impl<'a> CustomDurationParser<'a> {
             time_units: CustomTimeUnits::new(),
             keywords: CustomTimeUnits::new(),
             inner: Parser::new(),
+            numerals: Numerals::new(),
         }
     }
 
@@ -112,6 +115,7 @@ impl<'a> CustomDurationParser<'a> {
             time_units: CustomTimeUnits::with_time_units(units),
             keywords: CustomTimeUnits::new(),
             inner: Parser::new(),
+            numerals: Numerals::new(),
         }
     }
 
@@ -314,6 +318,65 @@ impl<'a> CustomDurationParser<'a> {
         self
     }
 
+    /// Add a [`Numeral`] to the current set of numerals
+    ///
+    /// `Numerals` need at least one [`CustomTimeUnit`] to be defined.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, Numeral};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(
+    ///     NanoSecond,
+    ///     &["nano", "nanos"],
+    /// )]);
+    /// parser.numeral(Numeral::new(&["one", "next"], Multiplier(1, 0)));
+    ///
+    /// assert_eq!(parser.parse("next nano"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("one nano"), Ok(Duration::positive(0, 1)));
+    /// ```
+    pub fn numeral(&mut self, numeral: Numeral<'a>) -> &mut Self {
+        self.numerals.data.push(numeral);
+        self
+    }
+
+    /// Add one or more [`Numeral`]s to the current set of numerals
+    ///
+    /// Note that numerals need at least one [`CustomTimeUnit`] to be defined.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, Numeral};
+    ///
+    /// let mut parser = CustomDurationParser::with_time_units(&[CustomTimeUnit::with_default(
+    ///     NanoSecond,
+    ///     &["nano", "nanos"],
+    /// )]);
+    /// parser
+    ///     .allow_negative(true) // needed for the numeral `last`
+    ///     .numerals(&[
+    ///         Numeral::new(&["last"], Multiplier(-1, 0)),
+    ///         Numeral::new(&["this"], Multiplier(0, 0)),
+    ///         Numeral::new(&["one", "next"], Multiplier(1, 0)),
+    ///         Numeral::new(&["two"], Multiplier(2, 0)),
+    ///     ]);
+    ///
+    /// assert_eq!(parser.parse("last nano"), Ok(Duration::negative(0, 1)));
+    /// assert_eq!(parser.parse("this nano"), Ok(Duration::negative(0, 0)));
+    /// assert_eq!(parser.parse("next nano"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("two nanos"), Ok(Duration::positive(0, 2)));
+    /// ```
+    pub fn numerals(&mut self, numerals: &[Numeral<'a>]) -> &mut Self {
+        for numeral in numerals {
+            self.numeral(*numeral);
+        }
+        self
+    }
+
     /// Parse the `source` string into a [`crate::Duration`].
     ///
     /// See the [module level documentation](crate) for more information on the format.
@@ -337,13 +400,8 @@ impl<'a> CustomDurationParser<'a> {
         self.inner.parse(
             source,
             &self.time_units,
-            if self.keywords.is_empty() {
-                None
-            } else {
-                Some(&self.keywords)
-            },
-            // TODO: ADD NUMERALS TO SELF
-            None,
+            (!self.keywords.is_empty()).then_some(&self.keywords),
+            (!self.numerals.is_empty()).then_some(&self.numerals),
         )
     }
 

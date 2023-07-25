@@ -7,6 +7,7 @@ use fundu_core::config::{Config, Delimiter};
 use fundu_core::parse::Parser;
 
 use super::time_units::{CustomTimeUnits, TimeKeyword};
+use super::{Numeral, Numerals};
 use crate::{CustomDurationParser, CustomTimeUnit, TimeUnit};
 
 /// Like [`crate::DurationParserBuilder`] for [`crate::DurationParser`], this is a builder for a
@@ -43,6 +44,7 @@ pub struct CustomDurationParserBuilder<'a> {
     config: Config<'a>,
     time_units: Vec<CustomTimeUnit<'a>>,
     keywords: Vec<TimeKeyword<'a>>,
+    numerals: Vec<Numeral<'a>>,
 }
 
 impl<'a> Default for CustomDurationParserBuilder<'a> {
@@ -73,6 +75,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
             config: Config::new(),
             time_units: vec![],
             keywords: vec![],
+            numerals: vec![],
         }
     }
 
@@ -203,6 +206,65 @@ impl<'a> CustomDurationParserBuilder<'a> {
 
         for keyword in keywords {
             self.keywords.push(*keyword);
+        }
+        self
+    }
+
+    /// Add a [`Numeral`] to the current set of numerals
+    ///
+    /// See also [`CustomDurationParser::numeral`]. Note that numerals need at least one
+    /// [`CustomTimeUnit`] to be defined.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier, Numeral};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .numeral(Numeral::new(&["one", "next"], Multiplier(1, 0)))
+    ///     .time_unit(CustomTimeUnit::with_default(NanoSecond, &["nano", "nanos"]))
+    ///     .allow_negative()
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("next nano"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("one nano"), Ok(Duration::positive(0, 1)));
+    /// ```
+    pub fn numeral(mut self, numeral: Numeral<'a>) -> Self {
+        self.numerals.push(numeral);
+        self
+    }
+
+    /// Add one or more [`Numeral`] to the current set of numerals
+    ///
+    /// See also [`CustomDurationParser::numerals`]. Note that numerals need at least one
+    /// [`CustomTimeUnit`] to be defined.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use fundu::TimeUnit::*;
+    /// use fundu::{CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier, Numeral};
+    ///
+    /// let parser = CustomDurationParserBuilder::new()
+    ///     .numerals(&[
+    ///         Numeral::new(&["last"], Multiplier(-1, 0)),
+    ///         Numeral::new(&["this"], Multiplier(0, 0)),
+    ///         Numeral::new(&["one", "next"], Multiplier(1, 0)),
+    ///         Numeral::new(&["two"], Multiplier(2, 0)),
+    ///     ])
+    ///     .time_unit(CustomTimeUnit::with_default(NanoSecond, &["nano", "nanos"]))
+    ///     .allow_negative()
+    ///     .build();
+    ///
+    /// assert_eq!(parser.parse("last nano"), Ok(Duration::negative(0, 1)));
+    /// assert_eq!(parser.parse("this nano"), Ok(Duration::negative(0, 0)));
+    /// assert_eq!(parser.parse("next nano"), Ok(Duration::positive(0, 1)));
+    /// assert_eq!(parser.parse("two nanos"), Ok(Duration::positive(0, 2)));
+    /// ```
+    pub fn numerals(mut self, numerals: &[Numeral<'a>]) -> Self {
+        for numeral in numerals {
+            self.numerals.push(*numeral);
         }
         self
     }
@@ -636,6 +698,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
             time_units: CustomTimeUnits::with_time_units(&self.time_units),
             inner: Parser::with_config(self.config),
             keywords: CustomTimeUnits::with_keywords(&self.keywords),
+            numerals: Numerals::with_numerals(self.numerals),
         }
     }
 }
