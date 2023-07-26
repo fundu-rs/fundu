@@ -748,6 +748,22 @@ mod tests {
     }
 
     #[test]
+    fn test_duration_parser_setting_allow_ago() {
+        let mut parser = DurationParser::new();
+        parser.allow_ago(true);
+        assert!(parser.inner.config.allow_ago);
+        assert!(parser.inner.config.allow_negative);
+    }
+
+    #[test]
+    fn test_duration_parser_setting_allow_ago_when_false() {
+        let mut parser = DurationParser::new();
+        parser.allow_ago(false);
+        assert!(!parser.inner.config.allow_ago);
+        assert!(!parser.inner.config.allow_negative);
+    }
+
+    #[test]
     fn test_duration_parser_setting_disable_infinity() {
         let mut parser = DurationParser::new();
         parser.disable_infinity(true);
@@ -777,5 +793,21 @@ mod tests {
             DurationParserBuilder::default(),
             DurationParserBuilder::new()
         );
+    }
+
+    #[test]
+    fn test_duration_parser_set_inner_delimiter() {
+        let mut parser = DurationParser::new();
+        parser.set_inner_delimiter(|byte| byte == b'a');
+        assert!((parser.inner.config.inner_delimiter)(b'a'));
+        assert!(!(parser.inner.config.inner_delimiter)(b' '));
+    }
+
+    #[test]
+    fn test_duration_parser_set_outer_delimiter() {
+        let mut parser = DurationParser::new();
+        parser.set_outer_delimiter(|byte| byte == b'a');
+        assert!((parser.inner.config.outer_delimiter)(b'a'));
+        assert!(!(parser.inner.config.outer_delimiter)(b' '));
     }
 }

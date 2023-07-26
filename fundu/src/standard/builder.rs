@@ -683,6 +683,13 @@ mod tests {
     }
 
     #[test]
+    fn test_duration_parser_builder_when_allow_ago() {
+        let builder = DurationParserBuilder::new().allow_ago();
+        assert!(builder.config.allow_ago);
+        assert!(builder.config.allow_negative);
+    }
+
+    #[test]
     fn test_duration_parser_builder_when_allow_sign_delimiter() {
         let builder = DurationParserBuilder::new().allow_sign_delimiter();
         assert!(builder.config.allow_sign_delimiter);
@@ -755,5 +762,19 @@ mod tests {
         builder.time_units_choice = choice;
 
         assert_eq!(builder.build(), expected);
+    }
+
+    #[test]
+    fn test_duration_parser_builder_set_inner_delimiter() {
+        let builder = DurationParserBuilder::new().inner_delimiter(|byte| byte == b'a');
+        assert!((builder.config.inner_delimiter)(b'a'));
+        assert!(!(builder.config.inner_delimiter)(b' '));
+    }
+
+    #[test]
+    fn test_duration_parser_builder_set_outer_delimiter() {
+        let builder = DurationParserBuilder::new().outer_delimiter(|byte| byte == b'a');
+        assert!((builder.config.outer_delimiter)(b'a'));
+        assert!(!(builder.config.outer_delimiter)(b' '));
     }
 }

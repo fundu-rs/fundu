@@ -631,11 +631,6 @@ mod tests {
     use super::*;
 
     #[fixture]
-    pub fn test_delimiter() -> Delimiter {
-        |byte| byte == b' ' // cov:excl-line
-    }
-
-    #[fixture]
     pub fn test_time_unit() -> TimeUnit {
         TimeUnit::MilliSecond
     }

@@ -1104,4 +1104,52 @@ mod tests {
 
         assert_eq!(parser.inner.config, expected);
     }
+
+    #[test]
+    fn test_custom_duration_parser_when_numeral() {
+        let mut parser = CustomDurationParser::new();
+        parser.numeral(Numeral::new(&["some"], Multiplier(1, 0)));
+
+        assert!(!parser.numerals.is_empty());
+        assert_eq!(
+            parser.numerals.data,
+            vec![Numeral::new(&["some"], Multiplier(1, 0))]
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_numerals() {
+        let mut parser = CustomDurationParser::new();
+        parser.numerals(&[
+            Numeral::new(&["some"], Multiplier(1, 0)),
+            Numeral::new(&["other"], Multiplier(2, 0)),
+        ]);
+
+        assert!(!parser.numerals.is_empty());
+        assert_eq!(
+            parser.numerals.data,
+            vec![
+                Numeral::new(&["some"], Multiplier(1, 0)),
+                Numeral::new(&["other"], Multiplier(2, 0)),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_set_inner_delimiter() {
+        let mut parser = CustomDurationParser::new();
+        parser.set_inner_delimiter(|byte| byte == b' ');
+
+        assert!((parser.inner.config.inner_delimiter)(b' '));
+        assert!(!(parser.inner.config.inner_delimiter)(b'\n'));
+    }
+
+    #[test]
+    fn test_custom_duration_parser_when_set_outer_delimiter() {
+        let mut parser = CustomDurationParser::new();
+        parser.set_outer_delimiter(|byte| byte == b' ');
+
+        assert!((parser.inner.config.outer_delimiter)(b' '));
+        assert!(!(parser.inner.config.outer_delimiter)(b'\n'));
+    }
 }

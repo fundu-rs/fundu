@@ -728,6 +728,8 @@ mod tests {
         let builder = CustomDurationParserBuilder::new();
         assert_eq!(builder.config, Config::new());
         assert!(builder.time_units.is_empty());
+        assert!(builder.numerals.is_empty());
+        assert!(builder.keywords.is_empty());
     }
 
     #[test]
@@ -880,6 +882,38 @@ mod tests {
         assert_eq!(
             parser.keywords.get("secs").unwrap(),
             (Second, Multiplier(2, 0))
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_numeral() {
+        let parser = CustomDurationParserBuilder::new()
+            .numeral(Numeral::new(&["some"], Multiplier(1, 0)))
+            .build();
+
+        assert!(!parser.numerals.is_empty());
+        assert_eq!(
+            parser.numerals.data,
+            vec![Numeral::new(&["some"], Multiplier(1, 0))]
+        );
+    }
+
+    #[test]
+    fn test_custom_duration_parser_builder_when_numerals() {
+        let parser = CustomDurationParserBuilder::new()
+            .numerals(&[
+                Numeral::new(&["some"], Multiplier(1, 0)),
+                Numeral::new(&["other"], Multiplier(2, 0)),
+            ])
+            .build();
+
+        assert!(!parser.numerals.is_empty());
+        assert_eq!(
+            parser.numerals.data,
+            vec![
+                Numeral::new(&["some"], Multiplier(1, 0)),
+                Numeral::new(&["other"], Multiplier(2, 0)),
+            ]
         );
     }
 }

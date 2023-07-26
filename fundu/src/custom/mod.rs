@@ -92,3 +92,64 @@ impl<'a> NumbersLike for Numerals<'a> {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rstest::{fixture, rstest};
+
+    use super::*;
+
+    #[fixture]
+    pub fn numeral_this() -> Numeral<'static> {
+        Numeral::new(&["this"], Multiplier(0, 0))
+    }
+
+    #[fixture]
+    pub fn numeral_last() -> Numeral<'static> {
+        Numeral::new(&["last"], Multiplier(-1, 0))
+    }
+
+    #[fixture]
+    pub fn numeral_next() -> Numeral<'static> {
+        Numeral::new(&["next"], Multiplier(1, 0))
+    }
+
+    #[rstest]
+    fn test_numeral_new(numeral_this: Numeral) {
+        assert_eq!(numeral_this.identifiers, &["this"]);
+        assert_eq!(numeral_this.multiplier, Multiplier(0, 0));
+    }
+
+    #[test]
+    fn test_numerals_new() {
+        let numerals = Numerals::new();
+        assert!(numerals.is_empty());
+    }
+
+    #[rstest]
+    #[case::last("last", Multiplier(-1, 0))]
+    #[case::this("this", Multiplier(0, 0))]
+    #[case::next("next", Multiplier(1, 0))]
+    fn test_numerals_with_valid_numerals(
+        #[case] input: &str,
+        #[case] expected: Multiplier,
+        numeral_this: Numeral,
+        numeral_last: Numeral,
+        numeral_next: Numeral,
+    ) {
+        let numerals = Numerals::with_numerals(vec![numeral_last, numeral_this, numeral_next]);
+        assert!(!numerals.is_empty());
+        assert_eq!(numerals.get(input), Some(expected));
+    }
+
+    #[rstest]
+    #[case::empty("")]
+    #[case::incomplete("las")]
+    #[case::too_much("lasts")]
+    #[case::capitalized("Last")]
+    #[case::upper_case("LAST")]
+    fn test_numerals_with_invalid_numerals(#[case] input: &str, numeral_last: Numeral) {
+        let numerals = Numerals::with_numerals(vec![numeral_last]);
+        assert_eq!(numerals.get(input), None);
+    }
+}

@@ -952,7 +952,8 @@ pub trait ReprParserTemplate<'a> {
             let buffer = bytes.buffered_advance_to(config.inner_delimiter);
 
             if buffer.is_empty() {
-                return Ok(None);
+                // Haven't found a way to trigger this line, so it's excluded from coverage for now
+                return Ok(None); // cov:excl-line
             }
             // SAFETY: we've only parsed valid utf-8 up to this point and the delimiter only matches
             // ascii
@@ -1369,7 +1370,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
             };
 
             let (time_unit, mut multiplier) = if string.is_empty() {
-                return Ok(None);
+                // Haven't found a way to trigger this line, so it's excluded from coverage for now
+                return Ok(None); // cov:excl-line
             } else {
                 match time_units.get(string) {
                     None => {
@@ -1614,7 +1616,8 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
             });
 
             if buffer.is_empty() {
-                return Ok(None);
+                // Haven't found a way to trigger this line, so it's excluded from coverage for now
+                return Ok(None); // cov:excl-line
             }
 
             // SAFETY: The delimiter may not match non-ascii bytes and we've parsed only valid utf-8
