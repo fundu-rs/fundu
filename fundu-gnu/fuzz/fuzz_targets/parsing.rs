@@ -7,7 +7,7 @@ use std::time::Duration as StdDuration;
 use fundu_gnu::{Duration, ParseError, RelativeTimeParser};
 use lazy_static::lazy_static;
 use libfuzzer_sys::fuzz_target;
-use regex::Regex;
+use regex::{Regex, RegexBuilder};
 
 const DELIMITER_CHARS: &[char] = &[' ', '\t', '\n', '\x0c', '\r', '\x0b'];
 
@@ -30,22 +30,35 @@ fn generate_regex() -> Regex {
     let duration_digit = format!(
         r"(([[:digit:]]+{RE_DELIMITER}*{RE_TIME_UNIT}({RE_DELIMITER}+{RE_AGO})?)|([[:digit:]]+\.[[:digit:]]+{RE_DELIMITER}*{RE_TIME_UNIT}({RE_DELIMITER}+{RE_AGO})?)|([[:digit:]]+\.[[:digit:]]+)|([[:digit:]]+))"
     );
-    regex::Regex::new(&format!(
+
+    RegexBuilder::new(&format!(
         r"^(({duration})(({duration_digit})|({duration_sign})|({RE_DELIMITER}+({duration})))*?)$"
     ))
+    .unicode(false)
+    .case_insensitive(true)
+    .build()
     .unwrap()
 }
 
 /// A control regex which matches correct input the main regex wasn't able to figure out
 fn generate_control_regex() -> Regex {
-    regex::Regex::new(&format!(r"(([[:digit:]]+|[[:digit:]]+\.[[:digit]]+)(({RE_NUMERAL}{RE_DELIMITER}+{RE_TIME_UNIT})|{RE_KEYWORD})({RE_DELIMITER}+{RE_AGO})?)")).unwrap()
+    RegexBuilder::new(
+        &format!(r"(([[:digit:]]+|[[:digit:]]+\.[[:digit]]+)(({RE_NUMERAL}{RE_DELIMITER}+{RE_TIME_UNIT})|{RE_KEYWORD})({RE_DELIMITER}+{RE_AGO})?)")
+    )
+    .unicode(false)
+    .case_insensitive(true)
+    .build()
+    .unwrap()
 }
 
 /// A control regex which matches incorrect fractions the main regex wasn't able to figure out
 fn generate_fraction_control_regex() -> Regex {
-    regex::Regex::new(&format!(
+    RegexBuilder::new(&format!(
         r"(([[:digit:]]+\.[[:digit:]]+)(\.|({RE_DELIMITER}*{RE_TIME_UNIT_NOT_SEC})))"
     ))
+    .unicode(false)
+    .case_insensitive(true)
+    .build()
     .unwrap()
 }
 
@@ -56,7 +69,11 @@ fn generate_extraction_regex() -> Regex {
     let regex = format!(
         r"(?P<duration>((?P<sign>[+-]){RE_DELIMITER}*)?((?P<keyword>{RE_KEYWORD})|(?P<numeral>(?P<numeral_value>{RE_NUMERAL}){RE_DELIMITER}*(?P<numeral_time_unit>{RE_TIME_UNIT}))|((?P<digits>((?P<whole>[[:digit:]]+)\.(?P<fract>[[:digit:]]+))|(?P<number>[[:digit:]]+))?{RE_DELIMITER}*(?P<time_unit>{RE_TIME_UNIT})?))?{RE_DELIMITER}*(?P<ago>{RE_AGO})?)"
     );
-    regex::Regex::new(&regex).unwrap()
+    RegexBuilder::new(&regex)
+        .unicode(false)
+        .case_insensitive(true)
+        .build()
+        .unwrap()
 }
 
 lazy_static! {
@@ -74,7 +91,7 @@ fn extract(input: &str) -> (i64, i64, Duration) {
     let mut months = 0i64;
 
     fn parse_numeral(numeral: &str) -> i64 {
-        match numeral {
+        match numeral.to_ascii_lowercase().as_str() {
             "last" => -1,
             "this" => 0,
             "next" => 1,
@@ -100,7 +117,7 @@ fn extract(input: &str) -> (i64, i64, Duration) {
     }
     use ParsedTimeUnit::*;
     fn parse_time_unit(time_unit: &str) -> ParsedTimeUnit {
-        match time_unit {
+        match time_unit.to_ascii_lowercase().as_str() {
             "sec" | "secs" | "second" | "seconds" => Regular(1),
             "min" | "mins" | "minute" | "minutes" => Regular(60),
             "hour" | "hours" => Regular(60 * 60),
@@ -114,7 +131,7 @@ fn extract(input: &str) -> (i64, i64, Duration) {
     }
 
     fn parse_keyword(keyword: &str) -> i64 {
-        match keyword {
+        match keyword.to_ascii_lowercase().as_str() {
             "yesterday" => -(24 * 60 * 60),
             "tomorrow" => 24 * 60 * 60,
             "now" | "today" => 0,
