@@ -18,7 +18,7 @@ const DELIMITER_CHARS: &[char] = &[' ', '\t', '\n', '\x0c', '\r', '\x0b'];
 struct FuzzingConfig<'a> {
     input: &'a str,
     allow_negative: bool,
-    allow_delimiter: bool,
+    allow_time_unit_delimiter: bool,
     disable_infinity: bool,
     disable_exponent: bool,
     disable_fraction: bool,
@@ -86,7 +86,7 @@ fn generate_regex(config: &FuzzingConfig) -> Regex {
     } else {
         r"[+]?"
     };
-    let delimiter = if config.allow_delimiter {
+    let delimiter = if config.allow_time_unit_delimiter {
         r"[ \t\n\x0c\r\x0b]+"
     } else {
         ""
@@ -127,25 +127,16 @@ fuzz_target!(|config: FuzzingConfig| {
     let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     parser
         .allow_negative(config.allow_negative)
-        .allow_delimiter(if config.allow_delimiter {
-            Some(DELIMITER)
-        } else {
-            None
-        })
         .disable_infinity(config.disable_infinity)
         .disable_fraction(config.disable_fraction)
         .disable_exponent(config.disable_exponent)
         .number_is_optional(config.number_is_optional)
-        .allow_ago(if config.allow_ago {
-            Some(DELIMITER)
-        } else {
-            None
-        })
-        .allow_sign_delimiter(if config.allow_sign_delimiter {
-            Some(DELIMITER)
-        } else {
-            None
-        });
+        .allow_sign_delimiter(config.allow_sign_delimiter)
+        .allow_time_unit_delimiter(config.allow_time_unit_delimiter)
+        .allow_ago(config.allow_ago)
+        .set_inner_delimiter(DELIMITER)
+        .set_outer_delimiter(DELIMITER);
+
     if config.keyword != KeywordsChoice::None {
         parser.keywords(&config.keyword.get_time_keywords());
     }
