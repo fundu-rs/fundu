@@ -61,8 +61,8 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// [`CustomDurationParserBuilder::time_units`] to add new time units.
     ///
     /// # Examples
-    ///
-    /// ```rust
+    #[cfg_attr(miri, doc = "```rust,ignore")]
+    #[cfg_attr(not(miri), doc = "```rust")]
     /// use fundu::{CustomDurationParser, CustomDurationParserBuilder};
     ///
     /// assert_eq!(
@@ -714,6 +714,7 @@ mod tests {
     use crate::{CustomTimeUnit, Multiplier};
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_default() {
         assert_eq!(
             CustomDurationParserBuilder::default(),
@@ -722,6 +723,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_new() {
         let builder = CustomDurationParserBuilder::new();
         assert_eq!(builder.config, Config::new());
@@ -729,6 +731,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_default_unit() {
         let mut expected = Config::new();
         expected.default_unit = MicroSecond;
@@ -750,6 +753,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_disable_exponent() {
         let mut expected = Config::new();
         expected.disable_exponent = true;
@@ -759,6 +763,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_disable_fraction() {
         let mut expected = Config::new();
         expected.disable_fraction = true;
@@ -768,6 +773,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_disable_infinity() {
         let mut expected = Config::new();
         expected.disable_infinity = true;
@@ -777,6 +783,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_builder_when_number_is_optional() {
         let mut expected = Config::new();
         expected.number_is_optional = true;

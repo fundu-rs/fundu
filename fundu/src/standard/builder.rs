@@ -90,8 +90,8 @@ impl<'a> DurationParserBuilder<'a> {
     /// to add time units.
     ///
     /// # Examples
-    ///
-    /// ```rust
+    #[cfg_attr(miri, doc = "```rust,ignore")]
+    #[cfg_attr(not(miri), doc = "```rust")]
     /// use fundu::{DurationParser, DurationParserBuilder};
     ///
     /// assert_eq!(
@@ -637,6 +637,7 @@ mod tests {
     use crate::TimeUnit::*;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_new() {
         let builder = DurationParserBuilder::new();
         assert_eq!(builder.config, Config::new());
@@ -665,6 +666,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_default_unit() {
         let mut expected = Config::new();
         expected.default_unit = MicroSecond;
@@ -687,6 +689,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_disable_fraction() {
         let mut expected = Config::new();
         expected.disable_fraction = true;
@@ -697,6 +700,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_disable_exponent() {
         let mut expected = Config::new();
         expected.disable_exponent = true;
@@ -707,6 +711,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_disable_infinity() {
         let mut expected = Config::new();
         expected.disable_infinity = true;
@@ -717,6 +722,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_number_is_optional() {
         let mut expected = Config::new();
         expected.number_is_optional = true;
@@ -740,6 +746,7 @@ mod tests {
             TimeUnitsChoice::Custom(&[NanoSecond, Minute]),
             DurationParser::with_time_units(&[NanoSecond, Minute])
     )]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_build(
         #[case] choice: TimeUnitsChoice,
         #[case] expected: DurationParser,

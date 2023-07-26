@@ -1018,6 +1018,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_method_builder() {
         assert_eq!(
             CustomDurationParser::builder(),
@@ -1080,6 +1081,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_custom_duration_parser_allow_negative() {
         let mut expected = Config::new();
         expected.allow_negative = true;

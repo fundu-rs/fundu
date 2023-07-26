@@ -641,21 +641,25 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_default_for_config() {
         assert_eq!(Config::default(), Config::new());
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_default_for_config_builder() {
         assert_eq!(ConfigBuilder::new().build(), Config::new());
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_method_builder() {
         assert_eq!(Config::builder().build(), Config::new());
     }
 
-    #[rstest]
+    #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_allow_delimiter() {
         let config = ConfigBuilder::new().allow_time_unit_delimiter().build();
 
@@ -666,6 +670,7 @@ mod tests {
     }
 
     #[rstest]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_default_unit(test_time_unit: TimeUnit) {
         let config = ConfigBuilder::new().default_unit(test_time_unit).build();
 
@@ -676,6 +681,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_disable_exponent() {
         let config = ConfigBuilder::new().disable_exponent().build();
 
@@ -686,6 +692,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_disable_fraction() {
         let config = ConfigBuilder::new().disable_fraction().build();
 
@@ -696,6 +703,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_number_is_optional() {
         let config = ConfigBuilder::new().number_is_optional().build();
 
@@ -706,6 +714,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_disable_infinity() {
         let config = ConfigBuilder::new().disable_infinity().build();
 
@@ -716,6 +725,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_allow_negative() {
         let config = ConfigBuilder::new().allow_negative().build();
 
@@ -725,7 +735,8 @@ mod tests {
         assert_eq!(config, expected);
     }
 
-    #[rstest]
+    #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_parse_multiple_when_no_conjunctions() {
         let config = ConfigBuilder::new().parse_multiple(None).build();
 
@@ -736,7 +747,8 @@ mod tests {
         assert_eq!(config, expected);
     }
 
-    #[rstest]
+    #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_parse_multiple_when_conjunctions() {
         let conjunctions = &["and", ","];
         let config = ConfigBuilder::new()
@@ -750,7 +762,8 @@ mod tests {
         assert_eq!(config, expected);
     }
 
-    #[rstest]
+    #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_allow_ago() {
         let config = ConfigBuilder::new().allow_ago().build();
 
@@ -761,7 +774,8 @@ mod tests {
         assert_eq!(config, expected);
     }
 
-    #[rstest]
+    #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_config_builder_allow_sign_delimiter() {
         let config = ConfigBuilder::new().allow_sign_delimiter().build();
 

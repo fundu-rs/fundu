@@ -713,6 +713,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_init_when_default() {
         let config = Config::new();
         let parser = DurationParser::default();
@@ -764,11 +765,13 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_when_builder() {
         assert_eq!(DurationParser::builder(), DurationParserBuilder::new());
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_duration_parser_builder_when_default() {
         assert_eq!(
             DurationParserBuilder::default(),
