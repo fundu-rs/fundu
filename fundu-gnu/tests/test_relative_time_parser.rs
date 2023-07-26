@@ -347,6 +347,23 @@ fn test_parser_numerals_with_not_fuzzy_time_units(
 }
 
 #[rstest]
+#[case::len_3("aaa")]
+#[case::len_4("aaaa")]
+#[case::len_5("aaaaa")]
+#[case::len_6("aaaaaa")]
+#[case::len_7("aaaaaaa")]
+#[case::len_8("aaaaaaaa")]
+#[case::len_9("aaaaaaaaa")]
+#[case::len_17(&"a".repeat(17))]
+fn test_parser_with_invalid_numerals_then_error(#[case] input: &str) {
+    let input = format!("{input} sec");
+    assert_eq!(
+        RelativeTimeParser::new().parse(&input),
+        Err(ParseError::InvalidInput(input))
+    );
+}
+
+#[rstest]
 #[case::last_ago("last minute ago", Duration::positive(60, 0))]
 #[case::this_ago("this minute ago", Duration::ZERO)]
 #[case::next_ago("next minute ago", Duration::negative(60, 0))]

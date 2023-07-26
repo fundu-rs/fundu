@@ -30,7 +30,6 @@ use crate::{Numeral, ParseError, TimeUnit};
 /// to true, this problem does not occur
 /// * `+`, `-` which are in use for signs.
 /// * whitespace characters
-// TODO: Add numerals
 #[derive(Debug, PartialEq, Eq)]
 pub struct CustomDurationParser<'a> {
     pub(super) time_units: CustomTimeUnits<'a>,

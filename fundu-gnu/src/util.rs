@@ -68,10 +68,11 @@ pub(crate) const fn to_lowercase_u64(string: &str) -> [u64; 2] {
         0x2020_2020_2020_2020,
     ];
 
+    // cov:excl-start
     debug_assert!(
         string.len() <= 16,
         "This method only supports string lengths <= 16"
-    );
+    ); // cov:excl-stop
 
     let mut dest: [u64; 2] = [0; 2];
 
