@@ -55,7 +55,7 @@ pub(crate) fn trim_whitespace(source: &str) -> &str {
 /// Each element in the u64 array represents an ascii character array of 8 bytes. This method
 /// enables a fast case insensitive comparison of strings. The maximum size of 16 is chosen
 /// deliberately because gnu's time units, keywords and numerals all have a lower size.
-pub(crate) const fn to_lowercase_u64(string: &str) -> [u64; 2] {
+pub(crate) fn to_lowercase_u64(string: &str) -> [u64; 2] {
     const LOWER_CASE_MASK: [u64; 9] = [
         0x0,
         0x0000_0000_0000_0020,
@@ -77,7 +77,7 @@ pub(crate) const fn to_lowercase_u64(string: &str) -> [u64; 2] {
     let mut dest: [u64; 2] = [0; 2];
 
     let bytes_ptr = string.as_bytes().as_ptr();
-    let dest_ptr = dest.as_ptr() as *mut u8;
+    let dest_ptr = dest.as_mut_ptr().cast();
     if string.len() > 8 {
         // SAFETY: The memory regions are nonoverlapping. It is safe to read 8 bytes from the source
         // and write the same amount into `dest`. Both, the source and dest are properly aligned.
@@ -155,6 +155,7 @@ mod tests {
     #[case::month("month", [0x0000_0068_746E_6F6D, 0])]
     #[case::months("months", [0x0000_7368_746E_6F6D, 0])]
     #[case::year("year", [0x0000_0000_7261_6579, 0])]
+    #[case::years("years", [0x0000_0073_7261_6579, 0])]
     #[case::last("last", [0x0000_0000_7473_616C, 0])]
     #[case::this("this", [0x0000_0000_7369_6874, 0])]
     #[case::next("next", [0x0000_0000_7478_656E, 0])]

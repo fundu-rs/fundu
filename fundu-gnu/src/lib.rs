@@ -716,26 +716,26 @@ impl TimeUnitsLike for TimeUnits {
 
     #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
-        const SEC: [u64; 2] = to_lowercase_u64("sec");
-        const SECS: [u64; 2] = to_lowercase_u64("secs");
-        const SECOND: [u64; 2] = to_lowercase_u64("second");
-        const SECONDS: [u64; 2] = to_lowercase_u64("seconds");
-        const MIN: [u64; 2] = to_lowercase_u64("min");
-        const MINS: [u64; 2] = to_lowercase_u64("mins");
-        const MINUTE: [u64; 2] = to_lowercase_u64("minute");
-        const MINUTES: [u64; 2] = to_lowercase_u64("minutes");
-        const HOUR: [u64; 2] = to_lowercase_u64("hour");
-        const HOURS: [u64; 2] = to_lowercase_u64("hours");
-        const DAY: [u64; 2] = to_lowercase_u64("day");
-        const DAYS: [u64; 2] = to_lowercase_u64("days");
-        const WEEK: [u64; 2] = to_lowercase_u64("week");
-        const WEEKS: [u64; 2] = to_lowercase_u64("weeks");
-        const FORTNIGHT: [u64; 2] = to_lowercase_u64("fortnight");
-        const FORTNIGHTS: [u64; 2] = to_lowercase_u64("fortnights");
-        const MONTH: [u64; 2] = to_lowercase_u64("month");
-        const MONTHS: [u64; 2] = to_lowercase_u64("months");
-        const YEAR: [u64; 2] = to_lowercase_u64("year");
-        const YEARS: [u64; 2] = to_lowercase_u64("years");
+        const SEC: [u64; 2] = [0x0000_0000_0063_6573, 0];
+        const SECS: [u64; 2] = [0x0000_0000_7363_6573, 0];
+        const SECOND: [u64; 2] = [0x0000_646E_6F63_6573, 0];
+        const SECONDS: [u64; 2] = [0x0073_646E_6F63_6573, 0];
+        const MIN: [u64; 2] = [0x0000_0000_006E_696D, 0];
+        const MINS: [u64; 2] = [0x0000_0000_736E_696D, 0];
+        const MINUTE: [u64; 2] = [0x0000_6574_756E_696D, 0];
+        const MINUTES: [u64; 2] = [0x0073_6574_756E_696D, 0];
+        const HOUR: [u64; 2] = [0x0000_0000_7275_6F68, 0];
+        const HOURS: [u64; 2] = [0x0000_0073_7275_6F68, 0];
+        const DAY: [u64; 2] = [0x0000_0000_0079_6164, 0];
+        const DAYS: [u64; 2] = [0x0000_0000_7379_6164, 0];
+        const WEEK: [u64; 2] = [0x0000_0000_6B65_6577, 0];
+        const WEEKS: [u64; 2] = [0x0000_0073_6B65_6577, 0];
+        const FORTNIGHT: [u64; 2] = [0x6867_696E_7472_6F66, 0x0000_0000_0000_0074];
+        const FORTNIGHTS: [u64; 2] = [0x6867_696E_7472_6F66, 0x0000_0000_0000_7374];
+        const MONTH: [u64; 2] = [0x0000_0068_746E_6F6D, 0];
+        const MONTHS: [u64; 2] = [0x0000_7368_746E_6F6D, 0];
+        const YEAR: [u64; 2] = [0x0000_0000_7261_6579, 0];
+        const YEARS: [u64; 2] = [0x0000_0073_7261_6579, 0];
 
         match identifier.len() {
             3 => match to_lowercase_u64(identifier) {
@@ -789,10 +789,10 @@ impl TimeUnitsLike for TimeKeywords {
 
     #[inline]
     fn get(&self, identifier: &str) -> Option<(TimeUnit, Multiplier)> {
-        const NOW: [u64; 2] = to_lowercase_u64("now");
-        const YESTERDAY: [u64; 2] = to_lowercase_u64("yesterday");
-        const TOMORROW: [u64; 2] = to_lowercase_u64("tomorrow");
-        const TODAY: [u64; 2] = to_lowercase_u64("today");
+        const NOW: [u64; 2] = [0x0000_0000_0077_6F6E, 0];
+        const YESTERDAY: [u64; 2] = [0x6164_7265_7473_6579, 0x0000_0000_0000_0079];
+        const TOMORROW: [u64; 2] = [0x776F_7272_6F6D_6F74, 0];
+        const TODAY: [u64; 2] = [0x0000_0079_6164_6F74, 0];
 
         match identifier.len() {
             3 => (to_lowercase_u64(identifier) == NOW).then_some((TimeUnit::Day, Multiplier(0, 0))),
@@ -813,20 +813,20 @@ struct Numerals {}
 impl NumbersLike for Numerals {
     #[inline]
     fn get(&self, identifier: &str) -> Option<Multiplier> {
-        const LAST: [u64; 2] = to_lowercase_u64("last");
-        const THIS: [u64; 2] = to_lowercase_u64("this");
-        const NEXT: [u64; 2] = to_lowercase_u64("next");
-        const FIRST: [u64; 2] = to_lowercase_u64("first");
-        const THIRD: [u64; 2] = to_lowercase_u64("third");
-        const FOURTH: [u64; 2] = to_lowercase_u64("fourth");
-        const FIFTH: [u64; 2] = to_lowercase_u64("fifth");
-        const SIXTH: [u64; 2] = to_lowercase_u64("sixth");
-        const SEVENTH: [u64; 2] = to_lowercase_u64("seventh");
-        const EIGHTH: [u64; 2] = to_lowercase_u64("eighth");
-        const NINTH: [u64; 2] = to_lowercase_u64("ninth");
-        const TENTH: [u64; 2] = to_lowercase_u64("tenth");
-        const ELEVENTH: [u64; 2] = to_lowercase_u64("eleventh");
-        const TWELFTH: [u64; 2] = to_lowercase_u64("twelfth");
+        const LAST: [u64; 2] = [0x0000_0000_7473_616C, 0];
+        const THIS: [u64; 2] = [0x0000_0000_7369_6874, 0];
+        const NEXT: [u64; 2] = [0x0000_0000_7478_656E, 0];
+        const FIRST: [u64; 2] = [0x0000_0074_7372_6966, 0];
+        const THIRD: [u64; 2] = [0x0000_0064_7269_6874, 0];
+        const FOURTH: [u64; 2] = [0x0000_6874_7275_6F66, 0];
+        const FIFTH: [u64; 2] = [0x0000_0068_7466_6966, 0];
+        const SIXTH: [u64; 2] = [0x0000_0068_7478_6973, 0];
+        const SEVENTH: [u64; 2] = [0x0068_746E_6576_6573, 0];
+        const EIGHTH: [u64; 2] = [0x0000_6874_6867_6965, 0];
+        const NINTH: [u64; 2] = [0x0000_0068_746E_696E, 0];
+        const TENTH: [u64; 2] = [0x0000_0068_746E_6574, 0];
+        const ELEVENTH: [u64; 2] = [0x6874_6E65_7665_6C65, 0];
+        const TWELFTH: [u64; 2] = [0x0068_7466_6C65_7774, 0];
 
         match identifier.len() {
             4 => match to_lowercase_u64(identifier) {
