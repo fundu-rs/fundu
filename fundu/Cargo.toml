@@ -31,7 +31,7 @@ with-iai = []
 with-flamegraph = []
 
 [dependencies]
-fundu-core = { path = "../fundu-core", version = "=0.2.0" }
+fundu-core = { path = "../fundu-core", version = "=0.3.0" }
 serde = { workspace = true, optional = true, features=["derive"]}
 
 [dev-dependencies]
