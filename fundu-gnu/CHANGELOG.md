@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2023-08-07
+
+## Added
+
+* Parse numerals like `next`, `last`, `this`, `first`, `third` etc.
+
+## Changed
+
+* Time units (like `sec`), keywords (like `yesterday`) and numerals (like `next`) are now parsed
+case insensitive
+* The parsing speed was improved significantly
+
 ## [0.2.0] - 2023-07-09
 
 ## Added
