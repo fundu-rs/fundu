@@ -38,7 +38,6 @@
     - [Installation](#installation)
     - [Format description](#description-of-the-format)
     - [Benchmarks](#benchmarks)
-    - [Todo](#todo)
     - [License](#license)
 
 # Overview
@@ -121,12 +120,20 @@ Supported time units:
 Fuzzy time units are not all of equal duration and depend on a given date. If no date is given
 when parsing, the system time of `now` in UTC +0 is assumed.
 
+Supported numerals:
+
+- `next` (=1)
+- `last` (=-1)
+- `this` (=0)
+- `first` (=1), `third` (=3), ... , `twelfth` (=12) (Note the missing second which is a time unit)
+
 The special keywords `yesterday` worth `-1 day`, `tomorrow` worth `+1 day`, `today` and `now`
 each worth a zero duration are allowed, too. These keywords count as a full duration and don't
 accept a number, time unit or the `ago` time unit suffix.
 
 Summary of the rest of the format:
 
+- Time units, keywords (including `ago`) and numerals are case insensitive
 - Only numbers like `"123 days"` and without exponent (like `"3e9 days"`) are allowed. Only
 seconds time units allow a fraction (like in `"1.123456 secs"`)
 - Multiple durations like `"1sec 2min"` or `"1week2secs"` in the source string accumulate
@@ -177,25 +184,20 @@ core 3000Mhz, 8GB DDR3, Linux):
 
 Input | avg parsing time
 --- | ---:|
-`1` | `53.316 ns`
-`123456789` | `60.100 ns`
-`"1".repeat(1022)` | `257.97 ns`
-`1sec` | `87.357 ns`
-`1minutes` | `139.09 ns`
+`1` | `49.399 ns`
+`123456789` | `57.108 ns`
+`"1".repeat(1022)` | `253.89 ns`
+`sec` / `1sec` / `seconds` / `1seconds` | `63.521` / `81.871` / `74.962` / `97.785 ns`
+`min` / `1min` / `minutes` / `1minutes` | `64.102` / `82.876` / `77.893` / `98.374 ns`
 `1year` | `164.30 ns`
 `10000000year` | `182.85 ns`
-`1sec 1min` | `205.56 ns`
-`1sec 1min 1sec 1min` | `399.38 ns`
-`1sec 1min 1hour 1day` | `431.05 ns`
-`"1sec 1min".repeat(100)` | `19.154 µs`
+`1sec 1min` | `167.74 ns`
+`1sec 1min 1sec 1min` | `325.70 ns`
+`1sec 1min 1hour 1day` | `353.18 ns`
+`"1sec 1min".repeat(100)` | `15.258 µs`
 
 Parsing of fuzzy time units like in `1year` or `10000000year` adds a considerable amount of
 additional computations but is still comparably fast.
-
-# Todo
-
-- Gnu allows numerals like `this second`, `next week` etc. (See issue
-[#23](https://github.com/fundu-rs/fundu/issues/23))
 
 # License
 
