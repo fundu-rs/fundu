@@ -21,7 +21,7 @@ with-iai = []
 with-flamegraph = []
 
 [dependencies]
-fundu-core = { path = "../fundu-core", version = "=0.2.0" }
+fundu-core = { path = "../fundu-core", version = "=0.3.0" }
 chrono = { workspace = true, optional = true  }
 serde = { workspace = true, optional = true, features = ["derive"] }
 time = { workspace = true, optional = true, features = ["large-dates"] }
