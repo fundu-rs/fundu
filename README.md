@@ -133,7 +133,8 @@ Activating the `serde` feature allows some structs and enums to be serialized or
 # Examples
 
 If only the default configuration is required once, the `parse_duration` method can be used.
-Note that `parse_duration` returns a [`std::time::Duration`] in contrast to the `parse` method of the other parsers which return a `fundu::Duration`.
+Note that `parse_duration` returns a [`std::time::Duration`] in contrast to the `parse` method of
+the other parsers which return a `fundu::Duration`.
 
 ```rust
 use std::time::Duration;
@@ -254,7 +255,7 @@ use fundu::{Duration, DurationParser, ParseError};
 
 const PARSER: DurationParser = DurationParser::builder()
     .time_units(&[NanoSecond])
-    .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
+    .allow_time_unit_delimiter()
     .number_is_optional()
     .disable_fraction()
     .disable_exponent()
@@ -277,15 +278,15 @@ assert_eq!(
 ```
 
 It's also possible to parse multiple durations at once with `parse_multiple`. The different
-durations can be separated by an optional `delimiter` (a closure matching a `u8`) defined with
-`parse_multiple`. If the delimiter is not encountered, a number can also indicate a new duration.
+durations can be separated by whitespace and an optional conjunction (here: `and`). If the delimiter
+is not encountered, a number or sign character can also indicate a new duration.
 
 ```rust
 use fundu::{Duration, DurationParser};
 
 let parser = DurationParser::builder()
     .default_time_units()
-    .parse_multiple(|byte| matches!(byte, b' ' | b'\t'), Some(&["and"]))
+    .parse_multiple(Some(&["and"]))
     .build();
 
 assert_eq!(
@@ -378,7 +379,7 @@ let parser = DurationParser::builder()
     // Use a custom set of time units. For demonstration purposes just NanoSecond
     .time_units(&[NanoSecond])
     // Allow some whitespace characters as delimiter between the number and the time unit
-    .allow_delimiter(|byte| matches!(byte, b'\t' | b'\n' | b'\r' | b' '))
+    .allow_time_unit_delimiter()
     // Makes the number optional. If no number was encountered `1` is assumed
     .number_is_optional()
     // Disable parsing the fractional part of the number => 1.0 will return an error
@@ -494,12 +495,11 @@ core 3000Mhz, 8GB DDR3, Linux)
 Input | avg parsing time
 --- | ---:|
 `1` | `38.705 ns`
-`123456789.123456789` | `67.578 ns`
-`format!("{0}.{0}e-1022", "1".repeat(1022))` | `464.65 ns`
-`1s` | `50.126 ns`
+`123456789.123456789` | `57.974 ns`
+`format!("{0}.{0}e-1022", "1".repeat(1022))` | `421.56 ns`
+`1s` | `55.755 ns`
 `1ns` | `59.842 ns`
-`1y` | `83.729 ns`
-`1years` | `112.31 ns`
+`1y` | `57.760 ns`
 
 # Contributing
 
