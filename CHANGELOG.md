@@ -26,6 +26,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2023-08-07
+
+## Added
+
+* Option to parse numerals. Numerals can occur where usually a number would be expected (#23)
+
+## Changed
+
+* BREAKING: Rename of the function `allow_delimiter` to `allow_time_unit_delimiter`
+* BREAKING: The 4 different delimiters are now unified into an `inner` and `outer` delimiter. The
+functions `allow_ago`, `allow_sign_delimiter` and `allow_time_unit_delimiter` now use the `inner`
+delimiter and don't take a definition of a `Delimiter` anymore. The `parse_multiple` now uses the
+`outer` delimiter and doesn't take an argument for the definition of a `Delimiter` anymore. The
+`inner` and `outer` delimiters can be defined with extra functions, instead. (#34)
+* Improve the general parsing speed, especially for input with fractions
+
 ## [1.2.0] - 2023-07-09
 
 ## Added
