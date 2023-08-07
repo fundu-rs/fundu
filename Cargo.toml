@@ -13,7 +13,7 @@ rstest = "0.18.1"
 rstest_reuse = "0.6.0"
 serde = { version = "1.0.162", features = ["derive"] }
 serde_test = "1.0.162"
-time = { version = "<= 0.3.20", default-features = false }
+time = { version = "<= 0.3.26", default-features = false }
 
 [profile.release]
 lto = "thin"
