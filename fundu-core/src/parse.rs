@@ -1303,7 +1303,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
 
         let expected = b"inity";
-        for byte in expected.iter() {
+        for byte in expected {
             match self.bytes.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.bytes.advance(),
                 // wrong character
@@ -1556,7 +1556,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
 
         let expected = "inity";
         let start = self.bytes.current_pos;
-        for byte in expected.as_bytes().iter() {
+        for byte in expected.as_bytes() {
             match self.bytes.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.bytes.advance(),
                 // wrong character
