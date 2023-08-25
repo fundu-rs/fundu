@@ -367,7 +367,7 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: iai-callgrind-benchmarks
-          path: "**/target/iai"
+          path: "target/iai"
 
   miri:
     needs: [base, cross]
