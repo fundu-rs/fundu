@@ -4,7 +4,7 @@ members = ["fundu", "fundu-core", "fundu-gnu", "fundu-systemd"]
 
 [workspace.dependencies]
 chrono = { version = "0.4.24", default-features = false }
-clap = "4.3.0"
+clap = "~4.2.0"
 criterion = "0.5.1"
 iai-callgrind = "0.6.1"
 inferno = "0.11.15"
