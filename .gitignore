@@ -3,7 +3,6 @@ perf.data
 perf.data.old
 report
 *.profraw
-.vscode/launch.json
 .VSCodeCounter/
 .config/nextest.toml
 
@@ -27,12 +26,12 @@ tags
 # Persistent undo
 [._]*.un~
 
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
+**/.vscode/*
+# !.vscode/settings.json
+# !.vscode/tasks.json
 # |.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
+# !.vscode/extensions.json
+# !.vscode/*.code-snippets
 
 # Local History for Visual Studio Code
 .history/
