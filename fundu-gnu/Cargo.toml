@@ -22,18 +22,18 @@ with-flamegraph = []
 
 [dependencies]
 fundu-core = { path = "../fundu-core", version = "=0.3.0" }
-chrono = { workspace = true, optional = true  }
+chrono = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 time = { workspace = true, optional = true, features = ["large-dates"] }
 
 [dev-dependencies]
 chrono = { workspace = true }
-clap = { workspace = true, features = ["cargo"]}
+clap = { workspace = true, features = ["cargo"] }
 criterion = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = { workspace = true }
 serde_test = { workspace = true }
-time = { workspace = true, features = ["macros", "large-dates"]}
+time = { workspace = true, features = ["macros", "large-dates"] }
 
 [target.'cfg(unix)'.dev-dependencies]
 iai-callgrind = { workspace = true }
@@ -56,11 +56,6 @@ required-features = ["with-flamegraph"]
 
 [[bench]]
 name = "fundu_gnu_iai_parsing"
-harness = false
-required-features = ["with-iai"]
-
-[[bench]]
-name = "fundu_gnu_iai_parsing_time_units"
 harness = false
 required-features = ["with-iai"]
 
