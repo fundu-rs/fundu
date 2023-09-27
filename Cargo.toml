@@ -3,7 +3,7 @@ resolver = "2"
 members = ["fundu", "fundu-core", "fundu-gnu", "fundu-systemd"]
 
 [workspace.dependencies]
-chrono = { version = "0.4", default-features = false }
+chrono = { version = "0.4.24", default-features = false }
 clap = "4"
 criterion = "0.5"
 iai-callgrind = "0.7"
@@ -13,7 +13,7 @@ rstest = "0.18"
 rstest_reuse = "0.6"
 serde = { version = "1", features = ["derive"] }
 serde_test = "1"
-time = { version = "0.3", default-features = false }
+time = { version = "0.3.1", default-features = false }
 
 [profile.release]
 lto = "thin"

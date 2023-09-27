@@ -32,6 +32,56 @@ jobs:
         with:
           rust-version: "1.64.0"
 
+  maximum_versions:
+    needs: [deny]
+    name: Build and check with maximum versions
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - stable
+          - nightly
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: "clippy"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: "${{ matrix.os }}_${{ matrix.toolchain }}"
+      - name: Update
+        run: cargo update
+      - name: Build
+        run: cargo check --workspace --all-features --all-targets
+
+  minimal_versions:
+    needs: [deny]
+    name: Build and check with minimal versions
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - "1.64.0" # MSRV
+          - stable
+          - nightly
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ubuntu-latest_${{ matrix.toolchain }}
+      - uses: taiki-e/install-action@cargo-hack
+      - uses: taiki-e/install-action@cargo-minimal-versions
+      # This'll run without checking dev-dependencies
+      - name: Build with minimal versions
+        run: cargo minimal-versions check --workspace --ignore-private --all-features --lib --bins
+
   format:
     name: Check format with nightly rustfmt
     runs-on: ubuntu-latest
