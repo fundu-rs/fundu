@@ -3,17 +3,17 @@ resolver = "2"
 members = ["fundu", "fundu-core", "fundu-gnu", "fundu-systemd"]
 
 [workspace.dependencies]
-chrono = { version = "0.4.24", default-features = false }
-clap = "~4.2.0"
-criterion = "0.5.1"
+chrono = { version = "0.4", default-features = false }
+clap = "4"
+criterion = "0.5"
 iai-callgrind = "0.7"
-inferno = "0.11.15"
-pprof = "0.12.0"
-rstest = "0.18.1"
-rstest_reuse = "0.6.0"
-serde = { version = "1.0.162", features = ["derive"] }
-serde_test = "1.0.162"
-time = { version = "<= 0.3.20", default-features = false }
+inferno = "0.11"
+pprof = "0.12"
+rstest = "0.18"
+rstest_reuse = "0.6"
+serde = { version = "1", features = ["derive"] }
+serde_test = "1"
+time = { version = "0.3", default-features = false }
 
 [profile.release]
 lto = "thin"
