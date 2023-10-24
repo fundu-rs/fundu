@@ -4,7 +4,10 @@
 // https://opensource.org/licenses/MIT
 
 use fundu::{CustomDurationParser, DEFAULT_ALL_TIME_UNITS, SYSTEMD_TIME_UNITS};
-use iai_callgrind::{black_box, library_benchmark, library_benchmark_group, main};
+use iai_callgrind::{
+    black_box, library_benchmark, library_benchmark_group, main, FlamegraphConfig,
+    LibraryBenchmarkConfig,
+};
 
 #[library_benchmark]
 fn default_time_units<'a>() -> CustomDurationParser<'a> {
@@ -18,4 +21,7 @@ fn systemd_time_units<'a>() -> CustomDurationParser<'a> {
 
 library_benchmark_group!(name = initialization; benchmarks = default_time_units, systemd_time_units);
 
-main!(library_benchmark_groups = initialization);
+main!(
+    config = LibraryBenchmarkConfig::default().flamegraph(FlamegraphConfig::default());
+    library_benchmark_groups = initialization
+);
