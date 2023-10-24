@@ -1,0 +1,16 @@
+{
+  "language": "en",
+  "enabledLanguageIds": ["yaml", "rust", "markdown", "toml", "json"],
+  "dictionaries": ["custom"],
+  "dictionaryDefinitions": [
+    {
+      "name": "custom",
+      "path": "./.dicts/custom.txt",
+      "addWords": true
+    }
+  ],
+  "readonly": true,
+  "enableGlobDot": true,
+  "useGitignore": true,
+  "ignorePaths": ["**/.git*", "**/Cargo.lock"]
+}
