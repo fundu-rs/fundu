@@ -2,7 +2,7 @@ name: Build and Check
 
 on:
   push:
-    branches: ["main", "cicd", "release", "develop"]
+    branches: ["main", "cicd", "release", "develop", "develop-gamma"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
