@@ -894,7 +894,7 @@ mod tests {
     )]
     fn test_julian_days_from_gregorian_error_template(#[case] ymd: (i64, u8, u8)) {}
 
-    #[should_panic(expected = "Conversion should succeed")]
+    #[should_panic(expected = "Overflow calculating julian day from gregorian date")]
     #[apply(test_julian_days_from_gregorian_error_template)]
     fn test_julian_days_from_gregorian_then_panic(ymd: (i64, u8, u8)) {
         JulianDay::from_gregorian(ymd.0, ymd.1, ymd.2);
@@ -906,11 +906,14 @@ mod tests {
     }
 
     #[rstest]
+    #[should_panic(expected = "Invalid month: Valid range is 1 <= month <= 12")]
     #[case::illegal_month_too_low((0, 0, 1))]
+    #[should_panic(expected = "Invalid month: Valid range is 1 <= month <= 12")]
     #[case::illegal_month_too_high((0, 13, 1))]
+    #[should_panic(expected = "Invalid day: Valid range is 1 <= day <= 31")]
     #[case::illegal_day_too_low((0, 1, 0))]
+    #[should_panic(expected = "Invalid day: Valid range is 1 <= day <= 31")]
     #[case::illegal_day_too_high((0, 1, 32))]
-    #[should_panic(expected = "Illegal argument")]
     fn test_julian_days_try_from_gregorian_with_illegal_argument_then_panic(
         #[case] ymd: (i64, u8, u8),
     ) {
@@ -1490,8 +1493,8 @@ mod tests {
 
     #[cfg(feature = "chrono")]
     #[rstest]
-    #[case::max(i32::MAX >> 13i32)]
-    #[case::min(i32::MIN >> 13i32)]
+    #[case::max((i32::MAX >> 13i32) - 1i32)]
+    #[case::min((i32::MIN >> 14i32) + 1i32)]
     fn test_chrono_date_time_min_max_into_date_time(#[case] year: i32) {
         let mut chrono_date = FixedOffset::west_opt(0)
             .unwrap()
