@@ -1664,7 +1664,7 @@ mod tests {
     #[case::week(Week, Multiplier(i64::MAX / (60 * 60 * 24 * 7) + 1, i16::MIN))]
     #[case::month(Month, Multiplier(3_507_252_276_543 + 1, i16::MIN))]
     #[case::year(Year, Multiplier(292_271_023_045 + 1, i16::MIN))]
-    #[should_panic]
+    #[should_panic(expected = "Overflow")]
     fn test_multiplier_multiplication_then_panic(
         #[case] time_unit: TimeUnit,
         #[case] multiplier: Multiplier,
