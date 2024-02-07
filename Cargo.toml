@@ -6,7 +6,7 @@ members = ["fundu", "fundu-core", "fundu-gnu", "fundu-systemd"]
 chrono = { version = "0.4.24", default-features = false }
 clap = "4"
 criterion = "0.5"
-iai-callgrind = "0.7"
+iai-callgrind = "0.10"
 inferno = "0.11"
 pprof = "0.13"
 rstest = "0.18"
