@@ -17,7 +17,7 @@
 //! | `"55s500ms"` | `Duration::positive(55, 500_000_000)` |
 //! | `"300ms20s 5day"` |`Duration::positive(20 + 5 * 60 * 60 * 24, 300_000_000)` |
 //! | `"123456789"` |`Duration::positive(123_456_789, 0)` (Default: Second) |
-//! | `"100"` |`Duration::positive(0, 100_000)` (when default is set to MicroSecond) |
+//! | `"100"` |`Duration::positive(0, 100_000)` (when default is set to `MicroSecond`) |
 //! | `"infinity"` | variable: the maximum duration which is currently in use (see below) |
 //!
 //! Note that `fundu` parses into its own [`Duration`] which is a superset of other `Durations` like

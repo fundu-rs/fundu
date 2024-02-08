@@ -1510,7 +1510,7 @@ mod tests {
 
     #[cfg(feature = "chrono")]
     const CHRONO_MIN_DURATION: Duration =
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000);
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 807_000_000);
     #[cfg(feature = "chrono")]
     const CHRONO_MAX_DURATION: Duration = Duration::positive(i64::MAX as u64 / 1000, 807_000_000);
 
@@ -1664,7 +1664,7 @@ mod tests {
     #[case::week(Week, Multiplier(i64::MAX / (60 * 60 * 24 * 7) + 1, i16::MIN))]
     #[case::month(Month, Multiplier(3_507_252_276_543 + 1, i16::MIN))]
     #[case::year(Year, Multiplier(292_271_023_045 + 1, i16::MIN))]
-    #[should_panic]
+    #[should_panic(expected = "Overflow")]
     fn test_multiplier_multiplication_then_panic(
         #[case] time_unit: TimeUnit,
         #[case] multiplier: Multiplier,
@@ -2456,11 +2456,11 @@ mod tests {
         ChronoDuration::seconds(i64::MIN / 1000))
     ]
     #[case::min_secs_and_nanos(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000),
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 807_000_000),
         ChronoDuration::min_value())
     ]
     #[case::secs_and_nanos_one_above_min(
-        Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000 - 1),
+        Duration::negative(i64::MIN.unsigned_abs() / 1000, 807_000_000 - 1),
         ChronoDuration::min_value().checked_add(&ChronoDuration::nanoseconds(1)).unwrap())
     ]
     fn test_chrono_duration_try_from_fundu_duration(

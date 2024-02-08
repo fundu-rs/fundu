@@ -1002,7 +1002,7 @@ pub trait ReprParserTemplate<'a> {
             Some(byte) if byte.is_ascii_digit() => {
                 duration_repr.whole = Some(self.parse_whole());
             }
-            Some(byte) if byte == b'.' => {}
+            Some(b'.') => {}
             Some(_)
                 if !config.disable_infinity && self.bytes().next_is_ignore_ascii_case(b"inf") =>
             {
@@ -1303,7 +1303,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
 
         let expected = b"inity";
-        for byte in expected.iter() {
+        for byte in expected {
             match self.bytes.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.bytes.advance(),
                 // wrong character
@@ -1326,7 +1326,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         }
 
         duration_repr.is_infinite = true;
-        self.bytes.check_end_of_input().map(|_| duration_repr)
+        self.bytes.check_end_of_input().map(|()| duration_repr)
     }
 
     #[inline]
@@ -1455,7 +1455,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
         duration_repr: DurationRepr<'a>,
         _: &Config,
     ) -> Result<Self::Output, ParseError> {
-        self.bytes.check_end_of_input().map(|_| duration_repr)
+        self.bytes.check_end_of_input().map(|()| duration_repr)
     }
 }
 
@@ -1545,7 +1545,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                         config.outer_delimiter,
                         config.conjunctions.unwrap_or_default(),
                     )
-                    .map(|_| (duration_repr, Some(self)));
+                    .map(|()| (duration_repr, Some(self)));
             }
             Some(_) => {}
             None => {
@@ -1556,7 +1556,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
 
         let expected = "inity";
         let start = self.bytes.current_pos;
-        for byte in expected.as_bytes().iter() {
+        for byte in expected.as_bytes() {
             match self.bytes.current_byte {
                 Some(current) if current.eq_ignore_ascii_case(byte) => self.bytes.advance(),
                 // wrong character
@@ -1760,7 +1760,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
                     config.outer_delimiter,
                     config.conjunctions.unwrap_or_default(),
                 )
-                .map(|_| (duration_repr, Some(self))),
+                .map(|()| (duration_repr, Some(self))),
             Some(_) => Ok((duration_repr, Some(self))),
             None => Ok((duration_repr, None)),
         }

@@ -3,69 +3,35 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{Duration, ParseError};
+use fundu::Duration;
 use fundu_systemd::TimeSpanParser;
-use iai_callgrind::{black_box, main};
+use iai_callgrind::{
+    black_box, library_benchmark, library_benchmark_group, main, FlamegraphConfig,
+    LibraryBenchmarkConfig,
+};
 
-type Result<T> = std::result::Result<T, ParseError>;
-
-const SMALL_INPUT: &str = "1";
-const MIXED_INPUT_7: &str = "1234567.1234567";
-const MIXED_INPUT_8: &str = "12345678.12345678";
-const MIXED_INPUT_9: &str = "123456789.123456789";
-
-#[inline(never)]
-#[export_name = "__iai_setup::setup_parser"]
-fn setup_parser<'a>() -> TimeSpanParser<'a> {
-    TimeSpanParser::new()
+#[library_benchmark]
+#[bench::small(TimeSpanParser::new(), "1")]
+#[bench::mixed_7(TimeSpanParser::new(), "1234567.1234567")]
+#[bench::mixed_8(TimeSpanParser::new(), "12345678.12345678")]
+#[bench::mixed_9(TimeSpanParser::new(), "123456789.123456789")]
+#[bench::large(TimeSpanParser::new(), &format!("{0}.{0}", "1".repeat(1022)))]
+fn without_time_units(parser: TimeSpanParser, input: &str) -> Duration {
+    black_box(parser.parse(input)).unwrap()
 }
 
-#[inline(never)]
-#[export_name = "__iai_setup::generate_large_input"]
-fn generate_large_input() -> String {
-    format!("{0}.{0}", "1".repeat(1022))
+#[library_benchmark]
+#[bench::micro_second(TimeSpanParser::new(), "us")]
+#[bench::second(TimeSpanParser::new(), "s")]
+#[bench::minutes(TimeSpanParser::new(), "minutes")]
+#[bench::year(TimeSpanParser::new(), "y")]
+fn with_time_units(parser: TimeSpanParser, input: &str) -> Duration {
+    black_box(parser.parse(input)).unwrap()
 }
 
-#[inline(never)]
-fn small_input() -> Result<Duration> {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(SMALL_INPUT))
-}
-
-#[inline(never)]
-fn mixed_input_7() -> Result<Duration> {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_7))
-}
-
-#[inline(never)]
-fn mixed_input_8() -> Result<Duration> {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_8))
-}
-
-#[inline(never)]
-fn mixed_input_9() -> Result<Duration> {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_9))
-}
-
-#[inline(never)]
-fn large_input() -> Result<Duration> {
-    let parser = setup_parser();
-    let input = generate_large_input();
-    black_box(parser).parse(black_box(&input))
-}
+library_benchmark_group!(name = parsing_speed; benchmarks = without_time_units, with_time_units);
 
 main!(
-    callgrind_args =
-        "toggle-collect=iai_callgrind::black_box",
-        "toggle-collect=__iai_setup::setup_parser",
-        "toggle-collect=__iai_setup::generate_large_input";
-    functions =
-        small_input,
-        mixed_input_7,
-        mixed_input_8,
-        mixed_input_9,
-        large_input,
+    config = LibraryBenchmarkConfig::default().flamegraph(FlamegraphConfig::default());
+    library_benchmark_groups = parsing_speed
 );

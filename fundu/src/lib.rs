@@ -157,7 +157,7 @@
 //! * The `ago` keyword must be enabled in the parser with `allow_ago`
 //! * [`TimeKeyword`] is a `custom` feature which must be enabled by adding a [`TimeKeyword`] to the
 //! [`CustomDurationParser`]
-//! * [CustomTimeUnit`] is a `custom` feature which lets you define own time units
+//! * [`CustomTimeUnit`] is a `custom` feature which lets you define own time units
 //!
 //! # Examples
 //!

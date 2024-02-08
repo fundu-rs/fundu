@@ -10,7 +10,7 @@ keywords = ["fundu", "systemd", "parse", "duration", "time"]
 categories = ["parsing", "date-and-time"]
 homepage = "https://github.com/fundu-rs/fundu"
 repository = "https://github.com/fundu-rs/fundu"
-rust-version = "1.64.0"
+rust-version = "1.66.0"
 
 [features]
 default = []
@@ -21,7 +21,9 @@ with-flamegraph = ["fundu/with-flamegraph"]
 with-iai = ["fundu/with-iai"]
 
 [dependencies]
-fundu = { path = "../fundu", version = "=2.0.0", default-features = false, features = ["base"] }
+fundu = { path = "../fundu", version = "=2.0.0", default-features = false, features = [
+  "base",
+] }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -42,11 +44,6 @@ harness = false
 
 [[bench]]
 name = "fundu_systemd_iai_parsing"
-harness = false
-required-features = ["with-iai"]
-
-[[bench]]
-name = "fundu_systemd_iai_parsing_time_units"
 harness = false
 required-features = ["with-iai"]
 

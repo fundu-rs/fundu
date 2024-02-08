@@ -10,7 +10,7 @@ keywords = ["fundu", "parse", "string", "duration", "time"]
 categories = ["parsing", "date-and-time"]
 homepage = "https://github.com/fundu-rs/fundu"
 repository = "https://github.com/fundu-rs/fundu"
-rust-version = "1.64.0"
+rust-version = "1.66.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -32,7 +32,7 @@ with-flamegraph = []
 
 [dependencies]
 fundu-core = { path = "../fundu-core", version = "=0.3.0" }
-serde = { workspace = true, optional = true, features=["derive"]}
+serde = { workspace = true, optional = true, features = ["derive"] }
 
 [dev-dependencies]
 chrono = { workspace = true }
@@ -40,7 +40,7 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 criterion = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = { workspace = true }
-serde_test  = { workspace = true }
+serde_test = { workspace = true }
 time = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
@@ -57,11 +57,6 @@ required-features = ["custom"]
 name = "benchmarks_standard"
 harness = false
 required-features = ["standard"]
-
-[[bench]]
-name = "fundu_iai_parsing_time_units"
-harness = false
-required-features = ["standard", "with-iai"]
 
 [[bench]]
 name = "fundu_iai_parsing"

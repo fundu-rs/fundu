@@ -2,6 +2,8 @@
 //
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
+//
+// cspell: ignore infi anda manµ someµ tomorro
 
 use std::time::Duration as StdDuration;
 
@@ -483,7 +485,7 @@ fn test_parser_setting_default_time_unit(#[case] time_unit: TimeUnit, #[case] ex
     "1.123e9ns and 1.987e9ns",
     Duration::positive(3, 110_000_000)
 )]
-#[case::two_when_saturing(&format!("{0}s {0}s", u64::MAX), Duration::MAX)]
+#[case::two_when_saturating(&format!("{0}s {0}s", u64::MAX), Duration::MAX)]
 #[case::multiple_mixed("1ns 1.001Ms1e1ms 9 .9 3m6h", Duration::positive(21789, 910_001_002))]
 #[case::multiple_mixed_with_sign_as_delimiter(
     "1ns+1.001Ms-1e1+9-.9+3m6h",
@@ -529,7 +531,7 @@ fn test_parser_when_setting_parse_multiple(#[case] input: &str, #[case] expected
 #[case::infinity_then_conjunction("inf and", ParseError::Syntax(4, "Input may not end with a conjunction but found: 'and'".to_string()))]
 #[case::infinity_short_then_number("inf1", ParseError::Syntax(3, "Error parsing infinity: Invalid character '1'".to_string()))]
 #[case::infinity_long_then_number("infinity1", ParseError::Syntax(8, "Error parsing infinity: Expected a delimiter but found '1'".to_string()))]
-#[case::premature_end_parsing_infininity("infi", ParseError::Syntax(0, "Error parsing infinity: 'infi' is an invalid identifier for infinity".to_string()))]
+#[case::premature_end_parsing_infinity("infi", ParseError::Syntax(0, "Error parsing infinity: 'infi' is an invalid identifier for infinity".to_string()))]
 fn test_parser_when_setting_parse_multiple_then_error(
     #[case] input: &str,
     #[case] expected: ParseError,
@@ -811,7 +813,7 @@ fn test_custom_parser_when_disable_infinity_then_no_problems_with_infinity_like_
 #[case::negative_fraction("-0.1s", Duration::positive(0, 100_000_000))]
 #[case::positive_overflow(&format!("{}s", u128::MAX), Duration::MIN)]
 #[case::negative_overflow(&format!("-{}s", u128::MAX), Duration::MAX)]
-fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expected: Duration) {
+fn test_custom_parser_when_negative_multiplier(#[case] input: &str, #[case] expected: Duration) {
     let parser = CustomDurationParserBuilder::new()
         .time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(-1, 0))))
         .allow_negative()
@@ -827,7 +829,7 @@ fn test_custom_parser_when_negative_multipier(#[case] input: &str, #[case] expec
 #[case::some("1234567.89s")]
 #[case::max(&format!("{}s", u64::MAX))]
 #[case::min(&format!("-{}s", u64::MAX))]
-fn test_custom_parser_when_multipier_is_zero(#[case] input: &str) {
+fn test_custom_parser_when_multiplier_is_zero(#[case] input: &str) {
     let parser = CustomDurationParserBuilder::new()
         .time_unit(CustomTimeUnit::new(Second, &["s"], Some(Multiplier(0, 0))))
         .allow_negative()
@@ -1040,7 +1042,7 @@ fn test_custom_parser_with_allow_ago_then_error(#[case] input: &str, #[case] exp
     "1s ago 1 day",
     Duration::positive(60 * 60 * 24 - 1, 0)
 )]
-#[case::with_ago_conjuntion_without_ago(
+#[case::with_ago_conjunction_without_ago(
     "1s ago and 1 day",
     Duration::positive(60 * 60 * 24 - 1, 0)
 )]

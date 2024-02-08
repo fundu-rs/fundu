@@ -770,15 +770,7 @@ impl From<OffsetDateTime> for DateTime {
     fn from(value: OffsetDateTime) -> Self {
         let (year, month, day) = value.to_calendar_date();
         let (h, m, s, n) = value.to_hms_nano();
-        Self::from_gregorian_date_time(
-            i64::from(year),
-            u8::try_from(month).unwrap(),
-            day,
-            h,
-            m,
-            s,
-            n,
-        )
+        Self::from_gregorian_date_time(i64::from(year), u8::from(month), day, h, m, s, n)
     }
 }
 
@@ -902,7 +894,7 @@ mod tests {
     )]
     fn test_julian_days_from_gregorian_error_template(#[case] ymd: (i64, u8, u8)) {}
 
-    #[should_panic]
+    #[should_panic(expected = "Overflow calculating julian day from gregorian date")]
     #[apply(test_julian_days_from_gregorian_error_template)]
     fn test_julian_days_from_gregorian_then_panic(ymd: (i64, u8, u8)) {
         JulianDay::from_gregorian(ymd.0, ymd.1, ymd.2);
@@ -914,11 +906,14 @@ mod tests {
     }
 
     #[rstest]
+    #[should_panic(expected = "Invalid month: Valid range is 1 <= month <= 12")]
     #[case::illegal_month_too_low((0, 0, 1))]
+    #[should_panic(expected = "Invalid month: Valid range is 1 <= month <= 12")]
     #[case::illegal_month_too_high((0, 13, 1))]
+    #[should_panic(expected = "Invalid day: Valid range is 1 <= day <= 31")]
     #[case::illegal_day_too_low((0, 1, 0))]
+    #[should_panic(expected = "Invalid day: Valid range is 1 <= day <= 31")]
     #[case::illegal_day_too_high((0, 1, 32))]
-    #[should_panic]
     fn test_julian_days_try_from_gregorian_with_illegal_argument_then_panic(
         #[case] ymd: (i64, u8, u8),
     ) {
@@ -1462,15 +1457,7 @@ mod tests {
         .assume_utc();
         assert_eq!(
             DateTime::from(offset_date),
-            DateTime::from_gregorian_date_time(
-                year.try_into().unwrap(),
-                12,
-                31,
-                23,
-                59,
-                59,
-                999_999_999
-            )
+            DateTime::from_gregorian_date_time(year.into(), 12, 31, 23, 59, 59, 999_999_999)
         );
     }
 
@@ -1493,21 +1480,21 @@ mod tests {
             .unwrap()
             .with_ymd_and_hms(
                 ymdhmsno.0,
-                ymdhmsno.1.try_into().unwrap(),
-                ymdhmsno.2.try_into().unwrap(),
-                ymdhmsno.3.try_into().unwrap(),
-                ymdhmsno.4.try_into().unwrap(),
-                ymdhmsno.5.try_into().unwrap(),
+                ymdhmsno.1.into(),
+                ymdhmsno.2.into(),
+                ymdhmsno.3.into(),
+                ymdhmsno.4.into(),
+                ymdhmsno.5.into(),
             )
             .unwrap();
-        chrono_date += ChronoDuration::nanoseconds(ymdhmsno.6.try_into().unwrap());
+        chrono_date += ChronoDuration::nanoseconds(ymdhmsno.6.into());
         assert_eq!(DateTime::from(chrono_date), date_time);
     }
 
     #[cfg(feature = "chrono")]
     #[rstest]
-    #[case::max(i32::MAX >> 13i32)]
-    #[case::min(i32::MIN >> 13i32)]
+    #[case::max((i32::MAX >> 13i32) - 1i32)]
+    #[case::min((i32::MIN >> 14i32) + 1i32)]
     fn test_chrono_date_time_min_max_into_date_time(#[case] year: i32) {
         let mut chrono_date = FixedOffset::west_opt(0)
             .unwrap()

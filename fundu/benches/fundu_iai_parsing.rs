@@ -3,59 +3,47 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
-use fundu::{Duration, DurationParser};
-use iai_callgrind::{black_box, main};
+use fundu::TimeUnit::*;
+use fundu::{Duration, DurationParser, DurationParserBuilder, TimeUnit};
+use iai_callgrind::{
+    black_box, library_benchmark, library_benchmark_group, main, FlamegraphConfig,
+    LibraryBenchmarkConfig,
+};
 
-const SMALL_INPUT: &str = "1";
-const MIXED_INPUT_7: &str = "1234567.1234567";
-const MIXED_INPUT_8: &str = "12345678.12345678";
-
-#[inline(never)]
-#[export_name = "__iai_setup::setup_parser"]
-fn setup_parser<'a>() -> DurationParser<'a> {
-    DurationParser::without_time_units()
+#[library_benchmark]
+#[bench::small(DurationParser::without_time_units(), "1")]
+#[bench::mixed_7(DurationParser::without_time_units(), "1234567.1234567")]
+#[bench::mixed_8(DurationParser::without_time_units(), "12345678.12345678")]
+#[bench::large(DurationParser::without_time_units(), &format!("{0}.{0}e-1022", "1".repeat(1022)))]
+fn without_time_units(parser: DurationParser, input: &str) -> Duration {
+    black_box(parser.parse(input)).unwrap()
 }
 
-#[inline(never)]
-#[export_name = "__iai_setup::generate_large_input"]
-fn generate_large_input() -> String {
-    let ones = "1".repeat(1022);
-    format!("{}.{}e-1022", &ones, &ones)
+fn setup_parser_with_default<'a>(default_unit: TimeUnit) -> DurationParser<'a> {
+    DurationParserBuilder::new()
+        .all_time_units()
+        .default_unit(default_unit)
+        .number_is_optional()
+        .build()
 }
 
-#[inline(never)]
-fn small_input() -> Duration {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(SMALL_INPUT)).unwrap()
+#[library_benchmark]
+#[bench::one_when_default_is_nano_second(setup_parser_with_default(NanoSecond), "1")]
+#[bench::one_nano_second(setup_parser_with_default(NanoSecond), "1ns")]
+#[bench::nano_second(setup_parser_with_default(NanoSecond), "ns")]
+#[bench::one_when_default_is_second(setup_parser_with_default(Second), "1")]
+#[bench::one_second(setup_parser_with_default(Second), "1s")]
+#[bench::second(setup_parser_with_default(Second), "s")]
+#[bench::one_when_default_is_year(setup_parser_with_default(Year), "1")]
+#[bench::one_year(setup_parser_with_default(Year), "1y")]
+#[bench::year(setup_parser_with_default(Year), "y")]
+fn with_time_units(parser: DurationParser, input: &str) -> Duration {
+    black_box(parser.parse(input)).unwrap()
 }
 
-#[inline(never)]
-fn mixed_input_7() -> Duration {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_7)).unwrap()
-}
-
-#[inline(never)]
-fn mixed_input_8() -> Duration {
-    let parser = setup_parser();
-    black_box(parser).parse(black_box(MIXED_INPUT_8)).unwrap()
-}
-
-#[inline(never)]
-fn large_input() -> Duration {
-    let parser = setup_parser();
-    let input = generate_large_input();
-    black_box(parser).parse(black_box(&input)).unwrap()
-}
+library_benchmark_group!(name = parsing_speed; benchmarks = without_time_units, with_time_units);
 
 main!(
-    callgrind_args =
-        "toggle-collect=iai_callgrind::black_box",
-        "toggle-collect=__iai_setup::setup_parser",
-        "toggle-collect=__iai_setup::generate_large_input";
-    functions =
-        small_input,
-        mixed_input_7,
-        mixed_input_8,
-        large_input,
+    config = LibraryBenchmarkConfig::default().flamegraph(FlamegraphConfig::default());
+    library_benchmark_groups = parsing_speed
 );
