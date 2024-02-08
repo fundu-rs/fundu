@@ -5,6 +5,8 @@ on:
     branches: ["main", "cicd", "release", "develop", "develop-gamma"]
   pull_request:
     branches: ["main"]
+  schedule:
+    - cron: "00 01 * * *"
   workflow_dispatch:
     inputs:
       resetBenchmarks:
