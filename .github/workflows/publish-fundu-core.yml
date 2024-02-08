@@ -11,6 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2.2.0
+      - uses: Swatinem/rust-cache@v2.7.3
       - name: Publish
         run: cargo publish --package fundu-core --token ${{ secrets.CRATES_GITHUB_TOKEN }}
