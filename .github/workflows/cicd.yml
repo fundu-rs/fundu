@@ -416,7 +416,7 @@ jobs:
             fi
           done < bench.out
           exit $(< fail)
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: iai-callgrind-benchmarks
           path: "target/iai"
