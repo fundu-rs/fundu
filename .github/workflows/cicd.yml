@@ -34,30 +34,6 @@ jobs:
         with:
           rust-version: "1.66.0"
 
-  maximum_versions:
-    needs: [deny]
-    name: Build and check with maximum versions
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain:
-          - stable
-          - nightly
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          components: "clippy"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ matrix.os }}_${{ matrix.toolchain }}"
-      - name: Update
-        run: cargo update
-      - name: Build
-        run: cargo check --workspace --all-features --all-targets
-
   minimal_versions:
     needs: [deny]
     name: Build and check with minimal versions
@@ -141,6 +117,10 @@ jobs:
           set -x
           rustup show
           rustup component list --installed
+      - name: Update locked dependencies
+        if: matrix.toolchain == 'stable' || matrix.toolchain == 'nightly'
+        run: |
+          cargo update
       - name: Build
         run: cargo build --features ${{ matrix.features }}
       - name: Lint
