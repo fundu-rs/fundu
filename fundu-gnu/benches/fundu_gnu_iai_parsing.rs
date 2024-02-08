@@ -3,10 +3,12 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::hint::black_box;
+
 use fundu_gnu::{Duration, RelativeTimeParser};
 use iai_callgrind::{
-    black_box, library_benchmark, library_benchmark_group, main, FlamegraphConfig,
-    LibraryBenchmarkConfig,
+    library_benchmark, library_benchmark_group, main, EventKind, FlamegraphConfig,
+    LibraryBenchmarkConfig, RegressionConfig,
 };
 
 #[library_benchmark]
@@ -37,6 +39,12 @@ fn with_time_units(parser: RelativeTimeParser, input: &str) -> Duration {
 library_benchmark_group!(name = parsing_speed; benchmarks = inputs, with_time_units);
 
 main!(
-    config = LibraryBenchmarkConfig::default().flamegraph(FlamegraphConfig::default());
+    config = LibraryBenchmarkConfig::default()
+        .flamegraph(
+            FlamegraphConfig::default()
+        )
+        .regression(
+            RegressionConfig::default().limits([(EventKind::Ir, 5.0)])
+        );
     library_benchmark_groups = parsing_speed
 );
