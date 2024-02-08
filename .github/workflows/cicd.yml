@@ -374,7 +374,7 @@ jobs:
             jq '.packages[] | select(.name == "iai-callgrind").version' |\
             tr -d '"'
           )
-          cargo install iai-callgrind-runner --version $version
+          cargo install --locked iai-callgrind-runner --version $version
       - name: Prepare
         run: |
           sudo apt-get -y update && sudo apt-get -y install valgrind
