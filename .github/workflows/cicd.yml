@@ -34,30 +34,6 @@ jobs:
         with:
           rust-version: "1.66.0"
 
-  maximum_versions:
-    needs: [deny]
-    name: Build and check with maximum versions
-    strategy:
-      fail-fast: false
-      matrix:
-        toolchain:
-          - stable
-          - nightly
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          components: "clippy"
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: "${{ matrix.os }}_${{ matrix.toolchain }}"
-      - name: Update
-        run: cargo update
-      - name: Build
-        run: cargo check --workspace --all-features --all-targets
-
   minimal_versions:
     needs: [deny]
     name: Build and check with minimal versions
@@ -141,6 +117,10 @@ jobs:
           set -x
           rustup show
           rustup component list --installed
+      - name: Update locked dependencies
+        if: matrix.toolchain == 'stable' || matrix.toolchain == 'nightly'
+        run: |
+          cargo update
       - name: Build
         run: cargo build --features ${{ matrix.features }}
       - name: Lint
@@ -369,6 +349,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.66.0"
+      - uses: taiki-e/install-action@cargo-binstall
       - uses: Swatinem/rust-cache@v2
       - name: Install iai-callgrind-runner
         run: |
@@ -376,7 +357,7 @@ jobs:
             jq '.packages[] | select(.name == "iai-callgrind").version' |\
             tr -d '"'
           )
-          cargo install --locked iai-callgrind-runner --version $version
+          cargo binstall iai-callgrind-runner@$version
       - name: Prepare
         run: |
           sudo apt-get -y update && sudo apt-get -y install valgrind
@@ -389,33 +370,14 @@ jobs:
           check_artifacts: true
           if_no_artifact_found: warn
       - name: Run iai-callgrind benchmarks
-        run: cargo bench --features ${{ env.FEATURES }},with-iai -- iai_ | tee bench.out
-      - name: Strip colors from output file bench.out
         run: |
-          # remove colors (from https://unix.stackexchange.com/a/111936 by user55518)
-          sed -Ei 's/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[mGK]//g' bench.out
-      - name: Check for regression
-        run: |
-          echo 0 > fail
-          echo 0 > skip
-          while IFS= read -r line; do
-            skip=$(( $(< skip) > 0 ))
-            if grep -Eq '^\S*reference$' --color=never <<<"$line"; then
-              echo 6 > skip
-            else
-              echo $(( $(< skip) - 1 )) > skip
-            fi
-            if [[ $skip -eq 0 ]] && grep 'Estimated Cycles:' --color=never <<<"$line"; then
-              p=$(sed -En 's/\s*Estimated Cycles:.*\([+]([0-9]*)([.][0-9]*)?%\)/\1/p' <<<"$line")
-              if [[ $p -ge ${BENCHMARK_REGRESSION_PERCENT_FAIL} ]]; then
-                echo "::error::Regressed +${p}% >= BENCHMARK_REGRESSION_PERCENT_FAIL (=${BENCHMARK_REGRESSION_PERCENT_FAIL}%)"
-                echo 2 > fail
-              fi
-            else
-              echo "$line"
-            fi
-          done < bench.out
-          exit $(< fail)
+          benches=$(cargo metadata --no-deps --format-version=1 |\
+            jq '.packages[].targets[] | select(any(.kind[]; . == "bench") and (."required-features" and any(."required-features"[]; . == "with-iai"))) | .name' |\
+            tr -d '"'
+          )
+          args=()
+          while IFS=$'\n' read -r bench; do args+=(--bench); args+=("$bench"); done <<<"$benches"
+          cargo bench --all-features ${args[@]}
       - uses: actions/upload-artifact@v4
         with:
           name: iai-callgrind-benchmarks

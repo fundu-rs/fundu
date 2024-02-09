@@ -625,11 +625,12 @@ impl<'a> DurationRepr<'a> {
                     None => Duration::MAX,
                 }
             } else {
-                match seconds.checked_mul(unsigned_coefficient).and_then(|s| {
+                let time = seconds.checked_mul(unsigned_coefficient).and_then(|s| {
                     let attos = u128::from(attos) * u128::from(unsigned_coefficient);
                     s.checked_add((attos / ATTOS_PER_SEC_U128).try_into().unwrap())
                         .map(|s| (s, attos))
-                }) {
+                });
+                match time {
                     Some((s, attos)) => Duration::from_std(
                         is_negative,
                         StdDuration::new(
