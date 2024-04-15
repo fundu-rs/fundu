@@ -3,7 +3,7 @@ resolver = "2"
 members = ["fundu", "fundu-core", "fundu-gnu", "fundu-systemd"]
 
 [workspace.dependencies]
-chrono = { version = "0.4.24", default-features = false }
+chrono = { version = "0.4.38", default-features = false }
 clap = "4"
 criterion = "0.5"
 iai-callgrind = "0.10"
