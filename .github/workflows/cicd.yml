@@ -363,7 +363,7 @@ jobs:
           sudo apt-get -y update && sudo apt-get -y install valgrind
       - name: Download reference benchmarks
         if: ${{ !inputs.resetBenchmarks }}
-        uses: dawidd6/action-download-artifact@v3
+        uses: dawidd6/action-download-artifact@v5
         with:
           workflow_conclusion: success
           name: iai-callgrind-benchmarks
