@@ -56,20 +56,6 @@ mod tests {
 
         assert_send::<ParseError>();
         assert_send::<TryFromDurationError>();
-
-        #[cfg(feature = "custom")]
-        {
-            assert_send::<CustomDurationParserBuilder>();
-            assert_send::<CustomDurationParser>();
-            assert_send::<CustomTimeUnit>();
-            assert_send::<TimeKeyword>();
-        }
-
-        #[cfg(feature = "standard")]
-        {
-            assert_send::<DurationParserBuilder>();
-            assert_send::<DurationParser>();
-        }
     }
 
     #[test]
@@ -83,18 +69,5 @@ mod tests {
 
         assert_sync::<ParseError>();
         assert_sync::<TryFromDurationError>();
-
-        #[cfg(feature = "custom")]
-        {
-            assert_sync::<CustomDurationParserBuilder>();
-            assert_sync::<CustomDurationParser>();
-            assert_sync::<CustomTimeUnit>();
-            assert_sync::<TimeKeyword>();
-        }
-        #[cfg(feature = "standard")]
-        {
-            assert_sync::<DurationParserBuilder>();
-            assert_sync::<DurationParser>();
-        }
     }
 }

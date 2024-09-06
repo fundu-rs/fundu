@@ -43,32 +43,29 @@
 //! Summary of the rest of the format:
 //!
 //! - Only numbers like `"123 days"` or with fraction `"1.2 days"` but without exponent (like `"3e9
-//! days"`) are allowed
+//!   days"`) are allowed
 //! - For numbers without a time unit (like `"1234"`) the default time unit is usually `second` but
-//!   can
-//! be changed since in some case systemd uses a different granularity.
+//!   can be changed since in some case systemd uses a different granularity.
 //! - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
 //! - The parsed duration represents the value exactly (without rounding errors as would occur in
-//! floating point calculations) as it is specified in the source string (just like systemd).
+//!   floating point calculations) as it is specified in the source string (just like systemd).
 //! - The maximum supported duration (`Duration::MAX`) has `u64::MAX` seconds
-//! (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds. However, systemd uses `u64::MAX`
-//! micro seconds as maximum duration when parsing without nanos and `u64::MAX` nano seconds when
-//! parsing with nanos. `fundu-systemd` provides the `parse` and `parse_nanos` functions to reflect
-//! that. If you don't like the maximum duration of `systemd` it's still possible via
-//! `parse_with_max` and `parse_nanos_with_max` to adjust this limit to a duration ranging from
-//! `Duration::ZERO` to `Duration::MAX`.
+//!   (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds. However, systemd uses
+//!   `u64::MAX` micro seconds as maximum duration when parsing without nanos and `u64::MAX` nano
+//!   seconds when parsing with nanos. `fundu-systemd` provides the `parse` and `parse_nanos`
+//!   functions to reflect that. If you don't like the maximum duration of `systemd` it's still
+//!   possible via `parse_with_max` and `parse_nanos_with_max` to adjust this limit to a duration
+//!   ranging from `Duration::ZERO` to `Duration::MAX`.
 //! - The special value `"infinity"` evaluates to the maximum duration. Note the maximum duration
-//! depends on whether parsing with nano seconds or without. If the maximum duration is manually set
-//! to a different value then it evaluates to that maximum duration.
-//! - parsed durations larger than the maximum duration (like `"100000000000000years"`)
-//! saturate at the maximum duration
+//!   depends on whether parsing with nano seconds or without. If the maximum duration is manually
+//!   set to a different value then it evaluates to that maximum duration.
+//! - parsed durations larger than the maximum duration (like `"100000000000000years"`) saturate at
+//!   the maximum duration
 //! - Negative durations are not allowed, also no intermediate negative durations like in `"5day
-//!   -1ms"`
-//! although the final duration would not be negative.
+//!   -1ms"` although the final duration would not be negative.
 //! - Any leading, trailing whitespace or whitespace between the number and the time unit (like in
-//!   `"1
-//! \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows the
-//! posix definition of whitespace which is:
+//!   `"1 \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows
+//!   the posix definition of whitespace which is:
 //!     - Space (`' '`)
 //!     - Horizontal Tab (`'\x09'`)
 //!     - Line Feed (`'\x0A'`)

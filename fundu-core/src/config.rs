@@ -190,10 +190,11 @@ pub struct Config<'a> {
     /// This delimiter may occur within a duration
     ///
     /// The occurrences of this delimiter depend on other configuration settings:
-    /// * If allow_sign_delimiter is set, this delimiter may separate the sign from the number
-    /// * If allow_time_unit_delimiter is set, this delimiter may separate the number from the time
-    /// unit
-    /// * If allow_ago is set, this delimiter has to separate the time unit from the `ago` keyword
+    /// * If `allow_sign_delimiter` is set, this delimiter may separate the sign from the number
+    /// * If `allow_time_unit_delimiter` is set, this delimiter may separate the number from the
+    ///   time unit
+    /// * If `allow_ago` is set, this delimiter has to separate the time unit from the `ago`
+    ///   keyword
     ///
     /// If parsing with [`NumbersLike`] numerals, then this delimiter has to separate the numeral
     /// from the time unit.

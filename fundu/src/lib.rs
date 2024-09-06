@@ -10,12 +10,12 @@
 //! `fundu` is a configurable, precise and blazingly fast duration parser
 //!
 //! * with the flexibility to customize [`TimeUnit`]s, or even create own time units with a
-//! [`CustomTimeUnit`] (the `custom` feature is needed)
+//!   [`CustomTimeUnit`] (the `custom` feature is needed)
 //! * without floating point calculations. What you put in is what you get out.
 //! * with sound limit handling. Infinity and numbers larger than [`Duration::MAX`] evaluate to
-//! [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
+//!   [`Duration::MAX`]. Numbers `x` with `abs(x) < 1e-18` evaluate to [`Duration::ZERO`].
 //! * with many options to customize the number format and other aspects of the parsing process like
-//! parsing negative durations
+//!   parsing negative durations
 //! * and with meaningful error messages
 //!
 //! # Fundu's Duration
@@ -141,22 +141,22 @@
 //! Special cases which are not displayed in the specification:
 //!
 //! * Parsing multiple `Durations` must be enabled with `parse_multiple`. The [`Delimiter`] and
-//! `ConjunctionWords` can also be defined with the `parse_multiple` method. Multiple `Durations`
-//! are summed up following the saturation rule below
+//!   `ConjunctionWords` can also be defined with the `parse_multiple` method. Multiple `Durations`
+//!   are summed up following the saturation rule below
 //! * A negative [`Duration`] (`Sign` == `-`), including negative infinity is not allowed as long as
-//! the `allow_negative` option is not enabled. For exceptions see the next point.
+//!   the `allow_negative` option is not enabled. For exceptions see the next point.
 //! * Numbers `x` (positive and negative) close to `0` (`abs(x) < 1e-18`) are treated as `0`
 //! * Positive infinity and numbers exceeding [`Duration::MAX`] saturate at [`Duration::MAX`]. If
-//! the `allow_negative` option is enabled, negative infinity and numbers falling below
-//! [`Duration::MIN`] saturate at [`Duration::MIN`].
+//!   the `allow_negative` option is enabled, negative infinity and numbers falling below
+//!   [`Duration::MIN`] saturate at [`Duration::MIN`].
 //! * The exponent must be in the range `-32768 <= Exp <= 32767`
 //! * If `allow_time_unit_delimiter` is set then any [`Delimiter`] is allowed between the `Number`
-//! and `TimeUnit`.
+//!   and `TimeUnit`.
 //! * If `number_is_optional` is enabled then the `Number` is optional but the `TimeUnit` must be
-//! present instead.
+//!   present instead.
 //! * The `ago` keyword must be enabled in the parser with `allow_ago`
 //! * [`TimeKeyword`] is a `custom` feature which must be enabled by adding a [`TimeKeyword`] to the
-//! [`CustomDurationParser`]
+//!   [`CustomDurationParser`]
 //! * [`CustomTimeUnit`] is a `custom` feature which lets you define own time units
 //!
 //! # Examples

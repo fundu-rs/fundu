@@ -22,12 +22,12 @@ use crate::{Numeral, ParseError, TimeUnit};
 /// identifiers interact badly with the parser and may lead to problems if they start with:
 ///
 /// * `e` or `E` which is also indicating an exponent. If [`CustomDurationParser::disable_exponent`]
-/// is set to true this problem does not occur.
-/// * `inf` and in consequence `infinity` case-insensitive. These are reserved words as
-/// long as [`CustomDurationParser::disable_infinity`] isn't set to true.
+///   is set to true this problem does not occur.
+/// * `inf` and in consequence `infinity` case-insensitive. These are reserved words as long as
+///   [`CustomDurationParser::disable_infinity`] isn't set to true.
 /// * ascii digits from `0` to `9`
 /// * `.` which is also indicating a fraction. If [`CustomDurationParser::disable_fraction`] is set
-/// to true, this problem does not occur
+///   to true, this problem does not occur
 /// * `+`, `-` which are in use for signs.
 /// * whitespace characters
 #[derive(Debug, PartialEq, Eq)]

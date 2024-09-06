@@ -234,6 +234,12 @@ impl<'a> Parser<'a> {
     }
 }
 
+impl<'a> Default for Parser<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
@@ -1820,7 +1826,7 @@ mod tests {
     fn test_duration_repr_parser_parse_8_digits_when_more_than_8() {
         let mut parser = ReprParserSingle::new("00000000a");
         assert_eq!(parser.bytes.parse_8_digits(), Some(0x3030_3030_3030_3030));
-        assert_eq!(parser.bytes.get_remainder(), &[b'a']);
+        assert_eq!(parser.bytes.get_remainder(), b"a");
         assert_eq!(parser.bytes.current_byte, Some(&b'a'));
         assert_eq!(parser.bytes.current_pos, 8);
     }

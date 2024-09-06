@@ -53,7 +53,7 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ubuntu-latest_${{ matrix.toolchain }}
+          key: ${{ matrix.toolchain }}
       - uses: taiki-e/install-action@cargo-hack
       - uses: taiki-e/install-action@cargo-minimal-versions
       # This'll run without checking dev-dependencies
@@ -159,7 +159,7 @@ jobs:
           toolchain: "1.66.0"
       - uses: Swatinem/rust-cache@v2
         with:
-          key: "ubuntu-latest_1.66.0_${{ matrix.target }}"
+          key: "${{ matrix.target }}"
       - uses: taiki-e/install-action@cross
       - name: Configure cross
         run: |
@@ -298,6 +298,7 @@ jobs:
         run: cargo install cargo-fuzz rustfilt
       - uses: Swatinem/rust-cache@v2
         with:
+          key: ${{ matrix.test.fuzz_target }}
           workspaces: |
             ${{ matrix.test.package }}/fuzz -> target
           cache-on-failure: true
@@ -350,14 +351,14 @@ jobs:
         with:
           toolchain: "1.66.0"
       - uses: taiki-e/install-action@cargo-binstall
-      - uses: Swatinem/rust-cache@v2
       - name: Install iai-callgrind-runner
         run: |
           version=$(cargo metadata --format-version=1 |\
             jq '.packages[] | select(.name == "iai-callgrind").version' |\
             tr -d '"'
           )
-          cargo binstall iai-callgrind-runner@$version
+          cargo binstall --no-confirm iai-callgrind-runner@$version
+      - uses: Swatinem/rust-cache@v2
       - name: Prepare
         run: |
           sudo apt-get -y update && sudo apt-get -y install valgrind
@@ -401,10 +402,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: miri
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: "miri_${{ matrix.target }}"
-          cache-directories: /home/runner/.cache/miri
+      # - uses: Swatinem/rust-cache@v2
+      #   with:
+      #     key: ${{ matrix.target }}
+      #     cache-directories: /home/runner/.cache/miri
       - uses: taiki-e/install-action@cross
         if: matrix.target != 'x86_64-unknown-linux-gnu'
       - name: Info
