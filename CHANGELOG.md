@@ -26,13 +26,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2024-09-07
+
+### Changed
+
+* Bump MSRV from `1.64.0` to `1.66.0`
+
 ## [2.0.0] - 2023-08-07
 
-## Added
+### Added
 
 * Option to parse numerals. Numerals can occur where usually a number would be expected (#23)
 
-## Changed
+### Changed
 
 * BREAKING: Rename of the function `allow_delimiter` to `allow_time_unit_delimiter`
 * BREAKING: The 4 different delimiters are now unified into an `inner` and `outer` delimiter. The
@@ -44,14 +50,14 @@ delimiter and don't take a definition of a `Delimiter` anymore. The `parse_multi
 
 ## [1.2.0] - 2023-07-09
 
-## Added
+### Added
 
 * fundu's `Duration` has now additional methods:
 as_weeks, as_days, as_hours, as_minutes, as_seconds, as_millis, as_micros, as_nanos, subsec_millis, subsec_micros, subsec_nanos, extract_weeks, extract_days, extract_hours, extract_minutes, extract_seconds
 * Optionally allow a delimiter between the sign and a number, time keyword etc with the
 configuration option `allow_sign_delimiter` (#28)
 
-## Changed
+### Changed
 
 * When `parse_multiple` is set, a sign character can now also indicate a new duration (#24)
 * Increase performance of parsing time keywords and time units without a number when
@@ -63,23 +69,23 @@ configuration option `allow_sign_delimiter` (#28)
     * rstest_reuse v0.5.0 -> v0.6.0
 * Bump fundu-core dependency from `v0.1.0` to `v0.2.0`
 
-## Fixed
+### Fixed
 
 * When `parse_multiple` together with `number_is_optional` was set, then a single sign character was
 interpreted as a duration of 1 second (#32)
 
 ## [1.1.0] - 2023-06-26
 
-## Added
+### Added
 
 * `fundu` has a new feature `base` which provides greater freedom than the `custom` feature
 * Implementation of `Clone` and`Hash` for `ParseError` and `TryFromDurationError`
 
-## Changed
+### Changed
 
 * Big internal restructuring which splits fundu into a `fundu-core` and `fundu` package
 * Internal refactor of `fundu-core`
-* The minimum supported rust version changed from `1.61.0` to `1.64.0`
+* Bump MSRV from `1.61.0` to `1.64.0`
 * The optional `time` dependency was updated from `0.3.16` to `0.3.20`
 
 ## [1.0.0] - 2023-05-29
@@ -89,7 +95,7 @@ negative durations has been completely revised. The `negative` feature was remov
 now return fundu's own `Duration`, which can represent negative `Durations`, instead of a
 `std::time::Duration` (or `time::Duration`).
 
-## Added
+### Added
 
 * A new configuration option `allow_negative` to enable parsing negative `Durations` without parsing
 error
@@ -116,7 +122,7 @@ of `Multiplier(1, 0)`
 * New methods for `Multiplier`: `is_negative`, `is_positive`, `checked_mul`, `saturating_neg` and
 the getters `coefficient` for the first component and `exponent` for the second
 
-## Changed
+### Changed
 
 * Fundu's thus far internally used `Duration` is now public and implements most standard arithmetic
 traits like `Add`, `Sub` etc. It can also be converted to `std::time::Duration` and if the feature
@@ -148,12 +154,12 @@ now a part of the number
 
 * Refactorings of the internal parser improve the parsing speed for all input sizes
 
-## Removed
+### Removed
 
 * BREAKING: The `negative` feature and `DurationParser::parse_negative`, `CustomDurationParser::parse_negative`
 * BREAKING: The `Identifier` type is redundant and was removed
 
-## Fixed
+### Fixed
 
 * Parsing with the configuration option `allow_delimiter` enabled changed, so that an input ending
 with a `Delimiter` is an error now
@@ -205,7 +211,7 @@ using `time::Duration::MIN.saturating_add`. The source of this bug is maybe the 
 
 ### Changed
 
-* The minimum supported rust version changed from `1.60.0` to `1.61.0`
+* Bump MSRV from `1.60.0` to `1.61.0`
 * Some internal changes and refactorings improved the overall performance
 * Improve and enhance the `README` and public api documentation
 
