@@ -23,7 +23,7 @@ pub enum ParseError {
     Syntax(usize, String),
     /// Currently only used internally for overflows of the maximum Duration.
     /// TODO: Rename to positive overflow
-    /// TODO: Add NegativeOverflow
+    /// TODO: Add `NegativeOverflow`
     Overflow,
     /// An error concerning time units. Like [`ParseError::Syntax`]  the position where the error
     /// occurred is included.

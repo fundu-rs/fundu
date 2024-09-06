@@ -20,7 +20,7 @@ time = ["dep:time"]
 
 [dependencies]
 chrono = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, features=["derive"]}
+serde = { workspace = true, optional = true, features = ["derive"] }
 time = { workspace = true, optional = true }
 
 [dev-dependencies]

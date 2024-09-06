@@ -51,24 +51,24 @@
 //! Summary of the rest of the format:
 //!
 //! - Only numbers like `"123 days"` and without exponent (like `"3e9 days"`) are allowed. Only
-//! seconds time units allow a fraction (like in `"1.123456 secs"`)
+//!   seconds time units allow a fraction (like in `"1.123456 secs"`)
 //! - Multiple durations like `"1sec 2min"` or `"1week2secs"` in the source string accumulate
 //! - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
 //! - The parsed duration represents the value exactly (without rounding errors as would occur in
-//! floating point calculations) as it is specified in the source string.
+//!   floating point calculations) as it is specified in the source string.
 //! - The maximum supported duration (`Duration::MAX`) has `u64::MAX` seconds
-//! (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds
+//!   (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds
 //! - parsed durations larger than the maximum duration saturate at the maximum duration
 //! - Negative durations like `"-1min"` or `"1 week ago"` are allowed
 //! - Any leading, trailing whitespace or whitespace between the number and the time unit (like in
-//! `"1 \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows the
-//! posix definition of whitespace which is:
-//!   - Space (`' '`)
-//!   - Horizontal Tab (`'\x09'`)
-//!   - Line Feed (`'\x0A'`)
-//!   - Vertical Tab (`'\x0B'`)
-//!   - Form Feed (`'\x0C'`)
-//!   - Carriage Return (`'\x0D'`)
+//!   `"1 \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows
+//!   the posix definition of whitespace which is:
+//!     - Space (`' '`)
+//!     - Horizontal Tab (`'\x09'`)
+//!     - Line Feed (`'\x0A'`)
+//!     - Vertical Tab (`'\x0B'`)
+//!     - Form Feed (`'\x0C'`)
+//!     - Carriage Return (`'\x0D'`)
 //!
 //! Please see also the gnu
 //! [documentation](https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html)
