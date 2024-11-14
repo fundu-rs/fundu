@@ -262,7 +262,7 @@ jobs:
             --ignore '[a-zA-Z]:/*' \
             --output-path lcov.info && test -e lcov.info
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           fail_ci_if_error: false
@@ -331,7 +331,7 @@ jobs:
             --ignore-filename-regex='/rustc/.*|\.cargo/registry/.*|fuzz/fuzz_targets/.*' \
             -Xdemangler='rustfilt' > lcov.info
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: lcov.info
           name: ${{ matrix.test.package }}-${{ matrix.test.fuzz_target }}
