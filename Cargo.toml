@@ -7,7 +7,7 @@ chrono = { version = "0.4.24", default-features = false }
 clap = "4"
 criterion = "0.5"
 iai-callgrind = "0.13"
-inferno = "0.11"
+inferno = "0.12"
 pprof = "0.13"
 rstest = ">=0.18"
 rstest_reuse = "0.7"
