@@ -3,15 +3,15 @@ resolver = "2"
 members = ["fundu", "fundu-core", "fundu-gnu", "fundu-systemd"]
 
 [workspace.dependencies]
-chrono = { version = "0.4.24", default-features = false }
-clap = "4"
+chrono = { version = "0.4.39", default-features = false }
+clap = ">=4.0.1"
 criterion = "0.5"
-iai-callgrind = "0.15"
+iai-callgrind = "0.15.1"
 inferno = "0.12"
 pprof = "0.14"
 rstest = ">=0.18"
 rstest_reuse = "0.7"
-serde = { version = "1", features = ["derive"] }
+serde = { version = "1.0.194", features = ["derive"] }
 serde_test = "1"
 time = { version = "0.3.1", default-features = false }
 
