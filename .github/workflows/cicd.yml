@@ -136,8 +136,8 @@ jobs:
           ##### big endian targets #####
           - s390x-unknown-linux-gnu
           # - sparc64-unknown-linux-gnu
-          # - powerpc-unknown-linux-gnu
-          - mips-unknown-linux-gnu
+          - powerpc-unknown-linux-gnu
+          # - mips-unknown-linux-musl
           ##### little endian targets #####
           - i686-unknown-linux-gnu
           - i586-unknown-linux-gnu
