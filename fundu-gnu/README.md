@@ -26,7 +26,7 @@
         <img src="https://docs.rs/fundu-gnu/badge.svg" alt="docs.rs"/>
     </a>
     <a href="https://github.com/rust-lang/rust">
-        <img src="https://img.shields.io/badge/MSRV-1.71.1-brightgreen" alt="MSRV"/>
+        <img src="https://img.shields.io/badge/MSRV-1.74.1-brightgreen" alt="MSRV"/>
     </a>
 </div>
 
