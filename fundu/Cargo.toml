@@ -10,7 +10,7 @@ keywords = ["fundu", "parse", "string", "duration", "time"]
 categories = ["parsing", "date-and-time"]
 homepage = "https://github.com/fundu-rs/fundu"
 repository = "https://github.com/fundu-rs/fundu"
-rust-version = "1.66.0"
+rust-version = "1.71.1"
 
 [package.metadata.docs.rs]
 all-features = true
