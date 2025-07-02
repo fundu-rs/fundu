@@ -8,7 +8,7 @@ clap = ">=4.0.1"
 criterion = "0.5"
 iai-callgrind = "0.15.1"
 inferno = "0.12"
-pprof = "0.14"
+pprof = "0.15"
 rstest = ">=0.18"
 rstest_reuse = "0.7"
 serde = { version = "1.0.194", features = ["derive"] }
