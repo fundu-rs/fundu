@@ -70,7 +70,7 @@ pub struct DurationParserBuilder<'a> {
     config: Config<'a>,
 }
 
-impl<'a> Default for DurationParserBuilder<'a> {
+impl Default for DurationParserBuilder<'_> {
     /// Construct a new [`DurationParserBuilder`] without any time units.
     fn default() -> Self {
         Self::new()

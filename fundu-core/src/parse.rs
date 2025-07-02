@@ -234,7 +234,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-impl<'a> Default for Parser<'a> {
+impl Default for Parser<'_> {
     fn default() -> Self {
         Self::new()
     }
@@ -432,7 +432,7 @@ pub struct DurationRepr<'a> {
     pub numeral: Option<Multiplier>,
 }
 
-impl<'a> DurationRepr<'a> {
+impl DurationRepr<'_> {
     #[allow(clippy::too_many_lines)]
     pub fn parse(&mut self) -> Result<Duration, ParseError> {
         if self.is_infinite {
@@ -1403,7 +1403,7 @@ impl<'a> ReprParserTemplate<'a> for ReprParserSingle<'a> {
                     self.bytes.reset(start);
                     return Ok(None);
                 }
-            };
+            }
 
             Ok(Some((time_unit, multiplier)))
         } else {

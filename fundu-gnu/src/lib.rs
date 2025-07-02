@@ -310,7 +310,7 @@ enum ParseFuzzyOutput {
 
 struct DurationReprParser<'a>(DurationRepr<'a>);
 
-impl<'a> DurationReprParser<'a> {
+impl DurationReprParser<'_> {
     fn parse(&mut self) -> Result<Duration, ParseError> {
         let is_negative = self.0.is_negative.unwrap_or_default();
         let time_unit = self.0.unit.unwrap_or(self.0.default_unit);
@@ -508,7 +508,7 @@ pub struct RelativeTimeParser<'a> {
     raw: Parser<'a>,
 }
 
-impl<'a> RelativeTimeParser<'a> {
+impl RelativeTimeParser<'_> {
     /// Create a new `RelativeTimeParser`
     ///
     /// # Examples
@@ -699,7 +699,7 @@ impl<'a> RelativeTimeParser<'a> {
     }
 }
 
-impl<'a> Default for RelativeTimeParser<'a> {
+impl Default for RelativeTimeParser<'_> {
     fn default() -> Self {
         Self::new()
     }

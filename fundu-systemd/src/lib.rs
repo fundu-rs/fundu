@@ -315,7 +315,7 @@ pub struct TimeSpanParser<'a> {
     raw: Parser<'a>,
 }
 
-impl<'a> TimeSpanParser<'a> {
+impl TimeSpanParser<'_> {
     /// Create a new `TimeSpanParser` with [`TimeUnit::Second`] as default unit
     ///
     /// # Examples
@@ -580,7 +580,7 @@ impl<'a> TimeSpanParser<'a> {
     }
 }
 
-impl<'a> Default for TimeSpanParser<'a> {
+impl Default for TimeSpanParser<'_> {
     fn default() -> Self {
         Self::new()
     }

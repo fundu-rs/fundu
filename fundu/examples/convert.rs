@@ -31,17 +31,17 @@ fn main() {
 
     match PARSER.parse(input.trim()) {
         Ok(duration) => {
-            println!("Input was: '{}'", input);
-            println!("fundu::Duration: {:?}", duration);
-            println!("fundu::Duration as human readable string: {}\n", duration);
+            println!("Input was: '{input}'");
+            println!("fundu::Duration: {duration:?}");
+            println!("fundu::Duration as human readable string: {duration}\n");
 
             match std::time::Duration::try_from(duration) {
                 Ok(duration) => {
-                    println!("Conversion to std::time::Duration: {:?}", duration)
+                    println!("Conversion to std::time::Duration: {duration:?}")
                 }
                 Err(error) => println!(
-                    "Error converting to std::time::Duration: The original error message was: '{}'",
-                    error
+                    "Error converting to std::time::Duration: The original error message was: \
+                     '{error}'"
                 ),
             };
             println!(
@@ -51,11 +51,11 @@ fn main() {
 
             match chrono::Duration::try_from(duration) {
                 Ok(duration) => {
-                    println!("Conversion to chrono::Duration: {:?}", duration)
+                    println!("Conversion to chrono::Duration: {duration:?}")
                 }
                 Err(error) => println!(
-                    "Error converting to chrono::Duration: The original error message was: '{}'",
-                    error
+                    "Error converting to chrono::Duration: The original error message was: \
+                     '{error}'"
                 ),
             };
             println!(
@@ -65,11 +65,10 @@ fn main() {
 
             match time::Duration::try_from(duration) {
                 Ok(duration) => {
-                    println!("Conversion to time::Duration: {:?}", duration)
+                    println!("Conversion to time::Duration: {duration:?}")
                 }
                 Err(error) => println!(
-                    "Error converting to time::Duration: The original error message was: '{}'",
-                    error
+                    "Error converting to time::Duration: The original error message was: '{error}'"
                 ),
             };
             println!(
@@ -77,6 +76,6 @@ fn main() {
                 SaturatingInto::<time::Duration>::saturating_into(duration)
             );
         }
-        Err(error) => println!("Error parsing duration '{}': {}", input, error),
+        Err(error) => println!("Error parsing duration '{input}': {error}"),
     }
 }

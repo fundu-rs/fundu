@@ -49,7 +49,7 @@ const PARSER_BUILDER: CustomDurationParserBuilder = CustomDurationParserBuilder:
 
 fn make_plural(time: u64, singular: &str) -> String {
     if time > 1 {
-        format!("{}s", singular)
+        format!("{singular}s")
     } else {
         singular.to_string()
     }

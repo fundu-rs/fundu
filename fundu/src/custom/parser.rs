@@ -852,7 +852,7 @@ impl<'a> CustomDurationParser<'a> {
     }
 }
 
-impl<'a> Default for CustomDurationParser<'a> {
+impl Default for CustomDurationParser<'_> {
     fn default() -> Self {
         Self::new()
     }

@@ -234,7 +234,7 @@ pub struct Config<'a> {
     pub allow_time_unit_delimiter: bool,
 }
 
-impl<'a> Default for Config<'a> {
+impl Default for Config<'_> {
     fn default() -> Self {
         Self::new()
     }

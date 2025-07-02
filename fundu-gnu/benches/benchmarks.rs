@@ -64,7 +64,7 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
             &input,
             |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
-        let input = &format!("1{}", input);
+        let input = &format!("1{input}");
         group.bench_with_input(
             BenchmarkId::new("time unit with number".to_string(), input),
             &input,

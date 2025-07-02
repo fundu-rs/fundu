@@ -56,7 +56,7 @@ fn make_human(duration: Duration) -> String {
             secs %= MINUTE;
         }
         if secs >= 1 {
-            result.push(format!("{}s", secs));
+            result.push(format!("{secs}s"));
         }
     }
 
@@ -71,7 +71,7 @@ fn make_human(duration: Duration) -> String {
             nanos %= MICROS_PER_NANO;
         }
         if nanos >= 1 {
-            result.push(format!("{}ns", nanos));
+            result.push(format!("{nanos}ns"));
         }
     }
 
