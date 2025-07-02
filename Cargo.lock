@@ -474,7 +474,7 @@ dependencies = [
  "criterion",
  "fundu-core",
  "iai-callgrind",
- "inferno",
+ "inferno 0.12.2",
  "pprof",
  "rstest",
  "rstest_reuse",
@@ -504,7 +504,7 @@ dependencies = [
  "criterion",
  "fundu-core",
  "iai-callgrind",
- "inferno",
+ "inferno 0.12.2",
  "pprof",
  "rstest",
  "rstest_reuse",
@@ -520,7 +520,7 @@ dependencies = [
  "criterion",
  "fundu",
  "iai-callgrind",
- "inferno",
+ "inferno 0.12.2",
  "pprof",
  "rstest",
 ]
@@ -690,18 +690,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "232929e1d75fe899576a3d5c7416ad0d88dbfbb3c3d6aa00873a7408a50ddb88"
 dependencies = [
  "ahash",
- "clap",
- "crossbeam-channel",
- "crossbeam-utils",
- "dashmap",
- "env_logger",
  "indexmap",
  "is-terminal",
  "itoa",
  "log",
  "num-format",
  "once_cell",
- "quick-xml",
+ "quick-xml 0.26.0",
+ "rgb",
+ "str_stack",
+]
+
+[[package]]
+name = "inferno"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2094aecddc672e902cd773bad7071542f63641e01e9187c3bba4b43005e837e9"
+dependencies = [
+ "ahash",
+ "clap",
+ "crossbeam-channel",
+ "crossbeam-utils",
+ "dashmap",
+ "env_logger",
+ "indexmap",
+ "itoa",
+ "log",
+ "num-format",
+ "once_cell",
+ "quick-xml 0.37.5",
  "rgb",
  "str_stack",
 ]
@@ -927,7 +944,7 @@ dependencies = [
  "cfg-if",
  "criterion",
  "findshlibs",
- "inferno",
+ "inferno 0.11.21",
  "libc",
  "log",
  "nix",
@@ -993,6 +1010,15 @@ name = "quick-xml"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f50b1c63b38611e7d4d7f68b82d3ad0cc71a2ad2e7f61fc10f1328d917c93cd"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "quick-xml"
+version = "0.37.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
 dependencies = [
  "memchr",
 ]
