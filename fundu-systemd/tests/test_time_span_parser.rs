@@ -106,7 +106,7 @@ fn test_parser_parse_when_invalid_time_units(#[case] input: &str, #[case] expect
 #[rstest]
 #[case::max_duration_plus_one_sec(&format!("{}.{}", MAX_USEC_DURATION_SECS + 1, MAX_USEC_DURATION_NANO))]
 #[case::max_duration_plus_one_nano(&format!("{}.{}", MAX_USEC_DURATION_SECS, MAX_USEC_DURATION_NANO + 1))]
-#[case::exact_max_duration(&format!("{}.{}", MAX_USEC_DURATION_SECS, MAX_USEC_DURATION_NANO))]
+#[case::exact_max_duration(&format!("{MAX_USEC_DURATION_SECS}.{MAX_USEC_DURATION_NANO}"))]
 #[case::large_just_number(&"1".repeat(1022))]
 #[case::barely_with_multiple_durations("1year 10000years 100000years 14975376516109.55s 1616usec")]
 fn test_parser_parse_when_saturating(#[case] input: &str) {

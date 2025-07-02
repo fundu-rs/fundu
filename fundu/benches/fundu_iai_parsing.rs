@@ -7,8 +7,8 @@ use std::hint::black_box;
 use fundu::TimeUnit::*;
 use fundu::{Duration, DurationParser, DurationParserBuilder, TimeUnit};
 use iai_callgrind::{
-    library_benchmark, library_benchmark_group, main, EventKind, FlamegraphConfig,
-    LibraryBenchmarkConfig, RegressionConfig,
+    library_benchmark, library_benchmark_group, main, Callgrind, EventKind, FlamegraphConfig,
+    LibraryBenchmarkConfig,
 };
 
 #[library_benchmark]
@@ -46,11 +46,11 @@ library_benchmark_group!(name = parsing_speed; benchmarks = without_time_units, 
 
 main!(
     config = LibraryBenchmarkConfig::default()
-        .flamegraph(
-            FlamegraphConfig::default()
-        )
-        .regression(
-            RegressionConfig::default().limits([(EventKind::Ir, 5.0)])
+        .tool(Callgrind::default()
+            .flamegraph(
+                FlamegraphConfig::default()
+            )
+            .limits([(EventKind::Ir, 5.0)])
         );
     library_benchmark_groups = parsing_speed
 );

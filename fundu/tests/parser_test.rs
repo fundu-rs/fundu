@@ -237,11 +237,9 @@ fn test_parser_when_time_units_are_not_present_then_error(
     #[case] source: &str,
     #[case] time_units: Vec<TimeUnit>,
 ) {
-    assert!(
-        DurationParser::with_time_units(time_units.as_slice())
-            .parse(source)
-            .is_err()
-    );
+    assert!(DurationParser::with_time_units(time_units.as_slice())
+        .parse(source)
+        .is_err());
 }
 
 #[rstest]
@@ -382,11 +380,9 @@ fn test_parser_when_disable_infinity(
 #[rstest]
 #[case::minute_short("1s", TimeUnit::Minute)]
 fn test_parser_when_custom_time_unit_then_error(#[case] source: &str, #[case] time_unit: TimeUnit) {
-    assert!(
-        DurationParser::with_time_units(&[time_unit])
-            .parse(source)
-            .is_err()
-    );
+    assert!(DurationParser::with_time_units(&[time_unit])
+        .parse(source)
+        .is_err());
 }
 
 #[rstest]

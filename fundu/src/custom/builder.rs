@@ -47,7 +47,7 @@ pub struct CustomDurationParserBuilder<'a> {
     numerals: Vec<Numeral<'a>>,
 }
 
-impl<'a> Default for CustomDurationParserBuilder<'a> {
+impl Default for CustomDurationParserBuilder<'_> {
     /// Construct a new [`CustomDurationParserBuilder`] without any time units.
     fn default() -> Self {
         Self::new()

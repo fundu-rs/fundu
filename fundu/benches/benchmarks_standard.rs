@@ -3,9 +3,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::hint::black_box;
 use std::time::Duration;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use fundu::DurationParser;
 use fundu::TimeUnit::*;
 

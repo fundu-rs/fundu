@@ -667,7 +667,11 @@ impl Duration {
 
         #[allow(clippy::cast_possible_wrap)]
         let result = (self.inner.as_secs() / factor) as i64;
-        if self.is_negative { -result } else { result }
+        if self.is_negative {
+            -result
+        } else {
+            result
+        }
     }
 
     /// Return the number of *whole* weeks in the `Duration`
@@ -753,7 +757,11 @@ impl Duration {
     #[inline]
     pub const fn as_seconds(&self) -> i128 {
         let seconds = self.inner.as_secs() as i128;
-        if self.is_negative { -seconds } else { seconds }
+        if self.is_negative {
+            -seconds
+        } else {
+            seconds
+        }
     }
 
     /// Return the total number of *whole* milliseconds in the `Duration`
@@ -855,7 +863,11 @@ impl Duration {
     pub const fn subsec_nanos(&self) -> i32 {
         #[allow(clippy::cast_possible_wrap)]
         let nanos = self.inner.subsec_nanos() as i32;
-        if self.is_negative { -nanos } else { nanos }
+        if self.is_negative {
+            -nanos
+        } else {
+            nanos
+        }
     }
 
     fn extract_i64(&mut self, factor: u64) -> i64 {
@@ -1439,8 +1451,8 @@ impl TryFrom<&Duration> for chrono::Duration {
     type Error = TryFromDurationError;
 
     fn try_from(duration: &Duration) -> Result<Self, Self::Error> {
-        const MAX: chrono::Duration = chrono::Duration::max_value();
-        const MIN: chrono::Duration = chrono::Duration::min_value();
+        const MAX: chrono::Duration = chrono::TimeDelta::MAX;
+        const MIN: chrono::Duration = chrono::TimeDelta::MIN;
 
         #[allow(clippy::cast_possible_wrap)]
         match (duration.is_negative, duration.inner.as_secs()) {
@@ -1470,8 +1482,8 @@ impl TryFrom<&Duration> for chrono::Duration {
 impl SaturatingInto<chrono::Duration> for Duration {
     fn saturating_into(self) -> chrono::Duration {
         self.try_into().unwrap_or_else(|error| match error {
-            TryFromDurationError::PositiveOverflow => chrono::Duration::max_value(),
-            TryFromDurationError::NegativeOverflow => chrono::Duration::min_value(),
+            TryFromDurationError::PositiveOverflow => chrono::TimeDelta::MAX,
+            TryFromDurationError::NegativeOverflow => chrono::TimeDelta::MIN,
             TryFromDurationError::NegativeDuration => unreachable!(), // cov:excl-line
         })
     }
@@ -2373,27 +2385,27 @@ mod tests {
     #[case::negative_one(Duration::negative(1, 0), chrono::Duration::seconds(-1))]
     #[case::negative_barely_no_overflow(
         Duration::negative(i64::MIN.unsigned_abs() / 1000, 808_000_000),
-        chrono::Duration::min_value()
+        chrono::TimeDelta::MIN
     )]
     #[case::negative_barely_overflow(
         Duration::negative(i64::MIN.unsigned_abs() / 1000 + 1, 0),
-        chrono::Duration::min_value()
+        chrono::TimeDelta::MIN
     )]
     #[case::negative_max_overflow(
         Duration::negative(u64::MAX, 999_999_999),
-        chrono::Duration::min_value()
+        chrono::TimeDelta::MIN
     )]
     #[case::positive_barely_no_overflow(
         Duration::positive(i64::MAX as u64 / 1000, 807_000_000),
-        chrono::Duration::max_value()
+        chrono::TimeDelta::MAX
     )]
     #[case::positive_barely_overflow(
         Duration::positive(i64::MAX as u64 / 1000 + 1, 807_000_000),
-        chrono::Duration::max_value()
+        chrono::TimeDelta::MAX
     )]
     #[case::positive_max_overflow(
         Duration::positive(u64::MAX, 999_999_999),
-        chrono::Duration::max_value()
+        chrono::TimeDelta::MAX
     )]
     fn test_fundu_duration_saturating_into_chrono_duration(
         #[case] duration: Duration,
@@ -2445,11 +2457,11 @@ mod tests {
     ]
     #[case::max_secs_and_nanos(
         Duration::positive(i64::MAX as u64 / 1000, 807_000_000),
-        ChronoDuration::max_value())
+        chrono::TimeDelta::MAX)
     ]
     #[case::secs_and_nanos_one_below_max(
         Duration::positive(i64::MAX as u64 / 1000, 807_000_000 - 1),
-        ChronoDuration::max_value().checked_sub(&ChronoDuration::nanoseconds(1)).unwrap())
+        chrono::TimeDelta::MAX.checked_sub(&ChronoDuration::nanoseconds(1)).unwrap())
     ]
     #[case::min_secs(
         Duration::negative(i64::MIN.unsigned_abs() / 1000, 0),
@@ -2457,11 +2469,11 @@ mod tests {
     ]
     #[case::min_secs_and_nanos(
         Duration::negative(i64::MIN.unsigned_abs() / 1000, 807_000_000),
-        ChronoDuration::min_value())
+        chrono::TimeDelta::MIN)
     ]
     #[case::secs_and_nanos_one_above_min(
         Duration::negative(i64::MIN.unsigned_abs() / 1000, 807_000_000 - 1),
-        ChronoDuration::min_value().checked_add(&ChronoDuration::nanoseconds(1)).unwrap())
+        chrono::TimeDelta::MIN.checked_add(&ChronoDuration::nanoseconds(1)).unwrap())
     ]
     fn test_chrono_duration_try_from_fundu_duration(
         #[case] duration: Duration,
@@ -2568,8 +2580,8 @@ mod tests {
     #[case::positive_one_nano(chrono::Duration::nanoseconds(1), Duration::positive(0, 1))]
     #[case::negative_one(chrono::Duration::seconds(-1), Duration::negative(1, 0))]
     #[case::negative_one_nano(chrono::Duration::nanoseconds(-1), Duration::negative(0, 1))]
-    #[case::min(chrono::Duration::min_value(), CHRONO_MIN_DURATION)]
-    #[case::max(chrono::Duration::max_value(), CHRONO_MAX_DURATION)]
+    #[case::min(chrono::TimeDelta::MIN, CHRONO_MIN_DURATION)]
+    #[case::max(chrono::TimeDelta::MAX, CHRONO_MAX_DURATION)]
     fn test_fundu_duration_from_chrono_duration(
         #[case] chrono_duration: chrono::Duration,
         #[case] expected: Duration,

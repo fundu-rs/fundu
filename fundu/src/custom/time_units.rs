@@ -253,7 +253,7 @@ impl<'a> CustomTimeUnit<'a> {
 /// Two [`CustomTimeUnit`]s are equal if their `base_unit`s and their `multipliers` are equal
 ///
 /// The identifiers don't influence equality
-impl<'a> PartialEq for CustomTimeUnit<'a> {
+impl PartialEq for CustomTimeUnit<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.base_unit == other.base_unit && self.multiplier == other.multiplier
     }
@@ -263,7 +263,7 @@ impl<'a> PartialEq for CustomTimeUnit<'a> {
 /// equal
 ///
 /// The identifiers don't have an influence on the hash
-impl<'a> Hash for CustomTimeUnit<'a> {
+impl Hash for CustomTimeUnit<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.base_unit.hash(state);
         self.multiplier.hash(state);
@@ -376,7 +376,7 @@ impl<'a> CustomTimeUnits<'a> {
     }
 }
 
-impl<'a> TimeUnitsLike for CustomTimeUnits<'a> {
+impl TimeUnitsLike for CustomTimeUnits<'_> {
     #[inline]
     fn is_empty(&self) -> bool {
         self.time_units.is_empty()
@@ -586,13 +586,11 @@ mod tests {
     fn test_custom_time_units_when_add_custom_time_unit() {
         let mut custom = CustomTimeUnits::new();
         custom.add_custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["some", "ids"]));
-        assert!(
-            custom
-                .time_units
-                .iter()
-                .filter(|(data, _)| data.time_unit != MicroSecond)
-                .all(|(_, v)| v.is_empty())
-        );
+        assert!(custom
+            .time_units
+            .iter()
+            .filter(|(data, _)| data.time_unit != MicroSecond)
+            .all(|(_, v)| v.is_empty()));
         assert_eq!(
             custom.lookup(MicroSecond, Multiplier::default()).unwrap().1,
             vec!["some", "ids"]

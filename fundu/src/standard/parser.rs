@@ -660,7 +660,7 @@ impl<'a> DurationParser<'a> {
     }
 }
 
-impl<'a> Default for DurationParser<'a> {
+impl Default for DurationParser<'_> {
     fn default() -> Self {
         Self::new()
     }

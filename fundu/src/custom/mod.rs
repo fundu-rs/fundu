@@ -82,7 +82,7 @@ impl<'a> Numerals<'a> {
     }
 }
 
-impl<'a> NumbersLike for Numerals<'a> {
+impl NumbersLike for Numerals<'_> {
     fn get(&self, input: &str) -> Option<Multiplier> {
         self.data.iter().find_map(|numeral| {
             numeral

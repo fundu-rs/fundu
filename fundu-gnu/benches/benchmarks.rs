@@ -3,9 +3,10 @@
 // This software is released under the MIT License.
 // https://opensource.org/licenses/MIT
 
+use std::hint::black_box;
 use std::time::Duration;
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use fundu_gnu::RelativeTimeParser;
 
 fn criterion_config() -> Criterion {
@@ -64,7 +65,7 @@ fn benchmark_parsing_with_time_units(criterion: &mut Criterion) {
             &input,
             |b, input| b.iter(|| black_box(&parser).parse(input).unwrap()),
         );
-        let input = &format!("1{}", input);
+        let input = &format!("1{input}");
         group.bench_with_input(
             BenchmarkId::new("time unit with number".to_string(), input),
             &input,
