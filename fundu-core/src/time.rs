@@ -667,7 +667,11 @@ impl Duration {
 
         #[allow(clippy::cast_possible_wrap)]
         let result = (self.inner.as_secs() / factor) as i64;
-        if self.is_negative { -result } else { result }
+        if self.is_negative {
+            -result
+        } else {
+            result
+        }
     }
 
     /// Return the number of *whole* weeks in the `Duration`
@@ -753,7 +757,11 @@ impl Duration {
     #[inline]
     pub const fn as_seconds(&self) -> i128 {
         let seconds = self.inner.as_secs() as i128;
-        if self.is_negative { -seconds } else { seconds }
+        if self.is_negative {
+            -seconds
+        } else {
+            seconds
+        }
     }
 
     /// Return the total number of *whole* milliseconds in the `Duration`
@@ -855,7 +863,11 @@ impl Duration {
     pub const fn subsec_nanos(&self) -> i32 {
         #[allow(clippy::cast_possible_wrap)]
         let nanos = self.inner.subsec_nanos() as i32;
-        if self.is_negative { -nanos } else { nanos }
+        if self.is_negative {
+            -nanos
+        } else {
+            nanos
+        }
     }
 
     fn extract_i64(&mut self, factor: u64) -> i64 {

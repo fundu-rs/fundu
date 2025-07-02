@@ -586,13 +586,11 @@ mod tests {
     fn test_custom_time_units_when_add_custom_time_unit() {
         let mut custom = CustomTimeUnits::new();
         custom.add_custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["some", "ids"]));
-        assert!(
-            custom
-                .time_units
-                .iter()
-                .filter(|(data, _)| data.time_unit != MicroSecond)
-                .all(|(_, v)| v.is_empty())
-        );
+        assert!(custom
+            .time_units
+            .iter()
+            .filter(|(data, _)| data.time_unit != MicroSecond)
+            .all(|(_, v)| v.is_empty()));
         assert_eq!(
             custom.lookup(MicroSecond, Multiplier::default()).unwrap().1,
             vec!["some", "ids"]
