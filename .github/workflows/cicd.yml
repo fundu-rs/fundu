@@ -353,11 +353,7 @@ jobs:
       - uses: taiki-e/install-action@cargo-binstall
       - name: Install iai-callgrind-runner
         run: |
-          version=$(cargo metadata --format-version=1 |\
-            jq '.packages[] | select(.name == "iai-callgrind").version' |\
-            tr -d '"'
-          )
-          cargo binstall --no-confirm iai-callgrind-runner@$version
+          cargo binstall --no-confirm iai-callgrind-runner@$(cargo pkgid iai-callgrind | cut -d@ -f2)
       - uses: Swatinem/rust-cache@v2
       - name: Prepare
         run: |
