@@ -662,9 +662,9 @@ checksum = "fc0fef456e4baa96da950455cd02c081ca953b141298e41db3fc7e36b1da849c"
 
 [[package]]
 name = "iai-callgrind"
-version = "0.13.4"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4bd871e6374d5ca2d9b48dd23b3c7ef63a4201728621f6d75937dfcc66e91809"
+checksum = "27ed8129018ca85809524a404efd22c99ba5111c1adc8a7f8d2d41cc1de2e242"
 dependencies = [
  "bincode",
  "derive_more",
@@ -674,9 +674,9 @@ dependencies = [
 
 [[package]]
 name = "iai-callgrind-macros"
-version = "0.4.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "397649417510422ded7033f86132f833cca8c2e5081d0dfbec939b2353da7021"
+checksum = "763d0d9b10ba3177236eda380afb78bafa150556dc4536969f91f938fee1b83a"
 dependencies = [
  "derive_more",
  "proc-macro-error2",
@@ -689,9 +689,9 @@ dependencies = [
 
 [[package]]
 name = "iai-callgrind-runner"
-version = "0.13.4"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3783c337f9e931af702b5d5835ff2a6824bf55e416461a4e042dfb4b8fdbbea"
+checksum = "fdfd7c2121793a28bcd4fb2eba3ecf8915d754232068a2ed32b44a28a34afa3e"
 dependencies = [
  "serde",
 ]

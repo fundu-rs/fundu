@@ -6,8 +6,8 @@ use std::hint::black_box;
 
 use fundu::{CustomDurationParser, DEFAULT_ALL_TIME_UNITS, SYSTEMD_TIME_UNITS};
 use iai_callgrind::{
-    library_benchmark, library_benchmark_group, main, EventKind, FlamegraphConfig,
-    LibraryBenchmarkConfig, RegressionConfig,
+    library_benchmark, library_benchmark_group, main, Callgrind, EventKind, FlamegraphConfig,
+    LibraryBenchmarkConfig,
 };
 
 #[library_benchmark]
@@ -27,7 +27,9 @@ library_benchmark_group!(
 
 main!(
     config = LibraryBenchmarkConfig::default()
-        .flamegraph(FlamegraphConfig::default())
-        .regression(RegressionConfig::default().limits([(EventKind::Ir, 5.0)]));
+        .tool(Callgrind::default()
+            .flamegraph(FlamegraphConfig::default())
+            .limits([(EventKind::Ir, 5.0)])
+        );
     library_benchmark_groups = initialization
 );
