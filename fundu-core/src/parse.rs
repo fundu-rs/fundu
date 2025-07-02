@@ -782,7 +782,7 @@ impl<'a> Bytes<'a> {
     pub fn parse_digits_strip_zeros(&mut self) -> BytesRange {
         const ASCII_EIGHT_ZEROS: u64 = 0x3030_3030_3030_3030;
 
-        debug_assert!(self.current_byte.map_or(false, u8::is_ascii_digit)); // cov:excl-stop
+        debug_assert!(self.current_byte.is_some_and(u8::is_ascii_digit)); // cov:excl-stop
 
         let mut start = self.current_pos;
         let mut strip_leading_zeros = true;
@@ -820,7 +820,7 @@ impl<'a> Bytes<'a> {
     }
 
     pub fn parse_digits(&mut self) -> BytesRange {
-        debug_assert!(self.current_byte.map_or(false, u8::is_ascii_digit)); // cov:excl-stop
+        debug_assert!(self.current_byte.is_some_and(u8::is_ascii_digit)); // cov:excl-stop
 
         let start = self.current_pos;
         while self.parse_8_digits().is_some() {}
@@ -854,7 +854,7 @@ impl<'a> Bytes<'a> {
     #[inline]
     pub fn next_is_ignore_ascii_case(&self, word: &[u8]) -> bool {
         self.peek(word.len())
-            .map_or(false, |bytes| bytes.eq_ignore_ascii_case(word))
+            .is_some_and(|bytes| bytes.eq_ignore_ascii_case(word))
     }
 
     #[inline]
