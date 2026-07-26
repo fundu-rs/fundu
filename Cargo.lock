@@ -488,7 +488,7 @@ dependencies = [
  "criterion",
  "fundu-core",
  "iai-callgrind",
- "inferno 0.12.2",
+ "inferno 0.12.8",
  "pprof",
  "rstest",
  "rstest_reuse",
@@ -518,7 +518,7 @@ dependencies = [
  "criterion",
  "fundu-core",
  "iai-callgrind",
- "inferno 0.12.2",
+ "inferno 0.12.8",
  "pprof",
  "rstest",
  "rstest_reuse",
@@ -534,7 +534,7 @@ dependencies = [
  "criterion",
  "fundu",
  "iai-callgrind",
- "inferno 0.12.2",
+ "inferno 0.12.8",
  "pprof",
  "rstest",
 ]
@@ -717,9 +717,9 @@ dependencies = [
 
 [[package]]
 name = "inferno"
-version = "0.12.2"
+version = "0.12.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2094aecddc672e902cd773bad7071542f63641e01e9187c3bba4b43005e837e9"
+checksum = "0c460d4fa06223667240720ab69a8045133755ae6dfbe100cf481b95e3a014f1"
 dependencies = [
  "ahash",
  "clap",
@@ -732,7 +732,7 @@ dependencies = [
  "log",
  "num-format",
  "once_cell",
- "quick-xml 0.37.5",
+ "quick-xml 0.41.0",
  "rgb",
  "str_stack",
 ]
@@ -1050,9 +1050,9 @@ dependencies = [
 
 [[package]]
 name = "quick-xml"
-version = "0.37.5"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331e97a1af0bf59823e6eadffe373d7b27f485be8748f71471c662c1f269b7fb"
+checksum = "e660451e55124f798a69a5af3f49ccfbefbd41910eefd25caf2393e1f3473ec1"
 dependencies = [
  "memchr",
 ]
