@@ -7,8 +7,8 @@ use std::hint::black_box;
 use fundu::TimeUnit::*;
 use fundu::{Duration, DurationParser, DurationParserBuilder, TimeUnit};
 use iai_callgrind::{
-    library_benchmark, library_benchmark_group, main, Callgrind, EventKind, FlamegraphConfig,
-    LibraryBenchmarkConfig,
+    Callgrind, EventKind, FlamegraphConfig, LibraryBenchmarkConfig, library_benchmark,
+    library_benchmark_group, main,
 };
 
 #[library_benchmark]

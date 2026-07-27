@@ -83,7 +83,7 @@
 //!
 //! ```rust
 //! use fundu::Duration;
-//! use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION};
+//! use fundu_systemd::{SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION, TimeSpanParser};
 //!
 //! const PARSER: TimeSpanParser = TimeSpanParser::new();
 //!
@@ -138,7 +138,7 @@
 //! ```rust
 //! use fundu::{Duration, ParseError};
 //! use fundu_systemd::{
-//!     parse, parse_nanos, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION,
+//!     SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION, parse, parse_nanos,
 //! };
 //!
 //! assert_eq!(parse("123 sec", None, None), Ok(Duration::positive(123, 0)));
@@ -191,7 +191,7 @@
 #![warn(clippy::partial_pub_fields)]
 #![warn(clippy::rest_pat_in_fully_bound_structs)]
 #![warn(clippy::str_to_string)]
-#![warn(clippy::string_to_string)]
+#![warn(clippy::implicit_clone)]
 #![warn(clippy::todo)]
 #![warn(clippy::try_err)]
 #![warn(clippy::undocumented_unsafe_blocks)]
@@ -252,7 +252,7 @@ pub const SYSTEMD_MAX_NANOS_DURATION: Duration =
 ///
 /// ```rust
 /// use fundu::Duration;
-/// use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION};
+/// use fundu_systemd::{SYSTEMD_MAX_MICRO_DURATION, TimeSpanParser};
 ///
 /// const PARSER: TimeSpanParser = TimeSpanParser::new();
 ///
@@ -380,7 +380,7 @@ impl TimeSpanParser<'_> {
     ///
     /// ```rust
     /// use fundu::Duration;
-    /// use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION};
+    /// use fundu_systemd::{SYSTEMD_MAX_MICRO_DURATION, TimeSpanParser};
     ///
     /// let parser = TimeSpanParser::new();
     /// assert_eq!(
@@ -469,7 +469,7 @@ impl TimeSpanParser<'_> {
     ///
     /// ```rust
     /// use fundu::Duration;
-    /// use fundu_systemd::{TimeSpanParser, SYSTEMD_MAX_NANOS_DURATION};
+    /// use fundu_systemd::{SYSTEMD_MAX_NANOS_DURATION, TimeSpanParser};
     ///
     /// let parser = TimeSpanParser::new();
     /// assert_eq!(
@@ -662,7 +662,7 @@ impl TimeUnitsLike for TimeUnitsWithNanos {
 ///
 /// ```rust
 /// use fundu::{Duration, TimeUnit};
-/// use fundu_systemd::{parse, SYSTEMD_MAX_MICRO_DURATION};
+/// use fundu_systemd::{SYSTEMD_MAX_MICRO_DURATION, parse};
 ///
 /// assert_eq!(
 ///     parse("2hours", None, None),
@@ -728,7 +728,7 @@ pub fn parse(
 ///
 /// ```rust
 /// use fundu::{Duration, TimeUnit};
-/// use fundu_systemd::{parse_nanos, SYSTEMD_MAX_NANOS_DURATION};
+/// use fundu_systemd::{SYSTEMD_MAX_NANOS_DURATION, parse_nanos};
 ///
 /// assert_eq!(
 ///     parse_nanos("2nsec", None, None),

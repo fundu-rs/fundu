@@ -7,9 +7,9 @@ use fundu_core::config::Delimiter;
 use fundu_core::parse::Parser;
 use fundu_core::time::{Duration, Multiplier, TimeUnitsLike};
 
+use super::Numerals;
 use super::builder::CustomDurationParserBuilder;
 use super::time_units::{CustomTimeUnit, CustomTimeUnits, TimeKeyword};
-use super::Numerals;
 use crate::{Numeral, ParseError, TimeUnit};
 
 /// A parser with a customizable set of [`TimeUnit`]s and customizable identifiers.
@@ -196,7 +196,7 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// ```rust
     /// use fundu::TimeUnit::*;
-    /// use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, CustomTimeUnit, DEFAULT_TIME_UNITS, Duration, Multiplier};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     ///
@@ -603,7 +603,7 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, ParseError, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS, ParseError};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.disable_exponent(true);
@@ -685,7 +685,7 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.number_is_optional(true);
@@ -706,7 +706,7 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser.parse_multiple(true, Some(&["and"]));
@@ -752,7 +752,7 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser
@@ -784,7 +784,7 @@ impl<'a> CustomDurationParser<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParser, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParser, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let mut parser = CustomDurationParser::with_time_units(&DEFAULT_TIME_UNITS);
     /// parser
@@ -865,9 +865,9 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
+    use crate::TimeUnit::*;
     use crate::custom::builder::CustomDurationParserBuilder;
     use crate::custom::time_units::DEFAULT_ALL_TIME_UNITS;
-    use crate::TimeUnit::*;
 
     const YEAR: u64 = 60 * 60 * 24 * 365 + 60 * 60 * 24 / 4;
     const MONTH: u64 = YEAR / 12;

@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::str::Utf8Error;
 use std::time::Duration as StdDuration;
 
-use crate::config::{Config, Delimiter, NumbersLike, DEFAULT_CONFIG};
+use crate::config::{Config, DEFAULT_CONFIG, Delimiter, NumbersLike};
 use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 use crate::util::POW10;
@@ -311,7 +311,7 @@ impl Whole {
     }
 
     pub fn parse(digits: &[u8], append: Option<&[u8]>, zeros: Option<usize>) -> Option<u64> {
-        if digits.is_empty() && append.map_or(true, <[u8]>::is_empty) {
+        if digits.is_empty() && append.is_none_or(<[u8]>::is_empty) {
             return Some(0);
         }
 
@@ -370,7 +370,7 @@ impl Fract {
     }
 
     pub fn parse(digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
-        if digits.is_empty() && prepend.map_or(true, <[u8]>::is_empty) {
+        if digits.is_empty() && prepend.is_none_or(<[u8]>::is_empty) {
             return 0;
         }
 
@@ -443,9 +443,8 @@ impl DurationRepr<'_> {
         }
 
         if self.whole.is_none() && self.fract.is_none() {
-            return if self.numeral.is_some() {
+            return if let Some(numeral) = self.numeral {
                 let time_unit = self.unit.expect("Numeral without time unit");
-                let numeral = self.numeral.unwrap();
                 let Multiplier(coefficient, exponent) =
                     numeral * time_unit.multiplier() * self.multiplier;
 
@@ -1685,12 +1684,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         // far
         let string = unsafe { std::str::from_utf8_unchecked(buffer) };
 
-        let (time_unit, mut multiplier) = match time_units.get(string) {
-            None => {
-                self.bytes.reset(start);
-                return Ok(None);
-            }
-            Some(some_time_unit) => some_time_unit,
+        let Some((time_unit, mut multiplier)) = time_units.get(string) else {
+            self.bytes.reset(start);
+            return Ok(None);
         };
 
         match self.bytes.current_byte {

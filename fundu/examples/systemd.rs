@@ -9,7 +9,7 @@
 
 use std::time::Duration;
 
-use clap::{command, Arg};
+use clap::{Arg, command};
 use fundu::TimeUnit::*;
 use fundu::{CustomDurationParser, SYSTEMD_TIME_UNITS};
 
@@ -113,6 +113,6 @@ fn main() {
             println!("{:>8}: {}", "μs", duration.as_micros());
             println!("{:>8}: {}", "Human", make_human(duration));
         }
-        Err(error) => eprintln!("Failed to parse time span '{}': {}", &input, error),
+        Err(error) => eprintln!("Failed to parse time span '{}': {}", input, error),
     }
 }

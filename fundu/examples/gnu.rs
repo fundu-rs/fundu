@@ -6,7 +6,7 @@
 //! A gnu relative time parser as specified here
 //! `https://www.gnu.org/software/coreutils/manual/html_node/Relative-items-in-date-strings.html`.
 
-use clap::{command, Arg};
+use clap::{Arg, command};
 use fundu::TimeUnit::*;
 use fundu::{
     CustomDurationParserBuilder, CustomTimeUnit, Duration, Multiplier, SaturatingInto, TimeKeyword,
@@ -109,7 +109,7 @@ fn make_human(duration: Duration) -> String {
     }
 
     if duration.is_negative() {
-        format!("-{}", &result.join(" -"))
+        format!("-{}", result.join(" -"))
     } else {
         result.join(" ")
     }
@@ -156,6 +156,6 @@ fn main() {
             );
             println!("{:>8}: {}", "Human", make_human(duration));
         }
-        Err(error) => eprintln!("Failed to parse relative time '{}': {}", &input, error),
+        Err(error) => eprintln!("Failed to parse relative time '{}': {}", input, error),
     }
 }

@@ -6,8 +6,8 @@
 //! A small command line application which uses clap for parsing the arguments and chrono as an
 //! example for converting fundu's duration into another duration.
 
-use clap::{command, Arg};
-use fundu_gnu::{parse, SaturatingInto, TryFromDurationError};
+use clap::{Arg, command};
+use fundu_gnu::{SaturatingInto, TryFromDurationError, parse};
 
 fn main() {
     let matches = command!()
@@ -50,6 +50,6 @@ fn main() {
                 }
             );
         }
-        Err(error) => eprintln!("Failed to parse relative time '{}': {}", &input, error),
+        Err(error) => eprintln!("Failed to parse relative time '{}': {}", input, error),
     }
 }

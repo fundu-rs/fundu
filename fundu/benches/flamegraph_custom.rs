@@ -5,7 +5,7 @@
 
 //! Flamegraphs for the custom module and the CustomDurationParser
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use fundu::{CustomDurationParser, DEFAULT_ALL_TIME_UNITS, SYSTEMD_TIME_UNITS};
 use pprof::criterion::{Output, PProfProfiler};
 use pprof::flamegraph::Options as FlamegraphOptions;

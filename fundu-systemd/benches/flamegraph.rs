@@ -5,7 +5,7 @@
 
 //! Flamegraphs for the standard module and the DurationParser
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use fundu::TimeUnit::*;
 use fundu_systemd::TimeSpanParser;
 use pprof::criterion::{Output, PProfProfiler};

@@ -9,8 +9,8 @@ use std::time::Duration as StdDuration;
 
 use fundu::TimeUnit::*;
 use fundu::{
-    parse_duration, CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, Duration,
-    DurationParser, Multiplier, ParseError, TimeKeyword, TimeUnit, SYSTEMD_TIME_UNITS,
+    CustomDurationParser, CustomDurationParserBuilder, CustomTimeUnit, Duration, DurationParser,
+    Multiplier, ParseError, SYSTEMD_TIME_UNITS, TimeKeyword, TimeUnit, parse_duration,
 };
 use rstest::rstest;
 

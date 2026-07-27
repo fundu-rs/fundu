@@ -110,7 +110,7 @@ impl Display for TryFromDurationError {
 mod tests {
     use rstest::rstest;
     #[cfg(feature = "serde")]
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
 
     use super::*;
 

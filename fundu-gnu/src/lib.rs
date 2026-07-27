@@ -158,7 +158,7 @@
 //! The global [`parse`] method does the same without the need to create a [`RelativeTimeParser`].
 //!
 //! ```rust
-//! use fundu_gnu::{parse, Duration};
+//! use fundu_gnu::{Duration, parse};
 //!
 //! assert_eq!(parse("123 sec"), Ok(Duration::positive(123, 0)));
 //! assert_eq!(parse("1sec3min"), Ok(Duration::positive(1 + 3 * 60, 0)));
@@ -202,7 +202,7 @@
 #![warn(clippy::partial_pub_fields)]
 #![warn(clippy::rest_pat_in_fully_bound_structs)]
 #![warn(clippy::str_to_string)]
-#![warn(clippy::string_to_string)]
+#![warn(clippy::implicit_clone)]
 #![warn(clippy::todo)]
 #![warn(clippy::try_err)]
 #![warn(clippy::undocumented_unsafe_blocks)]
@@ -875,7 +875,7 @@ impl NumbersLike for Numerals {
 /// # Examples
 ///
 /// ```rust
-/// use fundu_gnu::{parse, Duration};
+/// use fundu_gnu::{Duration, parse};
 ///
 /// assert_eq!(parse("2hours"), Ok(Duration::positive(2 * 60 * 60, 0)));
 /// assert_eq!(parse("12 seconds"), Ok(Duration::positive(12, 0)));
@@ -903,7 +903,7 @@ pub fn parse(source: &str) -> Result<Duration, ParseError> {
 /// # Examples
 ///
 /// ```rust
-/// use fundu_gnu::{parse_with_date, DateTime, Duration};
+/// use fundu_gnu::{DateTime, Duration, parse_with_date};
 ///
 /// assert_eq!(
 ///     parse_with_date("2hours", None),
@@ -955,7 +955,7 @@ pub fn parse_with_date(source: &str, date: Option<DateTime>) -> Result<Duration,
 /// # Examples
 ///
 /// ```rust
-/// use fundu_gnu::{parse_fuzzy, Duration};
+/// use fundu_gnu::{Duration, parse_fuzzy};
 ///
 /// assert_eq!(
 ///     parse_fuzzy("2hours"),

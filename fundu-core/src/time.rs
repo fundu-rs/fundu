@@ -10,9 +10,9 @@ use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
+use TimeUnit::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use TimeUnit::*;
 
 use crate::error::TryFromDurationError;
 
@@ -1105,16 +1105,16 @@ impl Duration {
                 .map(|d| Self::from_std(true, d)),
             (true, false, Ordering::Equal) | (false, true, Ordering::Equal) => Some(Self::ZERO),
             (true, false, Ordering::Greater) => {
-                Some(Self::from_std(true, self.inner.sub(other.inner)))
+                Some(Self::from_std(true, self.inner.checked_sub(other.inner)?))
             }
             (true, false, Ordering::Less) => {
-                Some(Self::from_std(false, other.inner.sub(self.inner)))
+                Some(Self::from_std(false, other.inner.checked_sub(self.inner)?))
             }
             (false, true, Ordering::Greater) => {
-                Some(Self::from_std(false, self.inner.sub(other.inner)))
+                Some(Self::from_std(false, self.inner.checked_sub(other.inner)?))
             }
             (false, true, Ordering::Less) => {
-                Some(Self::from_std(true, other.inner.sub(self.inner)))
+                Some(Self::from_std(true, other.inner.checked_sub(self.inner)?))
             }
             (false, false, _) => self
                 .inner
@@ -1257,7 +1257,7 @@ impl Display for Duration {
         }
 
         if self.is_negative() {
-            f.write_str(&format!("-{}", &result.join(" -")))
+            f.write_str(&format!("-{}", result.join(" -")))
         } else {
             f.write_str(&result.join(" "))
         }
@@ -1516,7 +1516,7 @@ mod tests {
     use rstest::rstest;
     use rstest_reuse::{apply, template};
     #[cfg(feature = "serde")]
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
 
     use super::*;
 
