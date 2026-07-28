@@ -354,7 +354,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Download reference benchmarks
         if: ${{ !inputs.resetBenchmarks }}
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow_conclusion: success
           name: gungraun-benchmarks
