@@ -72,6 +72,8 @@ feature-depth = 1
 ignore = [
   #"RUSTSEC-0000-0000",
   { id = "RUSTSEC-2026-0009", reason = "time parsing or RFC 20822 functionality is not used" },
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml is a transitive development dependency" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml is a transitive development dependency" },
   #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
   #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
 ]
@@ -88,7 +90,7 @@ ignore = [
 # List of explicitly allowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
-allow = ["MIT", "Apache-2.0", "Unicode-3.0"]
+allow = ["MIT"]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
 # canonical license text of a valid SPDX license file.
