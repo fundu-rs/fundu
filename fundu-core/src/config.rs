@@ -6,7 +6,7 @@
 //! Provide the [`Config`], [`ConfigBuilder`] and other structures used to adjust the parsing
 //! process
 
-use crate::time::{Multiplier, TimeUnit, DEFAULT_TIME_UNIT};
+use crate::time::{DEFAULT_TIME_UNIT, Multiplier, TimeUnit};
 
 pub(crate) const DEFAULT_CONFIG: Config = Config::new();
 
@@ -123,6 +123,7 @@ pub trait NumbersLike {
 /// ```
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[allow(clippy::struct_excessive_bools)]
+#[allow(unpredictable_function_pointer_comparisons)]
 #[non_exhaustive]
 pub struct Config<'a> {
     /// The [`TimeUnit`] the parser applies if no time unit was given (Default: `TimeUnit::Second`)

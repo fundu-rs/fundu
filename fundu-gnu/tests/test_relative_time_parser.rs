@@ -9,13 +9,13 @@ use std::time::Duration as StdDuration;
 use fundu_core::time::TimeUnit::*;
 use fundu_core::time::{Multiplier, TimeUnit};
 use fundu_gnu::{
-    parse, parse_fuzzy, parse_with_date, DateTime, Duration, ParseError, RelativeTimeParser,
+    DateTime, Duration, ParseError, RelativeTimeParser, parse, parse_fuzzy, parse_with_date,
 };
 use rstest::rstest;
 pub use rstest_reuse;
 use rstest_reuse::{apply, template};
 #[cfg(feature = "time")]
-use time::{macros::datetime, OffsetDateTime, PrimitiveDateTime};
+use time::{OffsetDateTime, PrimitiveDateTime, macros::datetime};
 
 #[rstest]
 #[case::zero("0", Duration::ZERO)]

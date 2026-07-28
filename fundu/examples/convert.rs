@@ -5,7 +5,7 @@
 
 //! fundu's Duration converted to std::time::Duration, chrono::Duration and time::Duration
 
-use clap::{command, Arg};
+use clap::{Arg, command};
 use fundu::{DurationParser, SaturatingInto};
 
 const PARSER: DurationParser = DurationParser::builder()

@@ -71,7 +71,9 @@ feature-depth = 1
 # output a note when they are encountered.
 ignore = [
   #"RUSTSEC-0000-0000",
-  #{ id = "RUSTSEC-0000-0000", reason = "you can specify a reason the advisory is ignored" },
+  { id = "RUSTSEC-2026-0009", reason = "time parsing or RFC 20822 functionality is not used" },
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml is a transitive development dependency" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml is a transitive development dependency" },
   #"a-crate-that-is-yanked@0.1.1", # you can also ignore yanked crate versions if you wish
   #{ crate = "a-crate-that-is-yanked@0.1.1", reason = "you can specify why you are ignoring the yanked crate" },
 ]

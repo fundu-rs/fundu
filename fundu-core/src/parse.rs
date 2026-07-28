@@ -10,7 +10,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 use std::str::Utf8Error;
 use std::time::Duration as StdDuration;
 
-use crate::config::{Config, Delimiter, NumbersLike, DEFAULT_CONFIG};
+use crate::config::{Config, DEFAULT_CONFIG, Delimiter, NumbersLike};
 use crate::error::ParseError;
 use crate::time::{Duration, Multiplier, TimeUnit, TimeUnitsLike};
 use crate::util::POW10;
@@ -244,21 +244,25 @@ pub trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
     unsafe fn parse_8_digits(digits: &[u8]) -> u64 {
-        // cov:excl-start
-        debug_assert!(
-            digits.len() >= 8,
-            "Call this method only if digits has length >= 8"
-        ); // cov:excl-stop
+        // SAFETY: The caller guarantees that `digits` contains at least eight readable bytes,
+        // and `read_unaligned` does not require the pointer to be aligned for `u64`.
+        unsafe {
+            // cov:excl-start
+            debug_assert!(
+                digits.len() >= 8,
+                "Call this method only if digits has length >= 8"
+            ); // cov:excl-stop
 
-        // This cast to a more strictly aligned type is safe since we're using
-        // ptr.read_unaligned
-        #[allow(clippy::cast_ptr_alignment)]
-        let ptr = digits.as_ptr().cast::<u64>();
-        let mut num = u64::from_le(ptr.read_unaligned());
-        num = ((num & 0x0F0F_0F0F_0F0F_0F0F).wrapping_mul(2561)) >> 8i32;
-        num = ((num & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601)) >> 16i32;
-        num = ((num & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001)) >> 32i32;
-        num
+            // This cast to a more strictly aligned type is safe since we're using
+            // ptr.read_unaligned
+            #[allow(clippy::cast_ptr_alignment)]
+            let ptr = digits.as_ptr().cast::<u64>();
+            let mut num = u64::from_le(ptr.read_unaligned());
+            num = ((num & 0x0F0F_0F0F_0F0F_0F0F).wrapping_mul(2561)) >> 8i32;
+            num = ((num & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601)) >> 16i32;
+            num = ((num & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001)) >> 32i32;
+            num
+        }
     }
 }
 
@@ -311,7 +315,7 @@ impl Whole {
     }
 
     pub fn parse(digits: &[u8], append: Option<&[u8]>, zeros: Option<usize>) -> Option<u64> {
-        if digits.is_empty() && append.map_or(true, <[u8]>::is_empty) {
+        if digits.is_empty() && append.is_none_or(<[u8]>::is_empty) {
             return Some(0);
         }
 
@@ -370,7 +374,7 @@ impl Fract {
     }
 
     pub fn parse(digits: &[u8], prepend: Option<&[u8]>, zeros: Option<usize>) -> u64 {
-        if digits.is_empty() && prepend.map_or(true, <[u8]>::is_empty) {
+        if digits.is_empty() && prepend.is_none_or(<[u8]>::is_empty) {
             return 0;
         }
 
@@ -443,9 +447,8 @@ impl DurationRepr<'_> {
         }
 
         if self.whole.is_none() && self.fract.is_none() {
-            return if self.numeral.is_some() {
+            return if let Some(numeral) = self.numeral {
                 let time_unit = self.unit.expect("Numeral without time unit");
-                let numeral = self.numeral.unwrap();
                 let Multiplier(coefficient, exponent) =
                     numeral * time_unit.multiplier() * self.multiplier;
 
@@ -742,7 +745,9 @@ impl<'a> Bytes<'a> {
 
     #[inline]
     pub unsafe fn get_remainder_str_unchecked(&self) -> &str {
-        std::str::from_utf8_unchecked(self.get_remainder())
+        // SAFETY: The input originated as valid UTF-8, and parsing advances only across ASCII
+        // bytes, so `current_pos` remains on a UTF-8 boundary and the remainder is valid UTF-8.
+        unsafe { std::str::from_utf8_unchecked(self.get_remainder()) }
     }
 
     #[inline]
@@ -1685,12 +1690,9 @@ impl<'a> ReprParserTemplate<'a> for ReprParserMultiple<'a> {
         // far
         let string = unsafe { std::str::from_utf8_unchecked(buffer) };
 
-        let (time_unit, mut multiplier) = match time_units.get(string) {
-            None => {
-                self.bytes.reset(start);
-                return Ok(None);
-            }
-            Some(some_time_unit) => some_time_unit,
+        let Some((time_unit, mut multiplier)) = time_units.get(string) else {
+            self.bytes.reset(start);
+            return Ok(None);
         };
 
         match self.bytes.current_byte {

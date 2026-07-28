@@ -6,7 +6,7 @@
 use std::hint::black_box;
 use std::time::Duration;
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use fundu::TimeUnit::*;
 use fundu::TimeUnitsLike;
 use fundu_systemd::{TimeSpanParser, TimeUnitsWithNanos};

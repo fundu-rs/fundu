@@ -30,7 +30,7 @@
 //!                 1 µs|                    0.000001000
 //! ```
 
-use clap::{command, Arg};
+use clap::{Arg, command};
 use fundu::TimeUnit::*;
 use fundu::{CustomDurationParser, CustomTimeUnit, Multiplier};
 
@@ -99,12 +99,12 @@ fn main() {
                 let duration: std::time::Duration = duration.try_into().unwrap();
                 println!(
                     "{:>20}|{:21}.{:09}",
-                    &input,
+                    input,
                     duration.as_secs(),
                     duration.subsec_nanos()
                 )
             }
-            Err(error) => eprintln!("Error parsing '{}': {}", &input, error),
+            Err(error) => eprintln!("Error parsing '{}': {}", input, error),
         }
     }
 }

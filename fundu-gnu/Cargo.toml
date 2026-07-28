@@ -1,7 +1,7 @@
 [package]
 name = "fundu-gnu"
 version = "0.3.1"
-edition = "2021"
+edition = "2024"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Fast and precise gnu relative time parser of rust strings to a Duration"
 readme = "README.md"
@@ -10,14 +10,14 @@ keywords = ["fundu", "gnu", "parse", "duration", "time"]
 categories = ["parsing", "date-and-time"]
 homepage = "https://github.com/fundu-rs/fundu"
 repository = "https://github.com/fundu-rs/fundu"
-rust-version = "1.74.1"
+rust-version = "1.85.0"
 
 [features]
 default = []
 chrono = ["fundu-core/chrono", "dep:chrono"]
 serde = ["fundu-core/serde", "dep:serde"]
 time = ["fundu-core/time", "dep:time"]
-with-iai = []
+with-gungraun = []
 with-flamegraph = []
 
 [dependencies]
@@ -36,7 +36,7 @@ serde_test = { workspace = true }
 time = { workspace = true, features = ["macros", "large-dates"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-iai-callgrind = { workspace = true }
+gungraun = { workspace = true }
 inferno = { workspace = true }
 pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
@@ -55,9 +55,9 @@ bench = false
 required-features = ["with-flamegraph"]
 
 [[bench]]
-name = "fundu_gnu_iai_parsing"
+name = "fundu_gnu_gungraun_parsing"
 harness = false
-required-features = ["with-iai"]
+required-features = ["with-gungraun"]
 
 [[example]]
 name = "chrono"

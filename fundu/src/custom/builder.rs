@@ -542,7 +542,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
@@ -567,7 +567,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
@@ -607,7 +607,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
@@ -644,7 +644,7 @@ impl<'a> CustomDurationParserBuilder<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use fundu::{CustomDurationParserBuilder, Duration, DEFAULT_TIME_UNITS};
+    /// use fundu::{CustomDurationParserBuilder, DEFAULT_TIME_UNITS, Duration};
     ///
     /// let parser = CustomDurationParserBuilder::new()
     ///     .time_units(&DEFAULT_TIME_UNITS)
@@ -803,8 +803,6 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_builder_when_build_with_regular_time_unit() {
-        let mut expected = Config::new();
-        expected.number_is_optional = true;
         let parser = CustomDurationParserBuilder::new()
             .time_unit(CustomTimeUnit::with_default(Second, &["s", "secs"]))
             .time_unit(CustomTimeUnit::new(Hour, &["h"], Some(Multiplier(3, 0))))
@@ -843,8 +841,6 @@ mod tests {
 
     #[test]
     fn test_custom_duration_parser_builder_when_build_without_regular_time_units() {
-        let mut expected = Config::new();
-        expected.number_is_optional = true;
         let parser = CustomDurationParserBuilder::new()
             .time_units(&[
                 CustomTimeUnit::new(Minute, &["m", "min"], Some(Multiplier(2, 0))),

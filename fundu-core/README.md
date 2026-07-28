@@ -26,16 +26,19 @@
         <img src="https://docs.rs/fundu/badge.svg" alt="docs.rs"/>
     </a>
     <a href="https://github.com/rust-lang/rust">
-        <img src="https://img.shields.io/badge/MSRV-1.74.1-brightgreen" alt="MSRV"/>
+        <img src="https://img.shields.io/badge/MSRV-1.85.0-brightgreen" alt="MSRV"/>
     </a>
 </div>
 
 # Overview
 
-This is the core driving the implementation of [fundu](../README.md). Most likely you were searching
-for [fundu](../README) or one of its other simple to use interfaces
-[fundu-systemd](../fundu-systemd/README.md). Please see there for further details and documentation about `fundu`.
+This is the core driving the implementation of [fundu]. Most likely you were searching
+for [fundu] or one of its other simple to use interfaces
+[fundu-systemd]. Please see there for further details and documentation about `fundu`.
 
 # License
 
 MIT license ([LICENSE](LICENSE) or <http://opensource.org/licenses/MIT>)
+
+[fundu]: ../README.md
+[fundu-systemd]: ../fundu-systemd/README.md

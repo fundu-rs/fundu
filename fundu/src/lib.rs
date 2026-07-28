@@ -332,7 +332,7 @@
 #![warn(clippy::partial_pub_fields)]
 #![warn(clippy::rest_pat_in_fully_bound_structs)]
 #![warn(clippy::str_to_string)]
-#![warn(clippy::string_to_string)]
+#![warn(clippy::implicit_clone)]
 #![warn(clippy::todo)]
 #![warn(clippy::try_err)]
 #![warn(clippy::undocumented_unsafe_blocks)]
@@ -349,25 +349,25 @@ mod standard;
 
 #[cfg(feature = "custom")]
 pub use custom::{
+    Numeral,
     builder::CustomDurationParserBuilder,
     parser::CustomDurationParser,
     time_units::{
-        CustomTimeUnit, TimeKeyword, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS,
+        CustomTimeUnit, DEFAULT_ALL_TIME_UNITS, DEFAULT_TIME_UNITS, SYSTEMD_TIME_UNITS, TimeKeyword,
     },
-    Numeral,
 };
 pub use fundu_core::config::Delimiter;
 pub use fundu_core::error::{ParseError, TryFromDurationError};
 pub use fundu_core::time::{
-    Duration, Multiplier, SaturatingInto, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR,
-    DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH,
-    DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
+    DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
+    DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,
+    DEFAULT_ID_WEEK, DEFAULT_ID_YEAR, Duration, Multiplier, SaturatingInto, TimeUnit,
 };
 #[cfg(test)]
 pub use rstest_reuse;
 #[cfg(feature = "standard")]
 pub use standard::{
-    builder::DurationParserBuilder, parser::parse_duration, parser::DurationParser,
+    builder::DurationParserBuilder, parser::DurationParser, parser::parse_duration,
 };
 #[cfg(feature = "base")]
 pub use {

@@ -5,31 +5,33 @@
 use std::hint::black_box;
 
 use fundu::{CustomDurationParser, DEFAULT_ALL_TIME_UNITS, SYSTEMD_TIME_UNITS};
-use iai_callgrind::{
-    library_benchmark, library_benchmark_group, main, Callgrind, EventKind, FlamegraphConfig,
-    LibraryBenchmarkConfig,
-};
+use gungraun::prelude::*;
+use gungraun::{Callgrind, EventKind, FlamegraphConfig};
 
 #[library_benchmark]
 fn default_time_units<'a>() -> CustomDurationParser<'a> {
-    CustomDurationParser::with_time_units(black_box(&DEFAULT_ALL_TIME_UNITS))
+    black_box(CustomDurationParser::with_time_units(black_box(
+        &DEFAULT_ALL_TIME_UNITS,
+    )))
 }
 
 #[library_benchmark]
 fn systemd_time_units<'a>() -> CustomDurationParser<'a> {
-    CustomDurationParser::with_time_units(black_box(&SYSTEMD_TIME_UNITS))
+    black_box(CustomDurationParser::with_time_units(black_box(
+        &SYSTEMD_TIME_UNITS,
+    )))
 }
 
 library_benchmark_group!(
-    name = initialization;
-    benchmarks = default_time_units, systemd_time_units
+    name = initialization,
+    benchmarks = [default_time_units, systemd_time_units]
 );
 
 main!(
-    config = LibraryBenchmarkConfig::default()
-        .tool(Callgrind::default()
+    config = LibraryBenchmarkConfig::default().tool(
+        Callgrind::default()
             .flamegraph(FlamegraphConfig::default())
-            .limits([(EventKind::Ir, 5.0)])
-        );
+            .soft_limits([(EventKind::Ir, 5.0)])
+    ),
     library_benchmark_groups = initialization
 );

@@ -5,7 +5,7 @@
 
 //! Flamegraphs for the standard module and the DurationParser
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
 use fundu_gnu::RelativeTimeParser;
 use pprof::criterion::{Output, PProfProfiler};
 use pprof::flamegraph::Options as FlamegraphOptions;

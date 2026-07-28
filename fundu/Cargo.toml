@@ -1,7 +1,7 @@
 [package]
 name = "fundu"
 version = "2.0.1"
-edition = "2021"
+edition = "2024"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Configurable, precise and fast rust string parser to a Duration"
 readme = "../README.md"
@@ -10,7 +10,7 @@ keywords = ["fundu", "parse", "string", "duration", "time"]
 categories = ["parsing", "date-and-time"]
 homepage = "https://github.com/fundu-rs/fundu"
 repository = "https://github.com/fundu-rs/fundu"
-rust-version = "1.74.1"
+rust-version = "1.85.0"
 
 [package.metadata.docs.rs]
 all-features = true
@@ -27,7 +27,7 @@ base = []
 chrono = ["fundu-core/chrono"]
 serde = ["fundu-core/serde", "dep:serde"]
 time = ["fundu-core/time"]
-with-iai = []
+with-gungraun = []
 with-flamegraph = []
 
 [dependencies]
@@ -44,7 +44,7 @@ serde_test = { workspace = true }
 time = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
-iai-callgrind = { workspace = true }
+gungraun = { workspace = true }
 inferno = { workspace = true }
 pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
@@ -59,14 +59,14 @@ harness = false
 required-features = ["standard"]
 
 [[bench]]
-name = "fundu_iai_parsing"
+name = "fundu_gungraun_parsing"
 harness = false
-required-features = ["standard", "with-iai"]
+required-features = ["standard", "with-gungraun"]
 
 [[bench]]
-name = "fundu_iai_custom"
+name = "fundu_gungraun_custom"
 harness = false
-required-features = ["custom", "with-iai"]
+required-features = ["custom", "with-gungraun"]
 
 [[bench]]
 name = "flamegraph_standard"

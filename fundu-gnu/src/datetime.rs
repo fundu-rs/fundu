@@ -811,9 +811,9 @@ mod tests {
     use rstest::rstest;
     use rstest_reuse::{apply, template};
     #[cfg(feature = "serde")]
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
     #[cfg(feature = "time")]
-    use time::{macros::datetime, Date as TimeDate, Time as TimeTime, UtcOffset};
+    use time::{Date as TimeDate, Time as TimeTime, UtcOffset, macros::datetime};
 
     use super::*;
 

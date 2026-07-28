@@ -9,9 +9,9 @@ use fundu_core::time::TimeUnitsLike;
 
 use crate::TimeUnit::*;
 use crate::{
-    Multiplier, TimeUnit, DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND,
-    DEFAULT_ID_MILLI_SECOND, DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND,
-    DEFAULT_ID_SECOND, DEFAULT_ID_WEEK, DEFAULT_ID_YEAR,
+    DEFAULT_ID_DAY, DEFAULT_ID_HOUR, DEFAULT_ID_MICRO_SECOND, DEFAULT_ID_MILLI_SECOND,
+    DEFAULT_ID_MINUTE, DEFAULT_ID_MONTH, DEFAULT_ID_NANO_SECOND, DEFAULT_ID_SECOND,
+    DEFAULT_ID_WEEK, DEFAULT_ID_YEAR, Multiplier, TimeUnit,
 };
 
 /// The identifiers as defined in
@@ -586,11 +586,13 @@ mod tests {
     fn test_custom_time_units_when_add_custom_time_unit() {
         let mut custom = CustomTimeUnits::new();
         custom.add_custom_time_unit(CustomTimeUnit::with_default(MicroSecond, &["some", "ids"]));
-        assert!(custom
-            .time_units
-            .iter()
-            .filter(|(data, _)| data.time_unit != MicroSecond)
-            .all(|(_, v)| v.is_empty()));
+        assert!(
+            custom
+                .time_units
+                .iter()
+                .filter(|(data, _)| data.time_unit != MicroSecond)
+                .all(|(_, v)| v.is_empty())
+        );
         assert_eq!(
             custom.lookup(MicroSecond, Multiplier::default()).unwrap().1,
             vec!["some", "ids"]

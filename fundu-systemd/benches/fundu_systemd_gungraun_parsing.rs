@@ -6,10 +6,8 @@ use std::hint::black_box;
 
 use fundu::Duration;
 use fundu_systemd::TimeSpanParser;
-use iai_callgrind::{
-    library_benchmark, library_benchmark_group, main, Callgrind, EventKind, FlamegraphConfig,
-    LibraryBenchmarkConfig,
-};
+use gungraun::prelude::*;
+use gungraun::{Callgrind, EventKind, FlamegraphConfig};
 
 #[library_benchmark]
 #[bench::small(TimeSpanParser::new(), "1")]
@@ -18,7 +16,7 @@ use iai_callgrind::{
 #[bench::mixed_9(TimeSpanParser::new(), "123456789.123456789")]
 #[bench::large(TimeSpanParser::new(), &format!("{0}.{0}", "1".repeat(1022)))]
 fn without_time_units(parser: TimeSpanParser, input: &str) -> Duration {
-    black_box(parser.parse(input)).unwrap()
+    black_box(parser.parse(black_box(input))).unwrap()
 }
 
 #[library_benchmark]
@@ -27,18 +25,19 @@ fn without_time_units(parser: TimeSpanParser, input: &str) -> Duration {
 #[bench::minutes(TimeSpanParser::new(), "minutes")]
 #[bench::year(TimeSpanParser::new(), "y")]
 fn with_time_units(parser: TimeSpanParser, input: &str) -> Duration {
-    black_box(parser.parse(input)).unwrap()
+    black_box(parser.parse(black_box(input))).unwrap()
 }
 
-library_benchmark_group!(name = parsing_speed; benchmarks = without_time_units, with_time_units);
+library_benchmark_group!(
+    name = parsing_speed,
+    benchmarks = [without_time_units, with_time_units]
+);
 
 main!(
-    config = LibraryBenchmarkConfig::default()
-        .tool(Callgrind::default()
-            .flamegraph(
-                FlamegraphConfig::default()
-            )
-            .limits([(EventKind::Ir, 5.0)])
-        );
+    config = LibraryBenchmarkConfig::default().tool(
+        Callgrind::default()
+            .flamegraph(FlamegraphConfig::default())
+            .soft_limits([(EventKind::Ir, 5.0)])
+    ),
     library_benchmark_groups = parsing_speed
 );

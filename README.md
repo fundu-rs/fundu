@@ -2,7 +2,7 @@
 
 <!--
  Copyright (c) 2023 Joining <joining@posteo.de>
- 
+
  This software is released under the MIT License.
  https://opensource.org/licenses/MIT
 -->
@@ -28,7 +28,7 @@
         <img src="https://docs.rs/fundu/badge.svg" alt="docs.rs"/>
     </a>
     <a href="https://github.com/rust-lang/rust">
-        <img src="https://img.shields.io/badge/MSRV-1.74.1-brightgreen" alt="MSRV"/>
+        <img src="https://img.shields.io/badge/MSRV-1.85.0-brightgreen" alt="MSRV"/>
     </a>
 </div>
 
@@ -43,7 +43,7 @@
     - [Benchmarks](#benchmarks)
     - [Contributing](#contributing)
     - [License](#license)
-  
+
 # Overview
 
 `fundu` provides a flexible and fast parser to convert rust strings into a `Duration`. `fundu`
@@ -69,21 +69,21 @@ and the `custom` (or `base`) feature assuming some defined custom time units `s`
 - `"yesterday"` or likewise `"-1day"`, `"-1days"` if `allow_negative` is set
 - `"9 century"` or likewise `"900 years"`
 
-For more examples of the `custom` feature see the [Customization section](#customization).  Summary
+For more examples of the `custom` feature see the [Customization section](#customization). Summary
 of features provided by this crate:
 
-- __Precision__: There are no floating point calculations and the input is precisely parsed as it
-is. So, what you put in you is what you get out within the range of a `Duration`.
-- __Performance__: The parser is blazingly fast ([Benchmarks](#benchmarks))
-- __Customization__: [`TimeUnits`](#time-units), the number format and other aspects are
-easily configurable ([Customization](#customization))
-- __Sound limits__: The duration saturates at [`Duration::MAX`] if the input number was larger than
-that maximum or if the input string was positive `infinity`.
-- __Negative Durations__: The parser can be configured to parse negative durations. Fundu's
-`Duration` can represent negative durations but also implements `TryFrom` for [`chrono::Duration`]
-and [`time::Duration`] if the corresponding feature is activated.
-- __Error handling__: The error messages try to be informative on their own but can also be
-easily adjusted (See also [Examples](#examples))
+- **Precision**: There are no floating point calculations and the input is precisely parsed as it
+  is. So, what you put in you is what you get out within the range of a `Duration`.
+- **Performance**: The parser is blazingly fast ([Benchmarks](#benchmarks))
+- **Customization**: [`TimeUnits`](#time-units), the number format and other aspects are
+  easily configurable ([Customization](#customization))
+- **Sound limits**: The duration saturates at [`Duration::MAX`] if the input number was larger than
+  that maximum or if the input string was positive `infinity`.
+- **Negative Durations**: The parser can be configured to parse negative durations. Fundu's
+  `Duration` can represent negative durations but also implements `TryFrom` for [`chrono::Duration`]
+  and [`time::Duration`] if the corresponding feature is activated.
+- **Error handling**: The error messages try to be informative on their own but can also be
+  easily adjusted (See also [Examples](#examples))
 
 `fundu` aims for good performance and being a lightweight crate. It is purely built on top of the
 rust `stdlib`, and there are no additional dependencies required in the standard configuration. The
@@ -323,7 +323,7 @@ cargo run --example $FILE_NAME_WITHOUT_FILETYPE_SUFFIX
 like the systemd time span parser example
 
 ```shell
-# For some of the examples a help is available. To pass arguments to the example itself separate 
+# For some of the examples a help is available. To pass arguments to the example itself separate
 # the arguments for cargo and the example with `--`
 $ cargo run --example systemd --features custom --no-default-features -- --help
 ...
@@ -342,23 +342,23 @@ Original: 300ms20s 5day
 string. The table below gives an overview of the constructor methods and which time units are
 available. If a custom set of time units is required, `DurationParser::with_time_units` can be used.
 
-TimeUnit | Default identifier | Calculation | Default time unit
----:| ---:| ---:|:---:
-`Nanosecond` | ns | `1e-9s` | &#9745;
-`Microsecond` | Ms | `1e-6s` | &#9745;
-`Millisecond` | ms | `1e-3s` | &#9745;
-`Second` | s | SI definition | &#9745;
-`Minute` | m | `60s` | &#9745;
-`Hour` | h | `60m` | &#9745;
-`Day` | d | `24h` | &#9745;
-`Week` | w | `7d` | &#9745;
-`Month` | M | `Year / 12` | &#9744;
-`Year` | y | `365.25d` | &#9744;
+|      TimeUnit | Default identifier |   Calculation | Default time unit |
+| ------------: | -----------------: | ------------: | :---------------: |
+|  `Nanosecond` |                 ns |       `1e-9s` |      &#9745;      |
+| `Microsecond` |                 Ms |       `1e-6s` |      &#9745;      |
+| `Millisecond` |                 ms |       `1e-3s` |      &#9745;      |
+|      `Second` |                  s | SI definition |      &#9745;      |
+|      `Minute` |                  m |         `60s` |      &#9745;      |
+|        `Hour` |                  h |         `60m` |      &#9745;      |
+|         `Day` |                  d |         `24h` |      &#9745;      |
+|        `Week` |                  w |          `7d` |      &#9745;      |
+|       `Month` |                  M |   `Year / 12` |      &#9744;      |
+|        `Year` |                  y |     `365.25d` |      &#9744;      |
 
 Note that `Months` and `Years` are not included in the default set of time units. The current
 implementation uses an approximate calculation of `Months` and `Years` in seconds and if they are
 included in the final configuration, the [Julian
-year](https://en.wikipedia.org/wiki/Julian_year_(astronomy)) based calculation is used. (See table
+year](<https://en.wikipedia.org/wiki/Julian_year_(astronomy)>) based calculation is used. (See table
 above)
 
 With the `CustomDurationParser` from the `custom` feature, the identifiers for time units can be
@@ -414,7 +414,7 @@ Here's an example for fully-customizable time units which uses the `CustomDurati
 use fundu::TimeUnit::*;
 use fundu::{CustomDurationParser, CustomTimeUnit, Duration, Multiplier, TimeKeyword};
 
-// Let's define a custom time unit `fortnight` which is worth 2 weeks. Note the creation 
+// Let's define a custom time unit `fortnight` which is worth 2 weeks. Note the creation
 // of `CustomTimeUnits` and `TimeKeywords` can be `const` and moved to compile time:
 const FORTNIGHT: CustomTimeUnit = CustomTimeUnit::new(
     Week,
@@ -430,7 +430,7 @@ let parser = CustomDurationParser::builder()
         FORTNIGHT,
     ])
     // Additionally, define `tomorrow`, a keyword of time which is worth `1 day` in the future.
-    // In contrast to a `CustomTimeUnit`, a `TimeKeyword` doesn't accept a number in front of it 
+    // In contrast to a `CustomTimeUnit`, a `TimeKeyword` doesn't accept a number in front of it
     // in the source string.
     .keyword(TimeKeyword::new(Day, &["tomorrow"], Some(Multiplier(1, 0))))
     .build();
@@ -464,15 +464,15 @@ and then run all benchmarks with
 cargo bench --all-features
 ```
 
-The `iai-callgrind` (feature = `with-iai`) and `flamegraph` (feature = `with-flamegraph`) benchmarks
-can only be run on unix. Use the `--features` option of cargo to run the benchmarks for specific
-features:
+The `gungraun` (feature = `with-gungraun`) and `flamegraph` (feature =
+`with-flamegraph`) benchmarks can only be run on unix. Use the `--features`
+option of cargo to run the benchmarks for specific features:
 
 ```shell
 cargo bench --features standard,custom
 ```
 
-The above won't run the `flamegraph` and `iai-callgrind` benchmarks.
+The above won't run the `flamegraph` and `gungraun` benchmarks.
 
 Benchmarks can be further filtered for example with
 
@@ -492,14 +492,14 @@ cargo bench --bench benchmarks_standard -- --help # The criterion help
 To get a rough idea about the parsing times, here the average parsing speed of some inputs (Quad
 core 3000Mhz, 8GB DDR3, Linux)
 
-Input | avg parsing time
---- | ---:|
-`1` | `38.705 ns`
-`123456789.123456789` | `57.974 ns`
-`format!("{0}.{0}e-1022", "1".repeat(1022))` | `421.56 ns`
-`1s` | `55.755 ns`
-`1ns` | `59.842 ns`
-`1y` | `57.760 ns`
+| Input                                        | avg parsing time |
+| -------------------------------------------- | ---------------: |
+| `1`                                          |      `38.705 ns` |
+| `123456789.123456789`                        |      `57.974 ns` |
+| `format!("{0}.{0}e-1022", "1".repeat(1022))` |      `421.56 ns` |
+| `1s`                                         |      `55.755 ns` |
+| `1ns`                                        |      `59.842 ns` |
+| `1y`                                         |      `57.760 ns` |
 
 # Contributing
 

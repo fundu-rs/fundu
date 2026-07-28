@@ -17,7 +17,7 @@
 #![warn(clippy::partial_pub_fields)]
 #![warn(clippy::rest_pat_in_fully_bound_structs)]
 #![warn(clippy::str_to_string)]
-#![warn(clippy::string_to_string)]
+#![warn(clippy::implicit_clone)]
 #![warn(clippy::todo)]
 #![warn(clippy::try_err)]
 #![warn(clippy::undocumented_unsafe_blocks)]

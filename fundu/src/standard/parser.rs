@@ -686,7 +686,7 @@ impl Default for DurationParser<'_> {
 /// ```rust
 /// use std::time::Duration;
 ///
-/// use fundu::{parse_duration, ParseError};
+/// use fundu::{ParseError, parse_duration};
 ///
 /// let duration = parse_duration("+1.09e1").unwrap();
 /// assert_eq!(duration, Duration::new(10, 900_000_000));

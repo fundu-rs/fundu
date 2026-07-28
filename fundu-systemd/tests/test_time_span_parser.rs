@@ -7,7 +7,7 @@
 
 use fundu::{Duration, ParseError, TimeUnit};
 use fundu_systemd::{
-    parse, parse_nanos, TimeSpanParser, SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION,
+    SYSTEMD_MAX_MICRO_DURATION, SYSTEMD_MAX_NANOS_DURATION, TimeSpanParser, parse, parse_nanos,
 };
 use rstest::rstest;
 

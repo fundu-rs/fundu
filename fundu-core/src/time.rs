@@ -10,9 +10,9 @@ use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, AddAssign, Mul, Neg, Sub, SubAssign};
 
+use TimeUnit::*;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use TimeUnit::*;
 
 use crate::error::TryFromDurationError;
 
@@ -667,11 +667,7 @@ impl Duration {
 
         #[allow(clippy::cast_possible_wrap)]
         let result = (self.inner.as_secs() / factor) as i64;
-        if self.is_negative {
-            -result
-        } else {
-            result
-        }
+        if self.is_negative { -result } else { result }
     }
 
     /// Return the number of *whole* weeks in the `Duration`
@@ -757,11 +753,7 @@ impl Duration {
     #[inline]
     pub const fn as_seconds(&self) -> i128 {
         let seconds = self.inner.as_secs() as i128;
-        if self.is_negative {
-            -seconds
-        } else {
-            seconds
-        }
+        if self.is_negative { -seconds } else { seconds }
     }
 
     /// Return the total number of *whole* milliseconds in the `Duration`
@@ -863,11 +855,7 @@ impl Duration {
     pub const fn subsec_nanos(&self) -> i32 {
         #[allow(clippy::cast_possible_wrap)]
         let nanos = self.inner.subsec_nanos() as i32;
-        if self.is_negative {
-            -nanos
-        } else {
-            nanos
-        }
+        if self.is_negative { -nanos } else { nanos }
     }
 
     fn extract_i64(&mut self, factor: u64) -> i64 {
@@ -1105,16 +1093,16 @@ impl Duration {
                 .map(|d| Self::from_std(true, d)),
             (true, false, Ordering::Equal) | (false, true, Ordering::Equal) => Some(Self::ZERO),
             (true, false, Ordering::Greater) => {
-                Some(Self::from_std(true, self.inner.sub(other.inner)))
+                Some(Self::from_std(true, self.inner.checked_sub(other.inner)?))
             }
             (true, false, Ordering::Less) => {
-                Some(Self::from_std(false, other.inner.sub(self.inner)))
+                Some(Self::from_std(false, other.inner.checked_sub(self.inner)?))
             }
             (false, true, Ordering::Greater) => {
-                Some(Self::from_std(false, self.inner.sub(other.inner)))
+                Some(Self::from_std(false, self.inner.checked_sub(other.inner)?))
             }
             (false, true, Ordering::Less) => {
-                Some(Self::from_std(true, other.inner.sub(self.inner)))
+                Some(Self::from_std(true, other.inner.checked_sub(self.inner)?))
             }
             (false, false, _) => self
                 .inner
@@ -1257,7 +1245,7 @@ impl Display for Duration {
         }
 
         if self.is_negative() {
-            f.write_str(&format!("-{}", &result.join(" -")))
+            f.write_str(&format!("-{}", result.join(" -")))
         } else {
             f.write_str(&result.join(" "))
         }
@@ -1516,7 +1504,7 @@ mod tests {
     use rstest::rstest;
     use rstest_reuse::{apply, template};
     #[cfg(feature = "serde")]
-    use serde_test::{assert_tokens, Token};
+    use serde_test::{Token, assert_tokens};
 
     use super::*;
 

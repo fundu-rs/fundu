@@ -5,6 +5,7 @@ report
 *.profraw
 .VSCodeCounter/
 .config/nextest.toml
+entities.json
 
 # Swap
 [._]*.s[a-v][a-z]
