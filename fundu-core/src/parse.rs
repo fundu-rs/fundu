@@ -244,21 +244,25 @@ pub trait Parse8Digits {
     // This method is based on the work of Johnny Lee and his blog post
     // https://johnnylee-sde.github.io/Fast-numeric-string-to-int
     unsafe fn parse_8_digits(digits: &[u8]) -> u64 {
-        // cov:excl-start
-        debug_assert!(
-            digits.len() >= 8,
-            "Call this method only if digits has length >= 8"
-        ); // cov:excl-stop
+        // SAFETY: The caller guarantees that `digits` contains at least eight readable bytes,
+        // and `read_unaligned` does not require the pointer to be aligned for `u64`.
+        unsafe {
+            // cov:excl-start
+            debug_assert!(
+                digits.len() >= 8,
+                "Call this method only if digits has length >= 8"
+            ); // cov:excl-stop
 
-        // This cast to a more strictly aligned type is safe since we're using
-        // ptr.read_unaligned
-        #[allow(clippy::cast_ptr_alignment)]
-        let ptr = digits.as_ptr().cast::<u64>();
-        let mut num = u64::from_le(ptr.read_unaligned());
-        num = ((num & 0x0F0F_0F0F_0F0F_0F0F).wrapping_mul(2561)) >> 8i32;
-        num = ((num & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601)) >> 16i32;
-        num = ((num & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001)) >> 32i32;
-        num
+            // This cast to a more strictly aligned type is safe since we're using
+            // ptr.read_unaligned
+            #[allow(clippy::cast_ptr_alignment)]
+            let ptr = digits.as_ptr().cast::<u64>();
+            let mut num = u64::from_le(ptr.read_unaligned());
+            num = ((num & 0x0F0F_0F0F_0F0F_0F0F).wrapping_mul(2561)) >> 8i32;
+            num = ((num & 0x00FF_00FF_00FF_00FF).wrapping_mul(6_553_601)) >> 16i32;
+            num = ((num & 0x0000_FFFF_0000_FFFF).wrapping_mul(42_949_672_960_001)) >> 32i32;
+            num
+        }
     }
 }
 
@@ -741,7 +745,9 @@ impl<'a> Bytes<'a> {
 
     #[inline]
     pub unsafe fn get_remainder_str_unchecked(&self) -> &str {
-        std::str::from_utf8_unchecked(self.get_remainder())
+        // SAFETY: The input originated as valid UTF-8, and parsing advances only across ASCII
+        // bytes, so `current_pos` remains on a UTF-8 boundary and the remainder is valid UTF-8.
+        unsafe { std::str::from_utf8_unchecked(self.get_remainder()) }
     }
 
     #[inline]

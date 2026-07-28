@@ -1,7 +1,7 @@
 [package]
 name = "fundu"
 version = "2.0.1"
-edition = "2021"
+edition = "2024"
 authors = ["Joining7943 <joining@posteo.de>"]
 description = "Configurable, precise and fast rust string parser to a Duration"
 readme = "../README.md"
