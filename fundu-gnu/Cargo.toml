@@ -17,7 +17,7 @@ default = []
 chrono = ["fundu-core/chrono", "dep:chrono"]
 serde = ["fundu-core/serde", "dep:serde"]
 time = ["fundu-core/time", "dep:time"]
-with-iai = []
+with-gungraun = []
 with-flamegraph = []
 
 [dependencies]
@@ -36,7 +36,7 @@ serde_test = { workspace = true }
 time = { workspace = true, features = ["macros", "large-dates"] }
 
 [target.'cfg(unix)'.dev-dependencies]
-iai-callgrind = { workspace = true }
+gungraun = { workspace = true }
 inferno = { workspace = true }
 pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
@@ -55,9 +55,9 @@ bench = false
 required-features = ["with-flamegraph"]
 
 [[bench]]
-name = "fundu_gnu_iai_parsing"
+name = "fundu_gnu_gungraun_parsing"
 harness = false
-required-features = ["with-iai"]
+required-features = ["with-gungraun"]
 
 [[example]]
 name = "chrono"

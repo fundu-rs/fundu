@@ -18,7 +18,7 @@ chrono = ["fundu/chrono"]
 serde = ["fundu/serde"]
 time = ["fundu/time"]
 with-flamegraph = ["fundu/with-flamegraph"]
-with-iai = ["fundu/with-iai"]
+with-gungraun = ["fundu/with-gungraun"]
 
 [dependencies]
 fundu = { path = "../fundu", version = "=2.0.1", default-features = false, features = [
@@ -30,7 +30,7 @@ criterion = { workspace = true }
 rstest = { workspace = true }
 
 [target.'cfg(unix)'.dev-dependencies]
-iai-callgrind = { workspace = true }
+gungraun = { workspace = true }
 inferno = { workspace = true }
 pprof = { workspace = true, features = ["flamegraph", "criterion"] }
 
@@ -43,9 +43,9 @@ name = "benchmarks"
 harness = false
 
 [[bench]]
-name = "fundu_systemd_iai_parsing"
+name = "fundu_systemd_gungraun_parsing"
 harness = false
-required-features = ["with-iai"]
+required-features = ["with-gungraun"]
 
 [[bench]]
 name = "flamegraph"

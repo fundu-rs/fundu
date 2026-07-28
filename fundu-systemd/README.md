@@ -42,26 +42,26 @@
 
 # Overview
 
-This crate provides a simple to use and fast parser based on [fundu](../README.md) aiming for full compatibility with
+This crate provides a simple to use and fast parser based on [fundu] aiming for full compatibility with
 the [systemd](https://www.freedesktop.org/wiki/Software/systemd/) time span format as specified in
 their [documentation](https://www.freedesktop.org/software/systemd/man/systemd.time.html).
 
 `fundu-systemd` can parse rust strings like
 
-| `&str` | Duration |
-| -- | -- |
-| `"2 h"` | `Duration::positive(2 * 60 * 60, 0)` |
-| `"2hours"` |`Duration::positive(2 * 60 * 60, 0)` |
-| `"second"` |`Duration::positive(1, 0)` |
-| `"48hr"` |`Duration::positive(48 * 60 * 60, 0)` |
-| `"12.3 seconds"` |`Duration::positive(12, 300_000_000)` |
-| `"1y 12month"` | `Duration::positive(63_115_200, 0)` |
-| `"999us +1d"` |`Duration::positive(86_400, 999_000)` |
-| `"55s500ms"` | `Duration::positive(55, 500_000_000)` |
-| `"300ms20s 5day"` |`Duration::positive(20 + 5 * 60 * 60 * 24, 300_000_000)` |
-| `"123456789"` |`Duration::positive(123_456_789, 0)` (Default: Second) |
-| `"100"` |`Duration::positive(0, 100_000)` (when default is set to MicroSecond) |
-| `"infinity"` | variable: the maximum duration which is currently in use (see below) |
+| `&str`            | Duration                                                              |
+| ----------------- | --------------------------------------------------------------------- |
+| `"2 h"`           | `Duration::positive(2 * 60 * 60, 0)`                                  |
+| `"2hours"`        | `Duration::positive(2 * 60 * 60, 0)`                                  |
+| `"second"`        | `Duration::positive(1, 0)`                                            |
+| `"48hr"`          | `Duration::positive(48 * 60 * 60, 0)`                                 |
+| `"12.3 seconds"`  | `Duration::positive(12, 300_000_000)`                                 |
+| `"1y 12month"`    | `Duration::positive(63_115_200, 0)`                                   |
+| `"999us +1d"`     | `Duration::positive(86_400, 999_000)`                                 |
+| `"55s500ms"`      | `Duration::positive(55, 500_000_000)`                                 |
+| `"300ms20s 5day"` | `Duration::positive(20 + 5 * 60 * 60 * 24, 300_000_000)`              |
+| `"123456789"`     | `Duration::positive(123_456_789, 0)` (Default: Second)                |
+| `"100"`           | `Duration::positive(0, 100_000)` (when default is set to MicroSecond) |
+| `"infinity"`      | variable: the maximum duration which is currently in use (see below)  |
 
 Note that `fundu` parses into its own `Duration` which is a superset of other `Durations` like
 [`std::time::Duration`], [`chrono::Duration`] and [`time::Duration`]. See the
@@ -78,7 +78,7 @@ This crate is for you if you
 - ...
 
 This crate might not be for you if you want to customize the parser to a format which would not be
-compatible with `systemd`. See the main [fundu](../README.md) project, if you want to use a parser
+compatible with `systemd`. See the main [fundu] project, if you want to use a parser
 tailored to your needs.
 
 # Installation
@@ -117,27 +117,27 @@ Summary of the rest of the format:
 - Only numbers like `"123 days"` or with fraction `"1.2 days"` but without exponent (like `"3e9
 days"`) are allowed
 - For numbers without a time unit (like `"1234"`) the default time unit is usually `second` but can
-be changed since in some case systemd uses a different granularity.
+  be changed since in some case systemd uses a different granularity.
 - Time units without a number (like in `"second"`) are allowed and a value of `1` is assumed.
 - The parsed duration represents the value exactly (without rounding errors as would occur in
-floating point calculations) as it is specified in the source string (just like systemd).
+  floating point calculations) as it is specified in the source string (just like systemd).
 - The maximum supported duration (`Duration::MAX`) has `u64::MAX` seconds
-(`18_446_744_073_709_551_615`) and `999_999_999` nano seconds. However, systemd uses `u64::MAX`
-micro seconds as maximum duration when parsing without nanos and `u64::MAX` nano seconds when
-parsing with nanos. `fundu-systemd` provides the `parse` and `parse_nanos` functions to reflect
-that. If you don't like the maximum duration of `systemd` it's still possible via `parse_with_max`
-and `parse_nanos_with_max` to adjust this limit to a duration ranging from `Duration::ZERO` to
-`Duration::MAX`.
+  (`18_446_744_073_709_551_615`) and `999_999_999` nano seconds. However, systemd uses `u64::MAX`
+  micro seconds as maximum duration when parsing without nanos and `u64::MAX` nano seconds when
+  parsing with nanos. `fundu-systemd` provides the `parse` and `parse_nanos` functions to reflect
+  that. If you don't like the maximum duration of `systemd` it's still possible via `parse_with_max`
+  and `parse_nanos_with_max` to adjust this limit to a duration ranging from `Duration::ZERO` to
+  `Duration::MAX`.
 - The special value `"infinity"` evaluates to the maximum duration. Note the maximum duration
-depends on whether parsing with nano seconds or without. If the maximum duration is manually set to
-a different value then it evaluates to that maximum duration.
+  depends on whether parsing with nano seconds or without. If the maximum duration is manually set to
+  a different value then it evaluates to that maximum duration.
 - parsed durations larger than the maximum duration (like `"100000000000000years"`)
-saturate at the maximum duration
+  saturate at the maximum duration
 - Negative durations are not allowed, also no intermediate negative durations like in `"5day -1ms"`
-although the final duration would not be negative.
+  although the final duration would not be negative.
 - Any leading, trailing whitespace or whitespace between the number and the time unit (like in `"1
 \n sec"`) and multiple durations (like in `"1week \n 2minutes"`) is ignored and follows the posix
-definition of whitespace which is:
+  definition of whitespace which is:
     - Space (`' '`)
     - Horizontal Tab (`'\x09'`)
     - Line Feed (`'\x0A'`)
@@ -164,30 +164,32 @@ and then run the `fundu-systemd` benchmarks with
 cargo bench --package fundu-systemd
 ```
 
-The above won't run the `flamegraph` and `iai-callgrind` benchmarks.
+The above won't run the `flamegraph` and `gungraun` benchmarks.
 
-The `iai-callgrind` (feature = `with-iai`) and `flamegraph` (feature = `with-flamegraph`) benchmarks
-can only be run on unix. Use the `--features` option of cargo to run the benchmarks with these
-features.
+The `gungraun` (feature = `with-gungraun`) and `flamegraph` (feature =
+`with-flamegraph`) benchmarks can only be run on unix. Use the `--features`
+option of cargo to run the benchmarks with these features.
 
-To get a rough idea about the parsing times, here the average parsing speed of some inputs (Quad core 3000Mhz, 8GB DDR3, Linux):
+To get a rough idea about the parsing times, here the average parsing speed of
+some inputs (Quad core 3000Mhz, 8GB DDR3, Linux):
 
-Input | avg parsing time
---- | ---:|
-`1` | `55.572 ns`
-`123456789.123456789` | `88.750 ns`
-`format!("{}.{}", "1".repeat(1022), "1".repeat(1022))` | `475.07 ns`
-`s` | `83.724 ns`
-`minutes` | `133.26 ns`
-`1ns 1us` | `200.59 ns`
-`1ns 1us 1ms 1s` | `379.75 ns`
-`1ns 1us 1ns 1us` | `391.54 ns`
-`"1ns 1us".repeat(100)` | `18.644 µs`
+| Input                                                  | avg parsing time |
+| ------------------------------------------------------ | ---------------: |
+| `1`                                                    |      `55.572 ns` |
+| `123456789.123456789`                                  |      `88.750 ns` |
+| `format!("{}.{}", "1".repeat(1022), "1".repeat(1022))` |      `475.07 ns` |
+| `s`                                                    |      `83.724 ns` |
+| `minutes`                                              |      `133.26 ns` |
+| `1ns 1us`                                              |      `200.59 ns` |
+| `1ns 1us 1ms 1s`                                       |      `379.75 ns` |
+| `1ns 1us 1ns 1us`                                      |      `391.54 ns` |
+| `"1ns 1us".repeat(100)`                                |      `18.644 µs` |
 
 # License
 
 MIT license ([LICENSE](LICENSE) or <http://opensource.org/licenses/MIT>)
 
+[fundu]: ../README.md
 [`std::time::Duration`]: https://doc.rust-lang.org/std/time/struct.Duration.html
 [`chrono::Duration`]: https://docs.rs/chrono/latest/chrono/struct.Duration.html
 [`time::Duration`]: https://docs.rs/time/latest/time/struct.Duration.html
