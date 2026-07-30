@@ -20,7 +20,6 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: "1"
   BENCHMARK_REGRESSION_PERCENT_FAIL: 10
-  FEATURES: standard,custom,time,chrono,serde,base
 
 jobs:
   deny:
@@ -54,9 +53,10 @@ jobs:
           key: ${{ matrix.toolchain }}
       - uses: taiki-e/install-action@cargo-hack
       - uses: taiki-e/install-action@cargo-minimal-versions
+      - uses: taiki-e/install-action@just
       # This'll run without checking dev-dependencies
       - name: Build with minimal versions
-        run: cargo minimal-versions check --workspace --ignore-private --all-features --lib --bins
+        run: just minimal-versions
 
   format:
     name: Check format with nightly rustfmt
@@ -66,7 +66,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-      - run: cargo fmt --check
+      - uses: taiki-e/install-action@just
+      - run: just check-fmt
 
   base:
     needs: [format]
@@ -99,6 +100,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: "${{ matrix.os }}_${{ matrix.toolchain }}"
+      - uses: taiki-e/install-action@just
       - name: Info if unix
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
@@ -120,11 +122,11 @@ jobs:
         run: |
           cargo update
       - name: Build
-        run: cargo build --features ${{ matrix.features }}
+        run: just build "${{ matrix.features }}"
       - name: Lint
-        run: cargo +stable clippy --features ${{ matrix.features }} --all-targets -- -D warnings
+        run: just stable-clippy "${{ matrix.features }}"
       - name: Test
-        run: cargo test --features ${{ matrix.features }}
+        run: just test "${{ matrix.features }}"
 
   cross:
     needs: [format]
@@ -159,12 +161,7 @@ jobs:
         with:
           key: "${{ matrix.target }}"
       - uses: taiki-e/install-action@cross
-      - name: Configure cross
-        run: |
-          cat <<EOF | tee Cross.toml
-          [build.env]
-          passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
-          EOF
+      - uses: taiki-e/install-action@just
       - name: Info
         run: |
           set -x
@@ -175,9 +172,9 @@ jobs:
           cargo --list
           cross --version
       - name: Build
-        run: cross build --features ${{ env.FEATURES }} --target ${{ matrix.target }}
+        run: just cross-build "${{ matrix.target }}"
       - name: Test
-        run: cross test --features ${{ env.FEATURES }} --target ${{ matrix.target }}
+        run: just cross-test "${{ matrix.target }}"
 
   docs:
     needs: [base, cross]
@@ -187,10 +184,11 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@just
       - name: Run doc tests
-        run: cargo test --all-features --doc -- --show-output
+        run: just doc-test
       - name: Check Documentation
-        run: cargo doc --all-features --no-deps --document-private-items
+        run: just doc
 
   coverage:
     needs: [base, cross]
@@ -206,6 +204,7 @@ jobs:
       - name: Install llvm
         run: sudo apt-get -y update && sudo apt-get -y install llvm
       - uses: taiki-e/install-action@grcov
+      - uses: taiki-e/install-action@just
       - name: Info
         run: |
           set -x
@@ -215,58 +214,20 @@ jobs:
           rustup -V
           rustup show
           rustup component list --installed
-      - name: Create coverage profile
-        run: |
-          cat <<EOF | tee ~/.cargo/config
-          [profile.coverage]
-          inherits = "dev"
-          lto = false
-          debug = true
-          opt-level = 0
-          EOF
       - name: Clean
-        run: cargo clean
+        run: just coverage-clean
       - name: Build
-        run: cargo build --features ${{ env.FEATURES }} --profile coverage
+        run: just coverage-build
       - name: Test
-        run: cargo test --features ${{ env.FEATURES }} --tests --profile coverage
+        run: just coverage-test
       - name: Generate code coverage
-        run: |
-          ~/.cargo/bin/grcov . \
-            --llvm-path /usr/bin \
-            --binary-path target/coverage \
-            --ignore-not-existing \
-            --output-type files \
-            --excl-start 'cov:\s*excl-start' \
-            --excl-stop 'cov:\s*excl-stop' \
-            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*cov:\s*excl-line)' \
-            --ignore '**/examples/*' \
-            --ignore '/*' \
-            --ignore '[a-zA-Z]:/*' \
-            --source-dir . | sort -u
-
-          ~/.cargo/bin/grcov . \
-            --branch \
-            --llvm-path /usr/bin \
-            --binary-path target/coverage \
-            --ignore-not-existing \
-            --output-type lcov \
-            --source-dir . \
-            --excl-start 'cov:\s*excl-start' \
-            --excl-stop 'cov:\s*excl-stop' \
-            --excl-line '^\s*((debug_)?assert(_eq|_ne)?!|#\[derive\(|.*cov:\s*excl-line)' \
-            --ignore '**/examples/*' \
-            --ignore '/*' \
-            --ignore '[a-zA-Z]:/*' \
-            --output-path lcov.info && test -e lcov.info
+        run: just coverage-report
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v4
         with:
           files: lcov.info
           fail_ci_if_error: false
     env:
-      RUSTFLAGS: "-C instrument-coverage"
-      LLVM_PROFILE_FILE: "fundu_coverage-%p-%m.profraw"
       RUST_BACKTRACE: "0"
 
   fuzzing:
@@ -294,6 +255,7 @@ jobs:
           components: llvm-tools
       - name: Prepare
         run: cargo install cargo-fuzz rustfilt
+      - uses: taiki-e/install-action@just
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.test.fuzz_target }}
@@ -301,43 +263,18 @@ jobs:
             ${{ matrix.test.package }}/fuzz -> target
           cache-on-failure: true
       - name: Run fuzzing for 5 minutes
-        run: |
-          dict="dicts/${{ matrix.test.fuzz_target }}.dict"
-          if test -e "$dict"; then
-            cargo fuzz run --all-features ${{ matrix.test.fuzz_target }} -- \
-              -max_total_time=300 \
-              -print_final_stats=1 \
-              -print_corpus_stats=1 \
-              -verbosity=2 \
-              -dict="$dict"
-          else
-            cargo fuzz run --all-features ${{ matrix.test.fuzz_target }} -- \
-              -max_total_time=300 \
-              -print_final_stats=1 \
-              -print_corpus_stats=1 \
-              -verbosity=2
-          fi
+        run: just fuzz-run "${{ matrix.test.package }}" "${{ matrix.test.fuzz_target }}" "300"
       - name: Create coverage.profdata
-        run: cargo fuzz coverage ${{ matrix.test.fuzz_target }}
+        run: just fuzz-coverage "${{ matrix.test.package }}" "${{ matrix.test.fuzz_target }}"
       - name: Create lcov coverage report
-        run: |
-          llvm_cov_bin="$(realpath -e "$(rustc --print target-libdir)"/../bin/llvm-cov)"
-          $llvm_cov_bin export \
-            target/x86_64-unknown-linux-gnu/coverage/x86_64-unknown-linux-gnu/release/${{ matrix.test.fuzz_target }} \
-            --instr-profile=coverage/${{ matrix.test.fuzz_target }}/coverage.profdata \
-            --format=lcov \
-            --ignore-filename-regex='/rustc/.*|\.cargo/registry/.*|fuzz/fuzz_targets/.*' \
-            -Xdemangler='rustfilt' > lcov.info
+        run: just fuzz-report "${{ matrix.test.package }}" "${{ matrix.test.fuzz_target }}"
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v4
         with:
-          files: lcov.info
+          files: ${{ matrix.test.package }}/fuzz/lcov.info
           name: ${{ matrix.test.package }}-${{ matrix.test.fuzz_target }}
           override_branch: fuzzy-testing
           fail_ci_if_error: false
-    env:
-      RUSTFLAGS: "-C instrument-coverage"
-      LLVM_PROFILE_FILE: "fundu_fuzzy_coverage-%p-%m.profraw"
 
   benchmarks:
     needs: [base, cross]
@@ -352,6 +289,7 @@ jobs:
       - name: Install gungraun-runner and Valgrind
         uses: gungraun/setup-gungraun@v1
       - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@just
       - name: Download reference benchmarks
         if: ${{ !inputs.resetBenchmarks }}
         uses: dawidd6/action-download-artifact@v6
@@ -361,14 +299,7 @@ jobs:
           check_artifacts: true
           if_no_artifact_found: warn
       - name: Run gungraun benchmarks
-        run: |
-          benches=$(cargo metadata --no-deps --format-version=1 |\
-            jq '.packages[].targets[] | select(any(.kind[]; . == "bench") and (."required-features" and any(."required-features"[]; . == "with-gungraun"))) | .name' |\
-            tr -d '"'
-          )
-          args=()
-          while IFS=$'\n' read -r bench; do args+=(--bench); args+=("$bench"); done <<<"$benches"
-          cargo bench --all-features ${args[@]}
+        run: just bench
       - uses: actions/upload-artifact@v7
         with:
           name: gungraun-benchmarks
@@ -398,6 +329,7 @@ jobs:
       #     cache-directories: /home/runner/.cache/miri
       - uses: taiki-e/install-action@cross
         if: matrix.target != 'x86_64-unknown-linux-gnu'
+      - uses: taiki-e/install-action@just
       - name: Info
         run: |
           set -x
@@ -406,27 +338,9 @@ jobs:
           rustup show
           rustup component list --installed
           cargo --list
-      - name: Setup cross/miri
-        run: |
-          cargo miri setup
-
-          case ${{ matrix.target }} in
-            x86_64-unknown-linux-gnu )
-              ;;
-            * )
-              cat <<EOF | tee Cross.toml
-          [build.env]
-          passthrough = ["CI", "RUST_BACKTRACE", "CARGO_TERM_COLOR", "CARGO_REGISTRIES_CRATES_IO_PROTOCOL", "CARGO_INCREMENTAL"]
-          EOF
-              ;;
-          esac
-      - name: Test with miri
-        run: |
-          case ${{ matrix.target }} in
-            x86_64-unknown-linux-gnu )
-              cargo miri test --features ${{ env.FEATURES }}
-              ;;
-            * )
-              cross miri test --features ${{ env.FEATURES }} --target ${{ matrix.target }}
-              ;;
-          esac
+      - name: Test with native Miri
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: just miri
+      - name: Test with cross Miri
+        if: matrix.target != 'x86_64-unknown-linux-gnu'
+        run: just cross-miri "${{ matrix.target }}"
