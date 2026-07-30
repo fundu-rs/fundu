@@ -223,7 +223,7 @@ jobs:
       - name: Generate code coverage
         run: just coverage-report
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: lcov.info
           fail_ci_if_error: false
@@ -269,7 +269,7 @@ jobs:
       - name: Create lcov coverage report
         run: just fuzz-report "${{ matrix.test.package }}" "${{ matrix.test.fuzz_target }}"
       - name: Upload to codecov.io
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: ${{ matrix.test.package }}/fuzz/lcov.info
           name: ${{ matrix.test.package }}-${{ matrix.test.fuzz_target }}
