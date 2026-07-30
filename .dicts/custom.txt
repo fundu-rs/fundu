@@ -118,3 +118,7 @@ ymdhmsno
 мілісекунда
 наносекунд
 gungraun
+pipefail
+profraw
+RUSTFLAGS
+mktemp
