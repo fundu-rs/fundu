@@ -292,7 +292,7 @@ jobs:
       - uses: taiki-e/install-action@just
       - name: Download reference benchmarks
         if: ${{ !inputs.resetBenchmarks }}
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           workflow_conclusion: success
           name: gungraun-benchmarks
