@@ -1,7 +1,7 @@
 [tool.bumpversion]
 current_version = "0.4.1"
 commit = true
-tag = true
+tag = false
 tag_name = "fundu-gnu-v{new_version}"
 message = "Bump fundu-gnu version v{current_version} -> v{new_version}"
 
