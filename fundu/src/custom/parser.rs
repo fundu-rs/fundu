@@ -768,6 +768,8 @@ impl<'a> CustomDurationParser<'a> {
     ///
     /// assert_eq!(parser.parse("+##1.5h"), Ok(Duration::positive(5400, 0)));
     /// ```
+    ///
+    /// [`NumbersLike`]: fundu_core::config::NumbersLike
     pub fn set_inner_delimiter(&mut self, delimiter: Delimiter) -> &mut Self {
         self.inner.config.inner_delimiter = delimiter;
         self

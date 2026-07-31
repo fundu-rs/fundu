@@ -45,7 +45,7 @@ doc-test:
 # Build documentation with stable Rust
 [group('documentation')]
 doc:
-    cargo +stable doc --all-features --no-deps --document-private-items
+    DOCS_RS=1 cargo doc --all-features --no-deps --workspace --document-private-items
 
 # Build a target with Cross and a temporary configuration (Uses: 'cross')
 [group('cross')]
