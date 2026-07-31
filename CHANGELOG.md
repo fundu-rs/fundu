@@ -26,6 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-07-31
+
+### Fixed
+
+- Correct feature-gating documentation on docs.rs
+- Fix broken rustdoc link for `NumbersLike`
+
+## [2.1.0] - 2026-07-31
+
+### Changed
+
+- Bump MSRV from `1.66.0` to `1.85.0`
+- Update Rust edition to 2024 and workspace resolver to v3
+- Update dependencies
+
 ## [2.0.1] - 2024-09-07
 
 ### Changed
