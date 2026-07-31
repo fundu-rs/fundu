@@ -5,30 +5,29 @@
  https://opensource.org/licenses/MIT
 -->
 
-<h1 align="center">Fast and precise systemd time span parser of rust strings to a Duration</h1>
-<div align="center">
-    <a href="https://docs.rs/crate/fundu-systemd/">fundu-systemd Docs</a>
-    |
-    <a href="https://github.com/fundu-rs/fundu/blob/main/CHANGELOG.md">Changelog</a>
-</div>
-<br>
-<div align="center">
-    <a href="https://github.com/fundu-rs/fundu/actions">
-        <img src="https://github.com/fundu-rs/fundu/actions/workflows/cicd.yml/badge.svg" alt="GitHub branch checks state"/>
-    </a>
-    <a href="https://codecov.io/gh/fundu-rs/fundu" >
-        <img src="https://codecov.io/gh/fundu-rs/fundu/branch/main/graph/badge.svg?token=7GOQ1A6UPH"/>
-    </a>
-    <a href="https://crates.io/crates/fundu-systemd">
-        <img src="https://img.shields.io/crates/v/fundu-systemd.svg" alt="Crates.io"/>
-    </a>
-    <a href="https://docs.rs/fundu-systemd/">
-        <img src="https://docs.rs/fundu-systemd/badge.svg" alt="docs.rs"/>
-    </a>
-    <a href="https://github.com/rust-lang/rust">
-        <img src="https://img.shields.io/badge/MSRV-1.85.0-brightgreen" alt="MSRV"/>
-    </a>
-</div>
+<h1 align="center">Fundu Systemd</h1>
+
+Fast and precise systemd time span parser of rust strings to a Duration
+
+[API Docs] | [Changelog]<br>
+[![Github action][github-action-badge]][github-action-url]
+[![Codecov][codecov-badge]][codecov-url]
+[![Crates.io][crates-io-badge]][crates-io-url]
+[![docs.rs][docs-rs-badge]][docs-rs-url]
+[![MSRV][msrv-badge]][msrv-url]
+
+[API Docs]: https://docs.rs/crate/fundu-systemd/
+[Changelog]: https://github.com/fundu-rs/fundu/blob/main/CHANGELOG.md
+[github-action-badge]: https://github.com/fundu-rs/fundu/actions/workflows/cicd.yml/badge.svg
+[github-action-url]: https://github.com/fundu-rs/fundu/actions/workflows/cicd.yml
+[codecov-badge]: https://codecov.io/gh/fundu-rs/fundu/branch/main/graph/badge.svg?token=7GOQ1A6UPH
+[codecov-url]: https://codecov.io/gh/fundu-rs/fundu
+[crates-io-badge]: https://img.shields.io/crates/v/fundu-systemd.svg
+[crates-io-url]: https://crates.io/crates/fundu-systemd
+[docs-rs-badge]: https://docs.rs/fundu-systemd/badge.svg
+[docs-rs-url]: https://docs.rs/fundu-systemd/
+[msrv-badge]: https://img.shields.io/badge/MSRV-1.85.0-brightgreen
+[msrv-url]: https://github.com/rust-lang/rust
 
 ## Table of Contents
 
@@ -87,7 +86,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-fundu-systemd = "0.3.1"
+fundu-systemd = "0.4.0"
 ```
 
 or install with `cargo add fundu-systemd`.

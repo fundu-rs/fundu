@@ -1,0 +1,21 @@
+[tool.bumpversion]
+current_version = "0.4.0"
+commit = true
+tag = true
+tag_name = "fundu-core-v{new_version}"
+message = "Bump fundu-core version v{current_version} -> v{new_version}"
+
+[[tool.bumpversion.files]]
+filename = "fundu-gnu/Cargo.toml"
+search = 'fundu-core = {{ path = "../fundu-core", version = "={current_version}" }}'
+replace = 'fundu-core = {{ path = "../fundu-core", version = "={new_version}" }}'
+
+[[tool.bumpversion.files]]
+filename = "fundu/Cargo.toml"
+search = 'fundu-core = {{ path = "../fundu-core", version = "={current_version}" }}'
+replace = 'fundu-core = {{ path = "../fundu-core", version = "={new_version}" }}'
+
+[[tool.bumpversion.files]]
+filename = "fundu-core/Cargo.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
