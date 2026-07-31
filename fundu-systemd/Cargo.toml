@@ -21,7 +21,7 @@ with-flamegraph = ["fundu/with-flamegraph"]
 with-gungraun = ["fundu/with-gungraun"]
 
 [dependencies]
-fundu = { path = "../fundu", version = "=2.1.0", default-features = false, features = [
+fundu = { path = "../fundu", version = "=2.1.1", default-features = false, features = [
   "base",
 ] }
 
