@@ -107,7 +107,7 @@ Add this to `Cargo.toml` for `fundu` with the `standard` feature.
 
 ```toml
 [dependencies]
-fundu = "2.1.0"
+fundu = "2.1.1"
 ```
 
 fundu is split into three main features, `standard` (providing `DurationParser` and
@@ -119,7 +119,7 @@ parsers is needed. For example, to include only the `CustomDurationParser` add t
 
 ```toml
 [dependencies]
-fundu = { version = "2.1.0", default-features = false, features = ["custom"] }
+fundu = { version = "2.1.1", default-features = false, features = ["custom"] }
 ```
 
 Activating the `chrono` or `time` feature provides a `TryFrom` and `SaturatingInto` implementation

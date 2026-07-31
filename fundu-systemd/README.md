@@ -86,7 +86,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-fundu-systemd = "0.4.0"
+fundu-systemd = "0.4.1"
 ```
 
 or install with `cargo add fundu-systemd`.
