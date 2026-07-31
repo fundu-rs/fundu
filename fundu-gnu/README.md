@@ -91,7 +91,7 @@ Add this to `Cargo.toml`
 
 ```toml
 [dependencies]
-fundu-gnu = "0.4.0"
+fundu-gnu = "0.4.1"
 ```
 
 or install with `cargo add fundu-gnu`.
