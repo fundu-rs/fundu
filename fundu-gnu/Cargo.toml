@@ -21,7 +21,7 @@ with-gungraun = []
 with-flamegraph = []
 
 [dependencies]
-fundu-core = { path = "../fundu-core", version = "=0.3.1" }
+fundu-core = { path = "../fundu-core", version = "=0.4.0" }
 chrono = { workspace = true, optional = true }
 serde = { workspace = true, optional = true, features = ["derive"] }
 time = { workspace = true, optional = true, features = ["large-dates"] }
