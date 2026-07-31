@@ -30,38 +30,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Bump MSRV from `1.64.0` to `1.66.0`
+- Bump MSRV from `1.64.0` to `1.66.0`
 
 ## [0.3.0] - 2023-08-07
 
 ### Added
 
-* Parse numerals like `next`, `last`, `this`, `first`, `third` etc.
+- Parse numerals like `next`, `last`, `this`, `first`, `third` etc.
 
 ### Changed
 
-* Time units (like `sec`), keywords (like `yesterday`) and numerals (like `next`) are now parsed
-case insensitive
-* The parsing speed was improved significantly
+- Time units (like `sec`), keywords (like `yesterday`) and numerals (like `next`) are now parsed
+  case insensitive
+- The parsing speed was improved significantly
 
 ## [0.2.0] - 2023-07-09
 
 ### Added
 
-* Parsing of fuzzy `year` and `month` time units (#29)
+- Parsing of fuzzy `year` and `month` time units (#29)
 
 ### Changed
 
-* A sign character can now also indicate a new duration (#24)
-* A leading sign character can now be delimited by whitespace from the number or time keyword (#28)
-* Bump fundu-core dependency from `v0.1.0` to `v0.2.0`
+- A sign character can now also indicate a new duration (#24)
+- A leading sign character can now be delimited by whitespace from the number or time keyword (#28)
+- Bump fundu-core dependency from `v0.1.0` to `v0.2.0`
 
 ### Fixed
 
-* A single sign character was interpreted as a duration of 1 second (#32)
+- A single sign character was interpreted as a duration of 1 second (#32)
 
 ## [0.1.0] - 2023-06-26
 
 ### Added
 
-* Initial release of `fundu-gnu`
+- Initial release of `fundu-gnu`
